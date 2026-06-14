@@ -1,0 +1,292 @@
+# Agent: Delivery Owner — GitOps, Progressive Delivery, Kafka Wiring
+
+## Scope
+
+Primary ownership of:
+- **Configuration repository** layout, structure, and integrity
+- **Argo CD** installation, Application definition, sync/health lifecycle
+- **GitOps delivery loop**: CI → config-repo commit → Argo CD reconcile → cluster
+- **Progressive delivery**: canary and blue/green strategies via `TraefikService`
+- **Strimzi / Kafka wiring**: operator installation, `Kafka` CR, `KafkaTopic` CRs, producer/consumer connection secrets
+- **Sealed Secrets** bootstrap and the sealing workflow used by all teammates
+- **Platform bootstrap manifests** (Traefik, cert-manager, Argo CD, Sealed Secrets, Strimzi, Chaos Mesh)
+
+Cross-cutting awareness (not primary owner, but must understand end-to-end):
+- Kubernetes probe semantics (how readiness gates interact with canary traffic split)
+- Observability pipeline (ServiceMonitor, PrometheusRule — I review these before merge)
+- Chaos experiment scheduling (I coordinate timing so experiments don't conflict with active canary rollouts)
+- CloudNativePG failover behaviour (affects RTO claims in chaos experiment reports)
+
+---
+
+## Decisions made
+
+### Two-repository split
+**Decision:** strict separation — application repo owns source + CI; configuration repo owns desired state only.
+**Rationale:** CI must never hold cluster credentials. Argo CD reads config-repo from inside the cluster. This split is the course requirement and was established in Lab03/Lab04.
+
+### CI does not deploy directly
+**Decision:** CI workflow ends by committing a tag bump to `deploy/charts/eurotransit/values.yaml` in the config-repo and pushing. Argo CD detects the diff and reconciles.
+**Rationale:** Direct `kubectl apply` or `helm upgrade` from CI requires cluster credentials in GitHub Actions, which is explicitly forbidden by the capstone spec.
+
+### Image tagging strategy
+**Decision:** short Git SHA (`${GITHUB_SHA::7}`) for all images pushed to ACR.
+**Rationale:** immutable, traceable, zero ambiguity. Semantic versioning is for production releases; we are in a course dev environment.
+
+### Argo CD sync policy
+**Decision:** `automated.selfHeal: true`, `automated.prune: true`.
+**Rationale:** Git is the single source of truth. Any manual drift must be corrected automatically. `prune: true` ensures stale resources do not accumulate when templates are removed.
+
+### Rollback mechanism
+**Decision:** rollback = `git revert <commit>` on config-repo + push. Never `kubectl rollout undo`.
+**Rationale:** With `selfHeal: true`, an out-of-band rollback is treated as drift and corrected. Git revert is the only safe rollback path.
+
+### Progressive delivery implementation
+**Decision:** canary via `TraefikService` weighted routing; blue/green via switching the Ingress backend service reference.
+**Rationale:** Traefik is already the cluster ingress; no additional controller needed.
+
+### Kafka deployment
+**Decision:** Strimzi operator, single-broker for development, 3-broker for production topology. Topics created as `KafkaTopic` custom resources (not auto-created).
+**Rationale:** Operator-managed topics are declarative, versionable, and survive broker restarts. Auto-creation is disabled to prevent silent topic proliferation.
+
+### Sealed Secrets scope
+**Decision:** strict scope (`--scope strict`) — each SealedSecret is bound to a specific name + namespace.
+**Rationale:** prevents accidental reuse of a sealed value in a different namespace. Breaking decryption on rename is a feature, not a bug.
+
+---
+
+## Constraints and invariants
+
+**Do NOT change without discussing with me:**
+
+1. **The CI workflow must not contain `kubectl` or `helm upgrade` commands targeting the cluster.** Any PR adding cluster credentials to GitHub Actions secrets or adding direct deploy steps will be rejected.
+
+2. **`selfHeal` and `prune` in the Argo CD Application must stay `true`.** Disabling either turns the config-repo into a suggestion rather than a source of truth.
+
+3. **All Kafka topics must be declared as `KafkaTopic` CRs in the config-repo**, not created programmatically in application code. Topic names are fixed:
+   - `order-placed`
+   - `inventory-reserved`
+   - `payment-authorized`
+   - `order-confirmed`
+   - `notification-requested`
+
+4. **`TraefikService` canary weights are the only mechanism for canary traffic splitting.** Do not introduce a service mesh or another ingress controller for this purpose.
+
+5. **Image tags in `values.yaml` are updated only by the CI bot commit** (`github-actions[bot]`). Manual edits to image tags in `values.yaml` are allowed only for emergency hotfixes, documented in `docs/agent-log.md`.
+
+6. **Sealed Secrets controller namespace is `sealed-secrets`.** The controller name is `sealed-secrets`. These values are baked into every `kubeseal` invocation in the justfile; changing them breaks all existing sealed manifests.
+
+7. **The Argo CD Application points to `deploy/charts/eurotransit/` in the config-repo `main` branch.** Changing the path or branch requires updating the Application CR and re-syncing — coordinate with the team first.
+
+---
+
+## How to contribute to my area
+
+### Touching the Helm chart (`deploy/charts/eurotransit/`)
+- Run `helm lint deploy/charts/eurotransit/` before opening a PR
+- Run `helm template eurotransit deploy/charts/eurotransit/ --namespace eurotransit | kubectl apply --dry-run=client -f -` to catch manifest errors
+- Do not hardcode image tags — use `{{ .Values.<service>.image.tag }}`
+- Every new template file needs a corresponding entry in `values.yaml` with safe defaults
+- If you add a new secret dependency, seal it first and commit only the `SealedSecret`
+
+### Touching the CI workflow (`.github/workflows/ci.yml` in app-repo)
+- The `update-gitops` job must use `CONFIG_REPO_PAT` (not `GITHUB_TOKEN`) for cross-repo write access
+- Never add `az aks get-credentials`, `kubectl`, or `helm upgrade` steps targeting the real cluster
+- If you change the `yq` path to `values.yaml`, verify it matches the actual YAML key path
+
+### Opening a PR that adds a Kafka topic
+1. Add the `KafkaTopic` CR in `deploy/charts/eurotransit/templates/kafka-topics/`
+2. Add the topic name to the table in `docs/design/kafka-topics.md`
+3. Confirm with the async/domain owner that consumer group IDs and offsets are correct
+
+### Progressive delivery changes
+- Canary PRs must include the `TraefikService` manifest AND the revised `values.yaml` weight
+- Blue/green switch PRs must keep the old Deployment present (with 0 weight or unreferenced) until the PR is validated in demo
+- Record the delivery strategy used in `docs/capstone-dod.md` under Pillar D
+
+### Review checklist for PRs touching my area
+- [ ] No cluster credentials in GitHub Actions
+- [ ] `helm lint` passes
+- [ ] All new secrets are `SealedSecret`, not `Secret`
+- [ ] Kafka topics are declared as CRs, not created in code
+- [ ] Image tag references use `{{ .Values... }}`, not literals
+- [ ] `selfHeal` and `prune` untouched in the Argo CD Application CR
+
+---
+
+## Open questions
+
+- **Kafka replication factor in dev** — single-broker means `replication.factor=1`. This is acceptable for dev but must be flagged clearly. Should we add a `min.insync.replicas=1` override or accept the Strimzi default?
+
+- **Argo CD AppProject** — should we create a scoped `AppProject` to limit blast radius (bonus from Lab04)? It restricts Argo CD to only reconcile our namespace and repo. Low effort, good practice.
+
+- **Webhook vs polling for Argo CD sync trigger** — default polling is every 3 min + jitter. A GitHub webhook (config-repo → Argo CD `/api/webhook`) reduces lag to seconds. Worth adding before the demo.
+
+- **Canary promotion criteria** — the capstone says "watch SLIs, promote or abort" but does not define the threshold. This must be agreed with the Observability owner before the canary demo. Proposed: error rate < 1% and p95 < 300ms over 5 minutes.
+
+- **Strimzi version pin** — which Strimzi version are we using? Must be recorded in `platform/strimzi/` values file to avoid accidental upgrades.
+
+- **Blue/green cleanup timing** — how long do we keep the old Deployment around after switching traffic? Need to define a policy (e.g. one successful health check cycle = 5 minutes).
+
+---
+
+## Useful context for AI
+
+When generating artifacts in this area, the following context is fixed and must not be changed:
+
+### Argo CD Application (canonical form)
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eurotransit
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/polito-CPO-2026/<config-repo-name>.git
+    targetRevision: main
+    path: deploy/charts/eurotransit
+    helm:
+      releaseName: eurotransit
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eurotransit
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+```
+
+### Canary TraefikService pattern
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: TraefikService
+metadata:
+  name: eurotransit-orders-canary
+  namespace: eurotransit
+spec:
+  weighted:
+    services:
+      - name: eurotransit-orders-stable
+        port: 80
+        weight: 90
+      - name: eurotransit-orders-canary
+        port: 80
+        weight: 10
+```
+Ingress must reference this `TraefikService` via `service.name` with `kind: TraefikService` annotation.
+
+### Kafka topic CR pattern
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: order-placed
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  partitions: 3
+  replicas: 1          # 1 for dev, 3 for production
+  config:
+    retention.ms: 604800000   # 7 days
+    min.insync.replicas: "1"
+```
+
+### CI update-gitops job (canonical snippet)
+```yaml
+- name: Update image tags in config-repo
+  run: |
+    yq e '.<service>.image.tag = "${{ needs.detect-changes.outputs.short_sha }}"' \
+      -i gitops/deploy/charts/eurotransit/values.yaml
+- name: Commit and push
+  run: |
+    cd gitops
+    git config user.name "github-actions[bot]"
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git add deploy/charts/eurotransit/values.yaml
+    git diff --cached --quiet && exit 0
+    git commit -m "ci: bump <service> image tag to ${{ needs.detect-changes.outputs.short_sha }}"
+    git push
+```
+The `CONFIG_REPO_PAT` secret (fine-grained PAT, contents read+write on config-repo only) must be set in the application-repo GitHub Actions secrets. Never use `GITHUB_TOKEN` for cross-repo writes.
+
+### Sealing workflow (justfile recipe used by all teammates)
+```bash
+# Usage: just seal <secret-name> <namespace>
+# Requires: kubeseal installed, sealed-secrets controller running
+seal name namespace:
+  kubectl create secret generic {{name}} \
+    --namespace {{namespace}} \
+    --from-env-file=.env.{{name}} \
+    --dry-run=client -o yaml \
+  | kubeseal \
+      --controller-name sealed-secrets \
+      --controller-namespace sealed-secrets \
+      --scope strict \
+      --format yaml \
+  > deploy/charts/eurotransit/templates/sealedsecret-{{name}}.yaml
+```
+
+### Namespace and release name
+- Application namespace: `eurotransit`
+- Helm release name: `eurotransit`
+- Argo CD namespace: `argocd`
+- Monitoring namespace: `monitoring`
+- Sealed Secrets namespace: `sealed-secrets`
+- Strimzi namespace: `strimzi-system`
+- Kafka cluster name (Strimzi CR): `eurotransit-kafka`
+- Kafka bootstrap service: `eurotransit-kafka-kafka-bootstrap:9092` (internal)
+
+### values.yaml image tag section (canonical shape)
+```yaml
+catalog:
+  image:
+    repository: <acr>.azurecr.io/eurotransit/catalog
+    tag: "latest"       # overwritten by CI bot on every push to main
+orders:
+  image:
+    repository: <acr>.azurecr.io/eurotransit/orders
+    tag: "latest"
+inventory:
+  image:
+    repository: <acr>.azurecr.io/eurotransit/inventory
+    tag: "latest"
+payments:
+  image:
+    repository: <acr>.azurecr.io/eurotransit/payments
+    tag: "latest"
+notifications:
+  image:
+    repository: <acr>.azurecr.io/eurotransit/notifications
+    tag: "latest"
+```
+
+### Rollback procedure (for AI-generated runbooks)
+```bash
+# 1. Find the last known-good commit in config-repo
+git log --oneline -- deploy/charts/eurotransit/values.yaml
+
+# 2. Revert the bad commit
+git revert <bad-commit-sha>
+git push
+
+# 3. Argo CD detects diff → becomes OutOfSync → reconciles to reverted state
+# Watch:
+kubectl get application -n argocd eurotransit -w
+kubectl rollout status deployment/eurotransit-orders -n eurotransit
+```
+
+### What "Synced and Healthy" means in this project
+- **Synced:** live cluster state matches the Helm-rendered manifests from `main` in config-repo
+- **Healthy:** all Deployments have minimum available replicas; all Pods pass readiness; CloudNativePG cluster is `Ready`; Kafka cluster is `Ready`
+- A service can be Synced but Unhealthy (e.g. bad image tag → CrashLoopBackOff) — treat this as a deployment failure requiring rollback

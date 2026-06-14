@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(deploy/charts/**)",
+      "Write(platform/**)",
+      "Write(docs/**)",
+      "Write(.agent/**)",
+      "Bash(helm lint *)",
+      "Bash(helm template *)",
+      "Bash(helm dependency update *)",
+      "Bash(helm dependency build *)",
+      "Bash(kubectl * --dry-run=client *)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git status)",
+      "Bash(git show *)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*-not-to-be-versioned*)",
+      "Write(.env*)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(.github/CODEOWNERS)",
+      "Write(.claude/settings.json)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(kubectl apply *)",
+      "Bash(kubectl delete *)",
+      "Bash(kubectl edit *)",
+      "Bash(kubectl patch *)",
+      "Bash(helm upgrade *)",
+      "Bash(helm install *)",
+      "Bash(helm uninstall *)",
+      "Bash(helm rollback *)",
+      "Bash(az *)",
+      "Bash(kubeseal *)",
+      "Bash(argocd *)",
+      "Bash(rm -rf *)",
+      "Bash(curl * | bash *)",
+      "Bash(wget * | bash *)"
+    ]
+  }
+}
