@@ -4,6 +4,9 @@
 #brew install just 
 #cargo install just
 
+
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
 #creating the local k3d cluster using declarative configuration
 up:
     @echo "Creating the local k3d cluster..."
