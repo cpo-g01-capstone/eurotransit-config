@@ -1,0 +1,60 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: order-placed
+  labels:
+    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000   #7 days
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: inventory-reserved
+  labels:
+    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: payment-authorized
+  labels:
+    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: order-confirmed
+  labels:
+    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: notification-requested
+  labels:
+    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 86400000        #1 day(Pillar A)

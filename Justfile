@@ -19,3 +19,6 @@ down:
 status:
     kubectl get nodes -o wide
     kubectl get pods -A
+
+deploy-topics:
+    kubectl apply -f kafka-topics/
