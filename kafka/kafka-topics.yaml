@@ -3,7 +3,7 @@ kind: KafkaTopic
 metadata:
   name: order-placed
   labels:
-    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+    strimzi.io/cluster: test-eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
 spec:
   partitions: 3
   replicas: 1
@@ -16,7 +16,7 @@ kind: KafkaTopic
 metadata:
   name: inventory-reserved
   labels:
-    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+    strimzi.io/cluster: test-eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
 spec:
   partitions: 3
   replicas: 1
@@ -28,7 +28,7 @@ kind: KafkaTopic
 metadata:
   name: payment-authorized
   labels:
-    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+    strimzi.io/cluster: test-eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
 spec:
   partitions: 3
   replicas: 1
@@ -40,7 +40,7 @@ kind: KafkaTopic
 metadata:
   name: order-confirmed
   labels:
-    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+    strimzi.io/cluster: test-eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
 spec:
   partitions: 3
   replicas: 1
@@ -52,7 +52,7 @@ kind: KafkaTopic
 metadata:
   name: notification-requested
   labels:
-    strimzi.io/cluster: eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
+    strimzi.io/cluster: test-eurotransit-kafka-cluster #ATTENTION: must correspond to the name of the Kafka Strimzi cluster
 spec:
   partitions: 3
   replicas: 1
