@@ -1,0 +1,127 @@
+# ==============================================================================
+# EuroTransit — Helm values
+#
+# Defaults target local k3d. Azure overrides belong in a separate values file
+# or in the Argo CD Application's helm.values block — never edit this file
+# per-environment.
+#
+# CI bumps the `tag` field under each service's `image` block.
+# Everything else changes only when the team deliberately decides to.
+# ==============================================================================
+
+global:
+  # Set to ACR hostname for AKS: "myacr.azurecr.io"
+  imageRegistry: ""
+  # Set to [{name: acr-pull-secret}] for AKS
+  imagePullSecrets: []
+
+# ------------------------------------------------------------------------------
+# Catalog — read-heavy, tolerant of staleness, no DB
+# ------------------------------------------------------------------------------
+catalog:
+  image:
+    repository: eurotransit/catalog
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# ------------------------------------------------------------------------------
+# Orders — synchronous entry point, publishes to Kafka, owns the DB
+# ------------------------------------------------------------------------------
+orders:
+  image:
+    repository: eurotransit/orders
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  db:
+    # Name of the CloudNativePG-generated secret (<cluster>-app)
+    secretName: "eurotransit-orders-db-app"
+    # Primary (read-write) service endpoint
+    host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
+    port: "5432"
+    name: "ordersdb"
+
+# ------------------------------------------------------------------------------
+# Inventory — contended resource, must never oversell
+# ------------------------------------------------------------------------------
+inventory:
+  image:
+    repository: eurotransit/inventory
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# ------------------------------------------------------------------------------
+# Payments — strict idempotency, must not double-charge
+# ------------------------------------------------------------------------------
+payments:
+  image:
+    repository: eurotransit/payments
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# ------------------------------------------------------------------------------
+# Notifications — fully async; failure must degrade gracefully
+# ------------------------------------------------------------------------------
+notifications:
+  image:
+    repository: eurotransit/notifications
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ------------------------------------------------------------------------------
+# Kafka (Strimzi cluster in the same namespace)
+# ------------------------------------------------------------------------------
+kafka:
+  bootstrapServers: "eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092"
+
+# ------------------------------------------------------------------------------
+# Ingress
+# Override host per environment. TLS is off locally; set tls: true for AKS.
+# ------------------------------------------------------------------------------
+ingress:
+  host: "eurotransit.local"
+  tls: false
+  tlsSecretName: "eurotransit-tls"

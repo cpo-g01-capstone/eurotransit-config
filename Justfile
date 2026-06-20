@@ -52,3 +52,44 @@ deploy-postgres:
 #one-shot bootstrap: cluster + operator + topics + postgres, in the right order with the right waits
 bootstrap: up install-operator deploy-topics deploy-postgres
     @echo "EuroTransit cluster fully bootstrapped."
+
+# --------------------------------------------------------------------------
+# Helm chart verification
+# --------------------------------------------------------------------------
+
+CHART := "deploy/charts/eurotransit"
+
+# Render all templates and check for syntax errors
+helm-template:
+    @echo "Rendering Helm templates..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit > /dev/null
+    @echo "OK: templates render without errors."
+
+# Run helm lint against the chart
+helm-lint:
+    @echo "Linting Helm chart..."
+    helm lint {{ CHART }} --strict
+    @echo "OK: lint passed."
+
+# Render templates and run a client-side dry-run against the local k3d cluster.
+# Requires: just up (k3d cluster must be running)
+# For CRD validation (ServiceMonitor, IngressRoute, etc.) also run: just bootstrap
+helm-dry-run:
+    @echo "Checking k3d cluster is reachable..."
+    kubectl --context k3d-eurotransit-cluster cluster-info > /dev/null
+    @echo "Running client-side dry-run against k3d..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | kubectl --context k3d-eurotransit-cluster apply --dry-run=client -f -
+    @echo "OK: dry-run passed."
+
+# Render and check that no plaintext Secret manifests were generated
+helm-check-secrets:
+    @echo "Checking for plaintext Secret manifests..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | grep -n "^kind: Secret" && echo "ERROR: plaintext Secret found — use SealedSecret" && exit 1 \
+        || echo "OK: no plaintext Secrets found."
+
+# Full offline check: lint + template render + no plaintext secrets
+# Run this before every commit; does not require a cluster.
+helm-verify: helm-lint helm-template helm-check-secrets
+    @echo "All offline checks passed."

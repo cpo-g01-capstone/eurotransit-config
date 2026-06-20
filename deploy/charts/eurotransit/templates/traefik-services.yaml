@@ -1,0 +1,35 @@
+# TraefikService resources for progressive delivery on the Orders service.
+#
+# Canary pattern:
+#   1. Deploy the new Orders version as a separate Deployment (eurotransit-orders-canary)
+#   2. Adjust canary.weight here (e.g. 10) to route a fraction of traffic to it
+#   3. Watch SLIs in Grafana; if error rate or p95 latency stays within SLO:
+#      - Promote: set stable weight to 100, canary to 0, delete canary Deployment
+#      - Abort: set canary weight to 0, delete canary Deployment
+#
+# Blue/Green pattern:
+#   1. Deploy the new version alongside the current one
+#   2. Switch the IngressRoute to point at the new service directly
+#   3. Keep the old Deployment until validated, then delete it
+
+apiVersion: traefik.io/v1alpha1
+kind: TraefikService
+metadata:
+  name: eurotransit-orders-weighted
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  weighted:
+    services:
+      # Stable track carries 100% of traffic by default.
+      # Reduce this weight during a canary rollout.
+      - name: eurotransit-orders
+        port: 80
+        weight: 100
+      # Canary track starts at 0. Create the canary Deployment and set weight > 0
+      # to begin routing traffic to it.
+      - name: eurotransit-orders-canary
+        port: 80
+        weight: 0

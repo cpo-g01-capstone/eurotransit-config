@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eurotransit-payments
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-payments
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-payments
+      app.kubernetes.io/instance: {{ .Release.Name }}

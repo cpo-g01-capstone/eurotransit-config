@@ -3,6 +3,14 @@
 This file is the authoritative reference for Claude Code (or any agentic coding assistant)
 working in this repository. Read it before generating any artifact, manifest, or code.
 
+## Role context (auto-loaded)
+
+This repository is owned by **@vojtech-n** (delivery owner — Helm charts, GitOps, platform bootstrap).
+Load the following files for role-specific decisions, invariants, and canonical YAML shapes:
+
+@.agent/agents/delivery-owner.md
+@docs/agents/vojtech.md
+
 ---
 
 ## Project overview

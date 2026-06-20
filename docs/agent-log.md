@@ -12,6 +12,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 1 | 2026-06-20 | CI / eurotransit-app | Wrong `paths-filter` globs for service modules |
 | 2 | 2026-06-19 | GitOps / eurotransit-config | Placeholder `TODO-TEAM` repo URL in Argo CD Applications |
 | 3 | 2026-06-20 | Delivery / docs vs CI | ACR documented but GHCR implemented in workflow |
+| 4 | 2026-06-20 | Delivery / Justfile | `helm-dry-run` claimed no cluster needed but always contacts API server |
 
 ---
 
@@ -100,3 +101,53 @@ registry, documented everywhere).
 Registry choice is a team decision, not something to split across “implementation”
 and “docs”. After any AI-generated CI change, grep both repos for the old registry
 string and align in the same PR.
+
+---
+
+## Case 4 — 2026-06-20 — `helm-dry-run` incorrectly described as cluster-free (eurotransit-config)
+
+**What the AI produced:**
+The `just helm-dry-run` recipe in the `Justfile` was initially generated with
+`kubectl apply --dry-run=server -f -`, then updated to `--dry-run=client`, and finally
+to `--dry-run=client --validate=false` — each iteration accompanied by a comment
+claiming the recipe required no cluster. The final version read:
+
+```just
+helm-dry-run:
+    @echo “Running offline dry-run (no cluster required)...”
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | kubectl apply --dry-run=client --validate=false -f -
+```
+
+**Why it was wrong:**
+`kubectl apply` always performs API group discovery against the configured server
+(`/api`, `/apis`) to determine resource types and namespacing — even with
+`--dry-run=client` and `--validate=false`. With the kubeconfig context pointing at
+an unreachable cluster (`lab02` AKS), the command fails immediately with DNS lookup
+errors. The recipe was not offline despite the comment saying otherwise.
+
+**How it was caught:**
+Running `just helm-dry-run` locally with the `lab02` kubeconfig context active
+(the previous course AKS cluster, no longer reachable) produced a wall of
+`couldn't get current server API group list` errors and a non-zero exit code.
+
+**How it was corrected:**
+The recipe was updated to explicitly target the local k3d cluster context
+(`--context k3d-eurotransit-cluster`) and to check the cluster is reachable first.
+`just helm-verify` (lint + template render + secret check) is the true offline gate;
+`just helm-dry-run` is documented as requiring `just up` first.
+
+```just
+helm-dry-run:
+    @echo “Checking k3d cluster is reachable...”
+    kubectl --context k3d-eurotransit-cluster cluster-info > /dev/null
+    @echo “Running client-side dry-run against k3d...”
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | kubectl --context k3d-eurotransit-cluster apply --dry-run=client -f -
+```
+
+**Lesson learned:**
+`kubectl apply --dry-run=client` is not offline — it requires API group discovery.
+The only truly cluster-free validation options are `helm lint`, `helm template`, and
+dedicated offline tools such as `kubeconform`. Never label a `kubectl`-based recipe
+as “no cluster required”.
