@@ -1,8 +1,13 @@
 # Workloads
 
-This directory will contain Argo CD applications for the EuroTransit Kotlin microservices:
+This directory contains Argo CD `Application` manifests for EuroTransit workloads and data infrastructure.
+
+## Microservices (planned)
 - Catalog
 - Orders
 - Inventory
 - Payments
 - Notifications
+
+## Data infrastructure
+- **`data-infrastructure.yaml`** — syncs `postgres/` (CloudNativePG `Cluster` for Orders DB, EM-16)

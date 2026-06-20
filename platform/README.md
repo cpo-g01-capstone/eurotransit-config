@@ -12,6 +12,9 @@ Planned / in-progress components:
 - kube-prometheus-stack ✅ (`kube-prometheus-stack.yaml`)
 - Chaos Mesh
 - Sealed Secrets ✅ (`sealed-secrets.yaml`)
+- CloudNativePG operator ✅ (`cloudnative-pg.yaml`)
+
+Orders DB cluster CR lives in `postgres/` (synced by `apps/data-infrastructure.yaml`).
 
 ## Monitoring — kube-prometheus-stack
 
