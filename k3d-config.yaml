@@ -6,7 +6,7 @@ servers: 1
 agents: 2                                       #worker nodes to test PodDisruptionBudget and topologySpreadConstraints of Pillar C
 image: rancher/k3s:v1.28.2-k3s1 
 ports:
-  - port: 8080:80                               #maps port 80 from the cluster to 8080 locally to avoid conflicts with system ports
+  - port: 8081:80                               #maps port 80 from the cluster to 8081 locally to avoid conflicts with system ports
     nodeFilters:
       - loadbalancer
   - port: 8443:443        
