@@ -41,6 +41,14 @@ deploy-topics:
     kubectl wait --for=condition=Established crd/kafkas.kafka.strimzi.io crd/kafkatopics.kafka.strimzi.io --timeout=60s
     kubectl apply -f kafka/ -n eurotransit
 
-#one-shot bootstrap: cluster + operator + topics, in the right order with the right waits
-bootstrap: up install-operator deploy-topics
+deploy-postgres:
+    @echo "Waiting for CloudNativePG CRD..."
+    kubectl wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=120s
+    kubectl apply -f postgres/
+    @echo "Waiting for Orders DB cluster to become Ready..."
+    kubectl wait --for=condition=Ready cluster/eurotransit-orders-db -n eurotransit --timeout=300s
+    @echo "Orders PostgreSQL cluster is ready. Secret: eurotransit-orders-db-app"
+
+#one-shot bootstrap: cluster + operator + topics + postgres, in the right order with the right waits
+bootstrap: up install-operator deploy-topics deploy-postgres
     @echo "EuroTransit cluster fully bootstrapped."
