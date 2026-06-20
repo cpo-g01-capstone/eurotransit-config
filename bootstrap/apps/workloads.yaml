@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/TODO-TEAM/eurotransit-config.git' # TO BE CHANGED
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     targetRevision: HEAD
     path: apps
   destination:

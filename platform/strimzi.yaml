@@ -1,18 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform
+  name: strimzi
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    repoURL: 'https://strimzi.io/charts/'
     targetRevision: HEAD
-    path: platform
+    chart: strimzi-kafka-operator
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: default
+    namespace: kafka
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

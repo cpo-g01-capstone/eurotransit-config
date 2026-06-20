@@ -1,18 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform
+  name: cert-manager
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    repoURL: 'https://charts.jetstack.io'
     targetRevision: HEAD
-    path: platform
+    chart: cert-manager
+    helm:
+      parameters:
+        - name: installCRDs
+          value: "true"
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: default
+    namespace: cert-manager
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
