@@ -22,3 +22,4 @@
 # Personal/local agent overrides — not shared
 .agent/local/
 .claude.local.md
+.agents/*
