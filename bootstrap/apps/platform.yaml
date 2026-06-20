@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
-    targetRevision: feature/EM-11-Deploy-core-platform-GitOps
+    targetRevision: HEAD
     path: platform
   destination:
     server: 'https://kubernetes.default.svc'
