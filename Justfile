@@ -52,3 +52,40 @@ deploy-postgres:
 #one-shot bootstrap: cluster + operator + topics + postgres, in the right order with the right waits
 bootstrap: up install-operator deploy-topics deploy-postgres
     @echo "EuroTransit cluster fully bootstrapped."
+
+# --------------------------------------------------------------------------
+# Helm chart verification
+# --------------------------------------------------------------------------
+
+CHART := "deploy/charts/eurotransit"
+
+# Render all templates and check for syntax errors
+helm-template:
+    @echo "Rendering Helm templates..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit > /dev/null
+    @echo "OK: templates render without errors."
+
+# Run helm lint against the chart
+helm-lint:
+    @echo "Linting Helm chart..."
+    helm lint {{ CHART }} --strict
+    @echo "OK: lint passed."
+
+# Render templates and pipe to kubectl dry-run (requires a reachable cluster)
+helm-dry-run:
+    @echo "Running server-side dry-run against the cluster..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | kubectl apply --dry-run=server -f -
+    @echo "OK: server-side dry-run passed."
+
+# Render and check that no plaintext Secret manifests were generated
+helm-check-secrets:
+    @echo "Checking for plaintext Secret manifests..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | grep -n "^kind: Secret" && echo "ERROR: plaintext Secret found — use SealedSecret" && exit 1 \
+        || echo "OK: no plaintext Secrets found."
+
+# Full offline check: lint + template render + no plaintext secrets
+# Run this before every commit; does not require a cluster.
+helm-verify: helm-lint helm-template helm-check-secrets
+    @echo "All offline checks passed."

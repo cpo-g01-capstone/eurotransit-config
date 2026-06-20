@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eurotransit
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: HEAD
+    path: deploy/charts/eurotransit
+    helm:
+      releaseName: eurotransit
+      valueFiles:
+        - values.yaml
+      # Azure override example — add a values-azure.yaml to the chart directory
+      # and uncomment this line when targeting AKS:
+      # - values-azure.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: eurotransit
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

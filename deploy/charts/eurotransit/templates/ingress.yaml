@@ -1,0 +1,39 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: eurotransit
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+    {{- if .Values.ingress.tls }}
+    - websecure
+    {{- end }}
+  routes:
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/catalog`)
+      kind: Rule
+      services:
+        - name: eurotransit-catalog
+          port: 80
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/orders`)
+      kind: Rule
+      services:
+        - name: eurotransit-orders
+          port: 80
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/inventory`)
+      kind: Rule
+      services:
+        - name: eurotransit-inventory
+          port: 80
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/payments`)
+      kind: Rule
+      services:
+        - name: eurotransit-payments
+          port: 80
+  {{- if .Values.ingress.tls }}
+  tls:
+    secretName: {{ .Values.ingress.tlsSecretName }}
+  {{- end }}
