@@ -22,24 +22,23 @@ status:
     kubectl get nodes -o wide
     kubectl get pods -A
 
-# Install the Strimzi operator using Helm to pin the exact version deterministically
+#install the Strimzi operator using Helm to pin the exact version deterministically
 install-operator:
-    @echo "Ensuring kafka namespace exists..."
-    kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
+    @echo "Ensuring eurotransit namespace exists..."
+    kubectl create namespace eurotransit --dry-run=client -o yaml | kubectl apply -f -
     @echo "Adding Strimzi Helm repository..."
     helm repo add strimzi https://strimzi.io/charts/
     helm repo update
     @echo "Installing Strimzi operator version 0.40.0..."
-    helm upgrade --install strimzi-cluster-operator strimzi/strimzi-kafka-operator --namespace kafka --version 0.40.0
+    helm upgrade --install strimzi-cluster-operator strimzi/strimzi-kafka-operator --namespace eurotransit --version 0.40.0
     @echo "Waiting for Strimzi cluster operator deployment to become available..."
-    kubectl rollout status deployment/strimzi-cluster-operator -n kafka --timeout=120s
+    kubectl rollout status deployment/strimzi-cluster-operator -n eurotransit --timeout=120s
     @echo "Strimzi operator installed and ready."
 
-#deploy the Kafka broker and topics (waits for CRDs to be registered first, to avoid the discovery-cache race)
 deploy-topics:
     @echo "Waiting for Strimzi CRDs to be established..."
     kubectl wait --for=condition=Established crd/kafkas.kafka.strimzi.io crd/kafkatopics.kafka.strimzi.io --timeout=60s
-    kubectl apply -f kafka/ -n kafka
+    kubectl apply -f kafka/ -n eurotransit
 
 #one-shot bootstrap: cluster + operator + topics, in the right order with the right waits
 bootstrap: up install-operator deploy-topics
