@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: kube-prometheus-stack
+    targetRevision: 86.2.3 # pinned for immutability; bump deliberately, never floating
+    helm:
+      # releaseName MUST stay 'kube-prometheus-stack': service ServiceMonitors are
+      # labelled `release: kube-prometheus-stack` (see CLAUDE.md observability section).
+      releaseName: kube-prometheus-stack
+      values: |
+        prometheus:
+          prometheusSpec:
+            # Discover ServiceMonitors / PodMonitors / PrometheusRules / Probes in
+            # ALL namespaces, regardless of the chart's release label. This lets each
+            # service ship its own ServiceMonitor + PrometheusRule from the app chart
+            # in the `eurotransit` namespace and be scraped without extra wiring.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            retention: 7d
+            # Dev/k3d: metrics are ephemeral (emptyDir). Add a storageSpec (PVC) before
+            # any environment where metric history must survive a Pod restart.
+        grafana:
+          defaultDashboardsEnabled: true
+          # Local dev only: chart default admin credentials (admin / prom-operator).
+          # Before any shared/cloud cluster, set grafana.admin.existingSecret to a
+          # SealedSecret. Never commit a plaintext password to this repo.
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Prometheus Operator CRDs are too large for client-side apply
+      # (last-applied-configuration annotation exceeds the size limit). Server-side
+      # apply is the supported way to sync this chart via Argo CD.
+      - ServerSideApply=true
