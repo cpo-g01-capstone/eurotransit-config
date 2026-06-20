@@ -83,8 +83,8 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 ## How to contribute to my area
 
 ### Touching the Helm chart (`deploy/charts/eurotransit/`)
-- Run `helm lint deploy/charts/eurotransit/` before opening a PR
-- Run `helm template eurotransit deploy/charts/eurotransit/ --namespace eurotransit | kubectl apply --dry-run=client -f -` to catch manifest errors
+- Run `just helm-verify` before opening a PR (lint + template render + plaintext secret check — no cluster needed)
+- Run `just helm-dry-run` if you have a cluster available (server-side dry-run catches unknown CRDs)
 - Do not hardcode image tags — use `{{ .Values.<service>.image.tag }}`
 - Every new template file needs a corresponding entry in `values.yaml` with safe defaults
 - If you add a new secret dependency, seal it first and commit only the `SealedSecret`
@@ -124,7 +124,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 
 - **Canary promotion criteria** — the capstone says "watch SLIs, promote or abort" but does not define the threshold. This must be agreed with the Observability owner before the canary demo. Proposed: error rate < 1% and p95 < 300ms over 5 minutes.
 
-- **Strimzi version pin** — which Strimzi version are we using? Must be recorded in `platform/strimzi/` values file to avoid accidental upgrades.
+- **Strimzi version pin** — ✅ resolved: `0.40.0` pinned in `just install-operator`. Platform `platform/strimzi.yaml` still uses `targetRevision: HEAD` — should be pinned to match.
 
 - **Blue/green cleanup timing** — how long do we keep the old Deployment around after switching traffic? Need to define a policy (e.g. one successful health check cycle = 5 minutes).
 
@@ -144,13 +144,15 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/polito-CPO-2026/<config-repo-name>.git
-    targetRevision: main
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: HEAD
     path: deploy/charts/eurotransit
     helm:
       releaseName: eurotransit
+      valueFiles:
+        - values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: 'https://kubernetes.default.svc'
     namespace: eurotransit
   syncPolicy:
     automated:
@@ -158,12 +160,6 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 10s
-        factor: 2
-        maxDuration: 3m
 ```
 
 ### Canary TraefikService pattern
@@ -171,19 +167,19 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: TraefikService
 metadata:
-  name: eurotransit-orders-canary
+  name: eurotransit-orders-weighted
   namespace: eurotransit
 spec:
   weighted:
     services:
-      - name: eurotransit-orders-stable
+      - name: eurotransit-orders        # stable track, starts at 100
         port: 80
-        weight: 90
-      - name: eurotransit-orders-canary
+        weight: 100
+      - name: eurotransit-orders-canary  # canary track, starts at 0
         port: 80
-        weight: 10
+        weight: 0
 ```
-Ingress must reference this `TraefikService` via `service.name` with `kind: TraefikService` annotation.
+Adjust weights in `traefik-services.yaml` to shift traffic. The IngressRoute in `ingress.yaml` routes through this TraefikService during a canary rollout.
 
 ### Kafka topic CR pattern
 ```yaml
@@ -245,30 +241,43 @@ seal name namespace:
 - Sealed Secrets namespace: `sealed-secrets`
 - Strimzi namespace: `strimzi-system`
 - Kafka cluster name (Strimzi CR): `eurotransit-kafka`
-- Kafka bootstrap service: `eurotransit-kafka-kafka-bootstrap:9092` (internal)
+- Kafka bootstrap (internal FQDN): `eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092`
+- CloudNativePG cluster: `eurotransit-orders-db` (database: `ordersdb`, secret: `eurotransit-orders-db-app`)
+- DB read-write service: `eurotransit-orders-db-rw.eurotransit.svc.cluster.local:5432`
 
 ### values.yaml image tag section (canonical shape)
+The ACR registry is a global prefix, not baked into each repository field. CI only bumps `tag`.
+
 ```yaml
+global:
+  imageRegistry: ""           # empty for k3d; "myacr.azurecr.io" for AKS
+  imagePullSecrets: []        # [{name: acr-pull-secret}] for AKS
+
 catalog:
   image:
-    repository: <acr>.azurecr.io/eurotransit/catalog
-    tag: "latest"       # overwritten by CI bot on every push to main
+    repository: eurotransit/catalog
+    tag: "latest"             # CI overwrites with short SHA on every push to main
+    pullPolicy: IfNotPresent
 orders:
   image:
-    repository: <acr>.azurecr.io/eurotransit/orders
+    repository: eurotransit/orders
     tag: "latest"
+    pullPolicy: IfNotPresent
 inventory:
   image:
-    repository: <acr>.azurecr.io/eurotransit/inventory
+    repository: eurotransit/inventory
     tag: "latest"
+    pullPolicy: IfNotPresent
 payments:
   image:
-    repository: <acr>.azurecr.io/eurotransit/payments
+    repository: eurotransit/payments
     tag: "latest"
+    pullPolicy: IfNotPresent
 notifications:
   image:
-    repository: <acr>.azurecr.io/eurotransit/notifications
+    repository: eurotransit/notifications
     tag: "latest"
+    pullPolicy: IfNotPresent
 ```
 
 ### Rollback procedure (for AI-generated runbooks)
