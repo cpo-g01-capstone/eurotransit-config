@@ -1,12 +1,31 @@
+#node pool
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: test-eurotransit-kafka-cluster # CRITICAL: must match the Kafka cluster name
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: ephemeral
+
+#kafka cluster
 apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
-  name: test-eurotransit-kafka-cluster
+  name: test-eurotransit-kafka-cluster #CRITICAL: same as above
   namespace: kafka
+  annotations:
+    strimzi.io/node-pools: enabled  # enables the use of the KafkaNodePool defined above
+    strimzi.io/kraft: enabled       # enables KRaft mode
 spec:
   kafka:
-    version: 3.6.1
-    replicas: 1
+    version: 3.7.0
     listeners:
       - name: plain
         port: 9092
@@ -18,13 +37,6 @@ spec:
       transaction.state.log.min.isr: 1
       default.replication.factor: 1
       min.insync.replicas: 1
-      inter.broker.protocol.version: "3.6"
-    storage:
-      type: ephemeral
-  zookeeper:
-    replicas: 1
-    storage:
-      type: ephemeral
   entityOperator:
     topicOperator: {}
     userOperator: {}

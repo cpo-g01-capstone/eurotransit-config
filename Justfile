@@ -22,15 +22,15 @@ status:
     kubectl get nodes -o wide
     kubectl get pods -A
 
-#kubectl apply --server-side -f https://strimzi.io/install/latest?namespace=kafka -n kafka
-
-#install the Strimzi operator (CRDs, RBAC and operator deployment) into the kafka namespace
+# Install the Strimzi operator using Helm to pin the exact version deterministically
 install-operator:
     @echo "Ensuring kafka namespace exists..."
     kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
-    @echo "Installing Strimzi operator..."
-    
-    kubectl create -f https://strimzi.io/install/latest?namespace=kafka -n kafka
+    @echo "Adding Strimzi Helm repository..."
+    helm repo add strimzi https://strimzi.io/charts/
+    helm repo update
+    @echo "Installing Strimzi operator version 0.40.0..."
+    helm upgrade --install strimzi-cluster-operator strimzi/strimzi-kafka-operator --namespace kafka --version 0.40.0
     @echo "Waiting for Strimzi cluster operator deployment to become available..."
     kubectl rollout status deployment/strimzi-cluster-operator -n kafka --timeout=120s
     @echo "Strimzi operator installed and ready."
