@@ -71,12 +71,16 @@ helm-lint:
     helm lint {{ CHART }} --strict
     @echo "OK: lint passed."
 
-# Render templates and pipe to kubectl dry-run (requires a reachable cluster)
+# Render templates and run a client-side dry-run against the local k3d cluster.
+# Requires: just up (k3d cluster must be running)
+# For CRD validation (ServiceMonitor, IngressRoute, etc.) also run: just bootstrap
 helm-dry-run:
-    @echo "Running server-side dry-run against the cluster..."
+    @echo "Checking k3d cluster is reachable..."
+    kubectl --context k3d-eurotransit-cluster cluster-info > /dev/null
+    @echo "Running client-side dry-run against k3d..."
     helm template eurotransit {{ CHART }} --namespace eurotransit \
-        | kubectl apply --dry-run=server -f -
-    @echo "OK: server-side dry-run passed."
+        | kubectl --context k3d-eurotransit-cluster apply --dry-run=client -f -
+    @echo "OK: dry-run passed."
 
 # Render and check that no plaintext Secret manifests were generated
 helm-check-secrets:
