@@ -22,6 +22,7 @@ I am responsible for the **Delivery & Platform** area of EuroTransit. My scope i
 - **Liveness probes check `/actuator/health/liveness` only.** Never downstream. Readiness checks `/actuator/health/readiness`, which includes Kafka + DB availability.
 - **`terminationGracePeriodSeconds: 60`** with a 5s `preStop` sleep on all pods. Gives coroutines time to drain without dropping in-flight requests.
 - **Kafka wiring via Argo CD Application** (`apps/kafka.yaml`) — no more manual `kubectl apply -f kafka/`.
+- **Single Helm chart for all five services** (`deploy/charts/eurotransit/`). Per-service charts were considered and rejected — they give independent rollback and team ownership but add 5× boilerplate, 5 Argo CD Applications, and a more complex CI. At this team size the overhead isn't justified; single-service rollback still works by reverting one image tag in `values.yaml`.
 - **Symptom-based PrometheusRules only** — `CheckoutHighErrorRate`, `CheckoutHighP95Latency`, `InventoryServiceDown`, `KafkaConsumerLagHigh`. No CPU/memory alerts.
 - **`selfHeal: true` + `prune: true`** on all Argo CD Applications. Git is the only source of truth; drift is corrected automatically.
 - **Rollback = `git revert` on config-repo.** Never `kubectl rollout undo` — selfHeal would immediately re-apply the unwanted state.

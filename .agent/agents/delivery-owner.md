@@ -53,6 +53,10 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 **Decision:** strict scope (`--scope strict`) — each SealedSecret is bound to a specific name + namespace.
 **Rationale:** prevents accidental reuse of a sealed value in a different namespace. Breaking decryption on rename is a feature, not a bug.
 
+### Single Helm chart for all five services
+**Decision:** one chart at `deploy/charts/eurotransit/` covering all five services; no per-service charts.
+**Rationale:** CI stays simple — one `values.yaml`, one commit per build, one place to bump image tags. Per-service charts would give independent rollback granularity and team ownership, but at the cost of 5× boilerplate, 5 Argo CD Applications, and a more complex CI that updates each chart separately. At this team size (5 people, shared repo, tight timeline) the overhead is not justified. Single-service rollback is still possible by reverting one image tag in `values.yaml`.
+
 ---
 
 ## Constraints and invariants
