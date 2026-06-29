@@ -71,6 +71,13 @@ helm-lint:
     helm lint {{ CHART }} --strict
     @echo "OK: lint passed."
 
+# Render templates with the Azure overlay applied (catches a broken values-azure.yaml)
+helm-template-azure:
+    @echo "Rendering Helm templates with Azure overlay..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        -f {{ CHART }}/values.yaml -f {{ CHART }}/values-azure.yaml > /dev/null
+    @echo "OK: Azure overlay renders without errors."
+
 # Render templates and run a client-side dry-run against the local k3d cluster.
 # Requires: just up (k3d cluster must be running)
 # For CRD validation (ServiceMonitor, IngressRoute, etc.) also run: just bootstrap
@@ -91,5 +98,5 @@ helm-check-secrets:
 
 # Full offline check: lint + template render + no plaintext secrets
 # Run this before every commit; does not require a cluster.
-helm-verify: helm-lint helm-template helm-check-secrets
+helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets
     @echo "All offline checks passed."
