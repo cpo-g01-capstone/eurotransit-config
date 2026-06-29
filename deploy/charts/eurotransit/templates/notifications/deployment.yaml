@@ -19,7 +19,7 @@ spec:
         app.kubernetes.io/name: eurotransit-notifications
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
@@ -39,29 +39,10 @@ spec:
               value: {{ .Values.kafka.bootstrapServers | quote }}
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "notifications-group"
+            # Spring graceful shutdown — drain in-flight work before the JVM exits.
             - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
-              value: "50s"
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "sleep 5"]
-          startupProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: http
-            failureThreshold: 20
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: http
-            periodSeconds: 15
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: http
-            periodSeconds: 5
-            failureThreshold: 3
+              value: {{ .Values.lifecycle.shutdownTimeout | quote }}
+          {{- include "eurotransit.preStop" . | nindent 10 }}
+          {{- include "eurotransit.probes" . | nindent 10 }}
           resources:
             {{- toYaml .Values.notifications.resources | nindent 12 }}
