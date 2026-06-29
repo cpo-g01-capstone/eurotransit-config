@@ -125,3 +125,19 @@ ingress:
   host: "eurotransit.local"
   tls: false
   tlsSecretName: "eurotransit-tls"
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy
+# Default-deny + explicit allows for the five application pods only.
+# NOTE: only enforced by a CNI that supports NetworkPolicy. k3d's default
+# Flannel does NOT enforce these (they apply as a no-op locally); AKS Azure CNI
+# / Calico does. See docs/delivery/network-policy-checklist.md before relying on
+# enforcement.
+# ------------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  appPort: 8080                  # container port the services listen on
+  dbPort: 5432                   # CloudNativePG (in-namespace)
+  kafkaPort: 9092                # Strimzi Kafka bootstrap (in-namespace)
+  ingressNamespace: "traefik"    # namespace Traefik runs in (north-south source)
+  monitoringNamespace: "monitoring"  # namespace Prometheus scrapes from
