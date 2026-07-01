@@ -65,7 +65,9 @@ install-argocd:
     @echo "Creating argocd namespace..."
     kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
     @echo "Installing Argo CD (pinned release)..."
-    kubectl apply -k bootstrap/install
+    # --server-side: the Argo CD CRDs are too large for client-side apply
+    # (last-applied-configuration annotation exceeds the size limit).
+    kubectl apply -k bootstrap/install --server-side
     @echo "Waiting for Argo CD CRDs and server to be ready..."
     kubectl wait --for=condition=Established crd/applications.argoproj.io --timeout=120s
     kubectl rollout status deployment/argocd-server -n argocd --timeout=180s
