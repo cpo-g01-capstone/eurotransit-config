@@ -13,8 +13,9 @@ spec:
       releaseName: eurotransit
       valueFiles:
         - values.yaml
-      # Azure override example — add a values-azure.yaml to the chart directory
-      # and uncomment this line when targeting AKS:
+      # Azure (AKS) overlay — values-azure.yaml exists in the chart directory.
+      # Uncomment to point the live cluster at ACR + Azure FQDN + TLS (ADR 0001).
+      # Leave commented while reconciling against k3d / local defaults.
       # - values-azure.yaml
   destination:
     server: 'https://kubernetes.default.svc'

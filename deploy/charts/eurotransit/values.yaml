@@ -16,6 +16,48 @@ global:
   imagePullSecrets: []
 
 # ------------------------------------------------------------------------------
+# Graceful shutdown (shared across all services)
+#
+# Drain chain on SIGTERM (Pod deletion / rollout / node drain):
+#   1. Pod enters Terminating → removed from the Service's ready endpoints, so
+#      Traefik and kube-proxy stop sending NEW traffic to it.
+#   2. preStop `sleep` keeps the container alive while that endpoint removal
+#      propagates, so in-flight requests are not dropped mid-flight.
+#   3. SIGTERM reaches Spring Boot → graceful shutdown drains in-flight work and
+#      flips readiness to OUT_OF_SERVICE (requires server.shutdown=graceful in
+#      the app — verified app-side, Pillar A).
+#   4. The JVM exits before terminationGracePeriodSeconds elapses.
+#
+# Invariant: preStopSleepSeconds + shutdownTimeout < terminationGracePeriodSeconds.
+#            (5 + 50 = 55 < 60) — keep this true if you tune the numbers.
+# ------------------------------------------------------------------------------
+lifecycle:
+  terminationGracePeriodSeconds: 60
+  preStopSleepSeconds: 5
+  # Spring `spring.lifecycle.timeout-per-shutdown-phase`
+  shutdownTimeout: "50s"
+
+# ------------------------------------------------------------------------------
+# Probes (shared across all services)
+#
+# startup + liveness hit /actuator/health/liveness — LOCAL process only, never a
+# downstream dependency (a liveness probe that checks Kafka/DB causes cascading
+# restarts — hard rule).
+# readiness hits /actuator/health/readiness — includes Kafka/DB and reports
+# draining during shutdown so traffic is withdrawn.
+# ------------------------------------------------------------------------------
+probes:
+  startup:
+    failureThreshold: 20
+    periodSeconds: 10
+  liveness:
+    periodSeconds: 15
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 5
+    failureThreshold: 3
+
+# ------------------------------------------------------------------------------
 # Catalog — read-heavy, tolerant of staleness, no DB
 # ------------------------------------------------------------------------------
 catalog:
@@ -125,3 +167,19 @@ ingress:
   host: "eurotransit.local"
   tls: false
   tlsSecretName: "eurotransit-tls"
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy
+# Default-deny + explicit allows for the five application pods only.
+# NOTE: only enforced by a CNI that supports NetworkPolicy. k3d's default
+# Flannel does NOT enforce these (they apply as a no-op locally); AKS Azure CNI
+# / Calico does. See docs/delivery/network-policy-checklist.md before relying on
+# enforcement.
+# ------------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  appPort: 8080                  # container port the services listen on
+  dbPort: 5432                   # CloudNativePG (in-namespace)
+  kafkaPort: 9092                # Strimzi Kafka bootstrap (in-namespace)
+  ingressNamespace: "traefik"    # namespace Traefik runs in (north-south source)
+  monitoringNamespace: "monitoring"  # namespace Prometheus scrapes from

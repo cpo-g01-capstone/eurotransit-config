@@ -1,0 +1,49 @@
+# ==============================================================================
+# EuroTransit — Azure (AKS) overlay
+#
+# Applied ON TOP of values.yaml. Carries ONLY the deltas from the local k3d
+# baseline. Never duplicate unchanged keys here, and never put image tags here —
+# CI bumps tags in the base values.yaml, which both environments inherit.
+#
+# Usage:
+#   helm template eurotransit . -f values.yaml -f values-azure.yaml
+#   (Argo CD: list both files under helm.valueFiles — see apps/eurotransit.yaml)
+#
+# Cluster/registry names come from ADR 0001 (docs/adr/0001-...).
+# ==============================================================================
+
+global:
+  # ACR login server (ADR 0001). Prefixes every service image.
+  imageRegistry: "acreurotransitg01.azurecr.io"
+  # Pull secret for ACR. Created out-of-band (or replaced by AKS managed-identity
+  # ACR integration, in which case set this back to []).
+  imagePullSecrets:
+    - name: acr-pull-secret
+
+# ------------------------------------------------------------------------------
+# Ingress
+# No custom DNS yet — use the Azure-provided FQDN on the Traefik public IP:
+#   <dns-label>.<region>.cloudapp.azure.com
+# Set the label via the Traefik LoadBalancer Service annotation:
+#   service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01
+# Let's Encrypt can issue for this domain, so TLS is on.
+# When course DNS (g01.cpo2026.it) is ready, CNAME it to this FQDN and swap host.
+# ------------------------------------------------------------------------------
+ingress:
+  host: "eurotransit-g01.polandcentral.cloudapp.azure.com"
+  tls: true
+  tlsSecretName: "eurotransit-tls"
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy is already enabled in the base values; on AKS (Azure CNI) these
+# policies are actually ENFORCED, unlike k3d's Flannel. No override needed —
+# noted here for awareness. See docs/delivery/network-policy-checklist.md.
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# NOT handled by this chart (platform/infra layer):
+#   - Storage class (AKS: managed-csi) for Prometheus / Kafka / Postgres PVCs
+#   - Kafka broker count (3 on AKS vs 1 on k3d) — kafka/ Kafka CR
+#   - Postgres primary+standby — postgres/ CloudNativePG Cluster CR
+# Track these as a separate platform overlay task.
+# ------------------------------------------------------------------------------

@@ -1,0 +1,171 @@
+{{- if .Values.networkPolicy.enabled }}
+# ==============================================================================
+# NetworkPolicies for the EuroTransit application pods.
+#
+# These policies constrain ONLY the five application Deployments (selected by
+# app.kubernetes.io/part-of: eurotransit). The operator-managed stateful pods
+# (CloudNativePG Postgres, Strimzi Kafka) are deliberately NOT selected here —
+# their operators manage their own NetworkPolicies, and applying our default-deny
+# to them risks breaking replication / leader election.
+#
+# Model: default-deny for app pods, then explicit allows for the traffic the
+# money path actually needs.
+#
+# ENFORCEMENT CAVEAT: NetworkPolicy is only enforced by a CNI that supports it.
+# k3d's default Flannel does NOT enforce these — they render and apply cleanly
+# but are a no-op locally. Real enforcement happens on AKS (Azure CNI / Calico)
+# or a Calico-enabled k3d cluster. Verify enforcement with the team before
+# relying on it (see docs/delivery/network-policy-checklist.md).
+# ==============================================================================
+---
+# Default-deny all ingress and egress for application pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-default-deny
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Allow DNS resolution (kube-dns / CoreDNS in kube-system).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-dns
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Allow ingress from Traefik (north-south entrypoint) to app HTTP ports.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-ingress-traefik
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.appPort }}
+---
+# Allow Prometheus (monitoring namespace) to scrape /actuator/prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-metrics-scrape
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.appPort }}
+---
+# Allow service-to-service traffic between app pods (e.g. Orders -> Inventory,
+# Orders -> Payments). Both peers carry part-of: eurotransit.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-intra-app
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: eurotransit
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.appPort }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: eurotransit
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.appPort }}
+---
+# Allow app pods to reach in-namespace infrastructure: CloudNativePG (5432)
+# and Strimzi Kafka (9092). These targets are operator-managed and do not
+# carry part-of: eurotransit, so they are matched by namespace, not pod label.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-egress-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.dbPort }}
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.kafkaPort }}
+{{- end }}
