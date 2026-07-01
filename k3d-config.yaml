@@ -4,7 +4,9 @@ metadata:
   name: eurotransit-cluster
 servers: 1
 agents: 2                                       #worker nodes to test PodDisruptionBudget and topologySpreadConstraints of Pillar C
-image: rancher/k3s:v1.28.2-k3s1 
+# k8s >=1.29 required by the CloudNativePG chart (0.29.0). Stays within Strimzi
+# 0.40.0's supported range. Bump deliberately if operator pins change.
+image: rancher/k3s:v1.29.15-k3s1
 ports:
   - port: 8081:80                               #maps port 80 from the cluster to 8081 locally to avoid conflicts with system ports
     nodeFilters:
