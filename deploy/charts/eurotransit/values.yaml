@@ -167,6 +167,10 @@ ingress:
   host: "eurotransit.local"
   tls: false
   tlsSecretName: "eurotransit-tls"
+  # ClusterIssuer used by the cert-manager Certificate when tls: true.
+  # Start on staging (high rate limits); switch to letsencrypt-prod once staging
+  # issues successfully for the host. Only takes effect when tls: true.
+  certIssuer: "letsencrypt-staging"
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy

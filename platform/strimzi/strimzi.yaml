@@ -3,18 +3,41 @@ kind: Application
 metadata:
   name: strimzi
   namespace: argocd
+  annotations:
+    # Wave 0: installs the operator + Kafka/KafkaTopic CRDs. The Kafka cluster CR
+    # and KafkaTopic CRs are synced by the workloads app (wave 1).
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
-    repoURL: 'https://strimzi.io/charts/'
-    targetRevision: HEAD
+    repoURL: "https://strimzi.io/charts/"
+    # Pinned to match the Justfile `install-operator` decision (0.40.0).
+    # NOTE (team): latest is 0.49.0 (chart moved to 1.x). Two things to reconcile:
+    #   1. Justfile installs 0.40.0 into `eurotransit`; this Application installs
+    #      into `strimzi-system` — pick ONE install path, not both.
+    #   2. Decide whether to stay on 0.40.0 or bump; a bump may bring CRD changes.
+    targetRevision: 0.40.0
     chart: strimzi-kafka-operator
+    helm:
+      parameters:
+        # Operator runs in strimzi-system but the Kafka/KafkaTopic CRs live in the
+        # eurotransit namespace. A Strimzi operator watches ONLY its own namespace
+        # by default, so it must be told to watch eurotransit or it never
+        # reconciles the cluster. watchNamespaces (not watchAnyNamespace) keeps
+        # RBAC least-privilege: Role/RoleBinding are created in eurotransit only.
+        - name: watchNamespaces
+          value: "{eurotransit}"
+        - name: watchAnyNamespace
+          value: "false"
   destination:
-    server: 'https://kubernetes.default.svc'
-    namespace: kafka
+    server: "https://kubernetes.default.svc"
+    namespace: strimzi-system
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Strimzi's Kafka/KafkaConnect/etc. CRDs are very large and exceed the
+      # client-side apply annotation size limit. Server-side apply is required.
+      - ServerSideApply=true

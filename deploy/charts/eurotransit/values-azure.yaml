@@ -27,12 +27,14 @@ global:
 # Set the label via the Traefik LoadBalancer Service annotation:
 #   service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01
 # Let's Encrypt can issue for this domain, so TLS is on.
-# When course DNS (g01.cpo2026.it) is ready, CNAME it to this FQDN and swap host.
 # ------------------------------------------------------------------------------
 ingress:
   host: "eurotransit-g01.polandcentral.cloudapp.azure.com"
   tls: true
   tlsSecretName: "eurotransit-tls"
+  # Start on staging to prove HTTP-01 works without burning prod rate limits;
+  # switch to letsencrypt-prod once a staging cert is issued for this host.
+  certIssuer: "letsencrypt-staging"
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy is already enabled in the base values; on AKS (Azure CNI) these

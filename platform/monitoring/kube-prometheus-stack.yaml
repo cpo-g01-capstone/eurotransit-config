@@ -3,6 +3,10 @@ kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
+  annotations:
+    # Wave 0: installs Prometheus Operator + CRDs (ServiceMonitor, PrometheusRule).
+    # The per-service ServiceMonitors/PrometheusRules ship in the app chart (wave 1).
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:

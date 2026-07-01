@@ -3,14 +3,52 @@ kind: Application
 metadata:
   name: traefik
   namespace: argocd
+  annotations:
+    # Wave 0: ingress controller operator/CRDs (IngressRoute, TraefikService)
+    # must exist before the app chart's ingress resources sync in the workloads app.
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
-    repoURL: 'https://helm.traefik.io/traefik'
-    targetRevision: HEAD
+    repoURL: "https://helm.traefik.io/traefik"
+    # Pinned chart version (appVersion Traefik v3.7.5). Bump deliberately in a PR.
+    targetRevision: 41.0.1
     chart: traefik
+    helm:
+      # Traefik chart values. Must live under source.helm.valuesObject — a bare
+      # `service:` under source.* is silently ignored by Argo CD.
+      valuesObject:
+        service:
+          type: LoadBalancer
+          annotations:
+            # Gives the LB a stable FQDN: eurotransit-g01.<region>.cloudapp.azure.com
+            service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01
+        # Force HTTPS: redirect everything on :80 (web) to :443 (websecure).
+        # Let's Encrypt HTTP-01 still validates — the ACME client follows the 301.
+        # NOTE (local): on k3d there is no TLS cert, so this redirect breaks
+        # plain-HTTP access. Local dev uses bootstrap-manual (no Traefik); if you
+        # run the full GitOps platform on k3d, expect the redirect to HTTPS.
+        additionalArguments:
+          - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+          - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+          - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+        # The chart already enables both providers (kubernetesCRD for our
+        # IngressRoute, kubernetesIngress for standard Ingress) by default, and
+        # creates a default IngressClass. Pin its name to `traefik` so the
+        # cert-manager HTTP-01 solver's `ingressClassName: traefik` matches
+        # deterministically. (lab03's providers.kubernetesIngress.ingressClass
+        # key no longer exists in chart 41.0.1 — class config moved here.)
+        ingressClass:
+          enabled: true
+          isDefaultClass: true
+          name: traefik
+        # Access logs on for edge observability. General log level stays at the
+        # default INFO — DEBUG is a temporary troubleshooting aid (noisy, adds
+        # overhead), not a permanent setting; raise `log.level` only when needed.
+        accessLog:
+          enabled: true
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: traefik
   syncPolicy:
     automated:

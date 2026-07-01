@@ -3,6 +3,11 @@ kind: Application
 metadata:
   name: workloads
   namespace: argocd
+  annotations:
+    # Wave 1: applied only after the platform operators (wave 0) are Healthy, so
+    # the Kafka CR, CloudNativePG Cluster, and SealedSecrets in apps/ never race
+    # ahead of the controllers/CRDs they require.
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   source:
