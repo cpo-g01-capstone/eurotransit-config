@@ -83,6 +83,14 @@ apply-root-app:
 argocd-status:
     kubectl get applications -n argocd
 
+#open the Argo CD UI locally: prints the admin password, then port-forwards.
+#Browse https://localhost:8080 (user: admin), accept the self-signed cert. Ctrl-C to stop.
+argocd-ui:
+    @echo "Argo CD admin password:"
+    @kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+    @echo "Opening https://localhost:8080  (user: admin). Ctrl-C to stop the port-forward."
+    kubectl -n argocd port-forward svc/argocd-server 8080:443
+
 #LOCAL TEST: bootstrap Argo pointing at a feature BRANCH instead of main, WITHOUT
 #editing or committing any manifest. Overrides targetRevision at apply-time and
 #applies the platform app-of-apps + workload leaf Applications directly (skipping
@@ -236,6 +244,12 @@ helm-check-services:
 # Run this before every commit; does not require a cluster.
 helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets helm-check-services
     @echo "All offline checks passed."
+
+# Schema-validate rendered manifests with kubeconform (compensating control for the
+# SkipDryRunOnMissingResource decision — ADR 0003). Requires: brew install kubeconform.
+# Not part of helm-verify (extra tool + network); intended for CI.
+helm-schema:
+    bash scripts/helm-schema.sh {{ CHART }}
 
 # --------------------------------------------------------------------------
 # Platform verification (no cluster; needs network to pull charts)
