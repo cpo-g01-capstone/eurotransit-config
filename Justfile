@@ -203,9 +203,18 @@ helm-check-secrets:
         | grep -n "^kind: Secret" && echo "ERROR: plaintext Secret found — use SealedSecret" && exit 1 \
         || echo "OK: no plaintext Secrets found."
 
-# Full offline check: lint + template render + no plaintext secrets
+# Render and check that no application Service is publicly exposed. Only Traefik
+# (a platform component, not in this chart) may be a LoadBalancer; every service
+# in the app chart must be ClusterIP. Fails on any LoadBalancer/NodePort.
+helm-check-services:
+    @echo "Checking all app Services are ClusterIP (not public)..."
+    helm template eurotransit {{ CHART }} --namespace eurotransit \
+        | grep -nE "type: (LoadBalancer|NodePort)" && echo "ERROR: app Service is publicly exposed — must be ClusterIP" && exit 1 \
+        || echo "OK: all app Services are ClusterIP."
+
+# Full offline check: lint + template render + no plaintext secrets + no public services
 # Run this before every commit; does not require a cluster.
-helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets
+helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets helm-check-services
     @echo "All offline checks passed."
 
 # --------------------------------------------------------------------------
