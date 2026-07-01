@@ -26,3 +26,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # The chart ships CRs whose CRDs are installed by SEPARATE platform apps
+      # (ServiceMonitor/PrometheusRule ← kube-prometheus-stack; IngressRoute/
+      # TraefikService ← Traefik; Certificate ← cert-manager). Tolerate those CRDs
+      # not being registered yet so the sync retries instead of hard-failing.
+      # (In the real root-app flow, workloads (wave 1) sync after platform (wave 0),
+      # so the CRDs normally exist; this is belt-and-suspenders + fixes the
+      # bootstrap-branch test, which applies app leaves without that wave gating.)
+      - SkipDryRunOnMissingResource=true
