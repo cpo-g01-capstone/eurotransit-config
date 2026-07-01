@@ -47,7 +47,11 @@ deploy-postgres:
     kubectl apply -f postgres/
     @echo "Waiting for Orders DB cluster to become Ready..."
     kubectl wait --for=condition=Ready cluster/eurotransit-orders-db -n eurotransit --timeout=300s
-    @echo "Orders PostgreSQL cluster is ready. Secret: eurotransit-orders-db-app"
+    @echo "Waiting for Inventory DB cluster to become Ready..."
+    kubectl wait --for=condition=Ready cluster/eurotransit-inventory-db -n eurotransit --timeout=300s
+    @echo "Waiting for Payments DB cluster to become Ready..."
+    kubectl wait --for=condition=Ready cluster/eurotransit-payments-db -n eurotransit --timeout=300s
+    @echo "All PostgreSQL clusters are ready."
 
 #one-shot bootstrap: cluster + operator + topics + postgres, in the right order with the right waits
 bootstrap: up install-operator deploy-topics deploy-postgres
