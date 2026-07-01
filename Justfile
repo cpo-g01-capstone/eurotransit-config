@@ -83,6 +83,24 @@ apply-root-app:
 argocd-status:
     kubectl get applications -n argocd
 
+#LOCAL TEST: bootstrap Argo pointing at a feature BRANCH instead of main, WITHOUT
+#editing or committing any manifest. Overrides targetRevision at apply-time and
+#applies the platform app-of-apps + workload leaf Applications directly (skipping
+#root-app/workloads so they don't re-pull the HEAD copies and undo the override).
+#Requires the branch to be PUSHED first (Argo pulls from the remote, not local).
+#Use this to validate an unmerged branch on k3d; the real bootstrap uses main.
+#Usage: just bootstrap-branch feature/EM-31-Platform-bootstrap-sync-order-and-version-pinning
+bootstrap-branch BRANCH: up install-argocd
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pointing Argo at branch '{{ BRANCH }}' (committed files untouched)..."
+    for f in bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
+      echo "  applying $f @ {{ BRANCH }}"
+      sed "s|targetRevision: HEAD|targetRevision: {{ BRANCH }}|" "$f" | kubectl apply -f -
+    done
+    echo "Done. Watch reconciliation: just argocd-status"
+    echo "NOTE: app pods will ImagePullBackOff until images exist in the registry."
+
 # ==========================================================================
 # Bootstrap — MANUAL path (escape hatch: offline / uncommitted iteration)
 #
