@@ -21,12 +21,16 @@ Argo CD will pick it up on the next sync without touching any other file.
 
 ## Notes
 
-- `monitoring/kube-prometheus-stack.yaml` is pinned to chart version `86.2.3`.
-  Bump deliberately; never float to `HEAD`.
-- `strimzi/strimzi.yaml` uses `targetRevision: HEAD` — should be pinned to `0.40.0`
-  to match `just install-operator`.
-- `sealed-secrets/sealed-secrets.yaml` uses `targetRevision: 2.15.x` — pin to a full
-  version before the AKS deployment.
+- All operator Applications are pinned to explicit chart versions (never `HEAD`):
+  cert-manager `v1.20.3`, traefik `41.0.1`, cloudnative-pg `0.29.0`,
+  strimzi `0.40.0`, kube-prometheus-stack `86.2.3`. Bump deliberately in a PR.
+  The `bootstrap/*` app-of-apps Applications correctly stay on git `HEAD` (they
+  track `main`, which is how CI tag bumps reach the cluster).
+- `strimzi/strimzi.yaml` is pinned to `0.40.0` to match `just install-operator`.
+  ⚠️ Unresolved: the Justfile installs it into `eurotransit` while this Application
+  targets `strimzi-system` — the team must pick a single install path.
+- `sealed-secrets/sealed-secrets.yaml` uses `targetRevision: 2.15.x` (minor pinned,
+  patch floats). Pin the exact `2.15.z` before the AKS deployment.
 - Grafana default credentials (`admin` / `prom-operator`) are fine for local k3d.
   Replace with a SealedSecret before any shared cluster.
 

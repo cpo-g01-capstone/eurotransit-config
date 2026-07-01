@@ -3,11 +3,16 @@ kind: Application
 metadata:
   name: traefik
   namespace: argocd
+  annotations:
+    # Wave 0: ingress controller operator/CRDs (IngressRoute, TraefikService)
+    # must exist before the app chart's ingress resources sync in the workloads app.
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
     repoURL: 'https://helm.traefik.io/traefik'
-    targetRevision: HEAD
+    # Pinned chart version (appVersion Traefik v3.7.5). Bump deliberately in a PR.
+    targetRevision: 41.0.1
     chart: traefik
   destination:
     server: 'https://kubernetes.default.svc'
