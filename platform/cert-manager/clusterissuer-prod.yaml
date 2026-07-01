@@ -3,8 +3,11 @@ kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
   annotations:
-    # Wave 1: after the cert-manager operator + CRDs (wave 0).
+    # Wave 1: after the cert-manager operator (wave 0). cert-manager's CRDs are
+    # installed by a SEPARATE Argo Application, so SkipDryRunOnMissingResource lets
+    # the sync retry until cert-manager.io/ClusterIssuer exists instead of hard-failing.
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   acme:
     # Let's Encrypt PRODUCTION — trusted certs, but strict rate limits

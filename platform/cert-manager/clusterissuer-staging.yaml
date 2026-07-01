@@ -3,10 +3,12 @@ kind: ClusterIssuer
 metadata:
   name: letsencrypt-staging
   annotations:
-    # Wave 1: cert-manager operator + CRDs (wave 0) must exist and be Healthy
-    # before this ClusterIssuer is applied (it also goes through cert-manager's
-    # admission webhook).
+    # Wave 1: apply after the cert-manager operator (wave 0). But cert-manager's
+    # CRDs are installed by a SEPARATE Argo Application, so a within-app sync-wave
+    # can't guarantee the CRD is registered when this applies. SkipDryRunOnMissingResource
+    # lets the sync retry instead of hard-failing until cert-manager.io/ClusterIssuer exists.
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   acme:
     # Let's Encrypt STAGING — untrusted certs, but very high rate limits. Use this
