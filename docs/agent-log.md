@@ -18,6 +18,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 7 | 2026-07-01 | Platform / eurotransit-config | Sealed Secrets `repoURL` pointed at `bitnami-labs.github.io` (404) instead of `bitnami.github.io` |
 | 8 | 2026-07-01 | Platform / eurotransit-config | k3d pinned to k8s 1.28.2 but CNPG chart 0.29.0 requires `kubeVersion >=1.29` — incompatible |
 | 9 | 2026-07-01 | Delivery / Justfile | `install-cnpg` waited only for the CRD, not the controller webhook — `deploy-postgres` raced and failed |
+| 10 | 2026-07-01 | Platform / eurotransit-config | ClusterIssuer `sync-wave` assumed to gate on a CRD installed by a *different* Argo app — `SyncFailed` |
 
 ---
 
@@ -330,3 +331,41 @@ created.
 and (if it uses one) admission webhook endpoints available. Any manifest applied through
 a webhook must wait for the last of these, not the first. Prefer waiting on the concrete
 downstream condition (webhook endpoints / controller Available) over the CRD alone.
+
+---
+
+## Case 10 — 2026-07-01 — sync-wave cannot gate a CRD owned by a different Argo app (eurotransit-config)
+
+**What the AI produced:**
+`platform/cert-manager/clusterissuer-{staging,prod}.yaml` were given
+`argocd.argoproj.io/sync-wave: "1"` on the assumption that this guarantees the
+cert-manager operator (wave 0) — and therefore its CRDs — are installed before the
+`ClusterIssuer` resources are applied.
+
+**Why it was wrong:**
+The ClusterIssuers live in the `platform` app-of-apps, but the `cert-manager.io` CRDs are
+installed by the **separate `cert-manager` Argo Application** the platform app *creates*.
+A `sync-wave` only orders resources **within a single Application's own sync** — it cannot
+wait for a *different* Application to finish reconciling. So the `platform` sync tried to
+apply the ClusterIssuers before `cert-manager.io/ClusterIssuer` was registered, and Argo
+CD reported `SyncFailed / Missing`: "The Kubernetes API could not find
+cert-manager.io/ClusterIssuer ... Make sure the CRD is installed on the destination
+cluster." Sync-waves gate on *this app's* resource health (including child Application
+health), but not deterministically on a grandchild's side effect (CRD registration).
+
+**How it was caught:**
+Watching the `platform` Application sync in the Argo CD UI during the EM-31 branch test on
+k3d — both ClusterIssuers showed `SyncFailed / Missing`.
+
+**How it was corrected:**
+Added `argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true` to both
+ClusterIssuers so the sync retries (eventual consistency) instead of hard-failing until the
+CRD exists. The cleaner-but-heavier alternative — moving the ClusterIssuers into their own
+Application ordered strictly after `cert-manager` at the app-of-apps level — was noted for
+later if determinism is preferred over eventual consistency.
+
+**Lesson learned:**
+`sync-wave` orders resources inside one Application; it does not synchronize across
+Applications. When a resource depends on a CRD that a *different* app installs, don't rely
+on wave ordering alone — use `SkipDryRunOnMissingResource=true` (+ retry), or make the
+dependency explicit with a separate, later-ordered Application.
