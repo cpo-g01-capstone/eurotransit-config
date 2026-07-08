@@ -1,6 +1,6 @@
 # Consistency model — Inventory
 
-*Owner: @MauroC0l*
+*Owner: @MauroC0l · EM-24 analysis drafted by @giova95*
 
 > **Team-authored design decision.** The consistency-model choice and its CAP/PACELC
 > justification are judgments the team owns and must defend at the oral. This is a draft to
