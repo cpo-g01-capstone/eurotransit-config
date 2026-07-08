@@ -265,15 +265,6 @@ helm-template-azure:
         -f {{ CHART }}/values.yaml -f {{ CHART }}/values-azure.yaml > /dev/null
     @echo "OK: Azure overlay renders without errors."
 
-# Render templates with the staging overlay (values.yaml + values-azure.yaml +
-# values-staging.yaml, in the order the eurotransit-staging Argo App applies them).
-# Catches a broken values-staging.yaml before Argo tries to sync it.
-helm-template-staging:
-    @echo "Rendering Helm templates with staging overlay..."
-    helm template eurotransit {{ CHART }} --namespace eurotransit-staging \
-        -f {{ CHART }}/values.yaml -f {{ CHART }}/values-azure.yaml -f {{ CHART }}/values-staging.yaml > /dev/null
-    @echo "OK: staging overlay renders without errors."
-
 # Render templates and run a client-side dry-run against the local k3d cluster.
 # Requires: just up AND a cluster that has every CRD the chart references —
 # Traefik (IngressRoute/TraefikService) and the Prometheus operator
@@ -307,7 +298,7 @@ helm-check-services:
 
 # Full offline check: lint + template render + no plaintext secrets + no public services
 # Run this before every commit; does not require a cluster.
-helm-verify: helm-lint helm-template helm-template-azure helm-template-staging helm-check-secrets helm-check-services
+helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets helm-check-services
     @echo "All offline checks passed."
 
 # Schema-validate rendered manifests with kubeconform (compensating control for the

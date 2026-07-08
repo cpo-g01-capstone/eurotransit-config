@@ -1,78 +1,64 @@
-# Staging environment (one cluster, two tracks)
+# Delivery model: branch-based promotion (staging → main)
 
-How EuroTransit runs a **staging** stack alongside **prod** on the *same* AKS
-cluster, so changes can be validated before they reach `main`. This is standard
-GitOps multi-env: a second Argo CD Application, its own namespace, tracking a
-different Git branch. Platform operators are cluster-wide and **shared**.
+EuroTransit promotes changes through a long-lived **`staging` branch**, not a
+separate running environment. There is **one** deployed stack (`eurotransit`, ns
+`eurotransit`, `eurotransit.vojtechn.dev`), reconciled by `root-app` from `main`.
 
 ```
-root-app (main)
-  ├─ eurotransit          main    → ns eurotransit          → eurotransit.vojtechn.dev
-  └─ eurotransit-staging  staging → ns eurotransit-staging  → staging.eurotransit.vojtechn.dev
+root-app (main) → workloads → eurotransit → ns eurotransit → eurotransit.vojtechn.dev
 ```
 
-- **Prod**: `apps/eurotransit.yaml`, tracks `main`, ns `eurotransit`.
-- **Stage**: `apps/eurotransit-staging.yaml`, tracks the long-lived `staging`
-  branch, ns `eurotransit-staging`, overlay `values-staging.yaml` (host + 1 replica).
-- Both Application *manifests* live in `apps/` on `main`, so `root-app` manages
-  both. Only the *source branch* differs.
+## Why branch-only (no separate `eurotransit-staging` env)
 
-## What is and isn't in staging
+A parallel staging *namespace* was built and evaluated (see git history:
+`apps/eurotransit-staging.yaml`, `values-staging.yaml`), then **dropped**:
 
-- **In:** the five-service app chart — Deployments, Services, IngressRoute +
-  redirect Middleware, Certificate, ServiceMonitors, PDBs, HPA, NetworkPolicy.
-- **Shared (not duplicated):** Traefik, cert-manager, Strimzi, CloudNativePG,
-  kube-prometheus-stack, sealed-secrets — one install per cluster.
-- **Out (by decision):** Kafka and Postgres. The app chart doesn't deploy those
-  (they're separate `apps/kafka.yaml` / `apps/data-infrastructure.yaml`, prod-ns
-  only). Services that need Kafka/DB will be **NotReady** in staging — expected,
-  and fine for testing ingress, TLS, routing, and progressive delivery. Add a
-  stage Kafka/PG later if a test needs the full money path (requires widening
-  Strimzi `watchNamespaces` to include `eurotransit-staging`).
+- It isn't graded — the capstone requires GitOps + **canary/blue-green**, and
+  progressive delivery happens *within* one environment (traffic-split between
+  versions), not via a second environment.
+- There's no real production traffic to protect; "prod" is the demo cluster.
+- Two full stacks are tight on the 6-vCPU pool (ADR 0005).
 
-## The workflow
+The `staging` **branch** is kept — it's the cheap, valuable part: an integration +
+promotion lane that gives a "validated before main" gate without a second stack.
+
+## The promotion flow
+
+```
+feature/EM-xx  ──►  staging  ──►  main
+   (build)        (integrate,      (prod;
+                   validate on      root-app
+                   the cluster)     reconciles)
+```
 
 **Test a change:**
 ```bash
 git switch staging
-git merge --no-ff feature/EM-XX-my-change    # or cherry-pick
+git merge --no-ff feature/EM-xx-my-change     # or cherry-pick
 git push origin staging
-# Argo CD reconciles eurotransit-staging within ~seconds (webhook) / ~3 min (poll).
-# Watch: kubectl -n argocd get application eurotransit-staging
-#        kubectl -n eurotransit-staging get pods,ingressroute,certificate
-# Verify: https://staging.eurotransit.vojtechn.dev/...
 ```
+Validate against the running cluster (there's one env, so point it at `staging`
+only when you want to test unmerged work; normally it tracks `main`).
 
-**Promote to prod:** open a PR `staging → main`, review, merge. `root-app` picks
-up whatever changed; the `eurotransit` (prod) App reconciles from `main`.
+**Promote to prod:** open a PR **`staging → main`**, review, merge. `root-app`
+reconciles `main` → the live stack updates. Rollback = `git revert` on `main`.
 
-**Rule:** never edit `main` to change what's in staging, and never hand-edit the
-cluster — push to the `staging` branch and let Argo converge (self-heal is on).
+**Rules:**
+- Never edit `main` directly — changes reach it only via a `staging → main` PR
+  (enforced by branch protection + the `enforce-promotion` CI check).
+- Never hand-edit the cluster — push to Git and let Argo converge (self-heal on).
 
-## DNS & TLS
+## Image promotion (one artifact, not two)
 
-- **DNS:** one wildcard record `*.eurotransit.vojtechn.dev → <Traefik LB IP>`
-  covers `staging.` (this) and `argocd.` (Argo CD UI) in a single entry. The prod
-  apex `eurotransit.vojtechn.dev` has its own record.
-- **TLS:** staging inherits `certIssuer: letsencrypt-staging` from
-  `values-azure.yaml` — **untrusted** certs (browser warning) but high rate
-  limits, so you can re-issue freely while iterating. Prod uses `letsencrypt-prod`.
-  Each host gets its own HTTP-01 cert; no wildcard cert needed.
+CI builds **one** immutable image per commit (Git-SHA tag), pushes to ACR **once**,
+and writes that tag into `values.yaml`. Promotion moves the *same* tag from
+`staging` to `main` via the PR — never a separate "staging build" and "prod build".
+That keeps "what you tested" byte-identical to "what you ship" and makes rollbacks
+exact.
 
-## First-time setup (once)
+## DNS & TLS (for reference)
 
-1. Land `apps/eurotransit-staging.yaml` + `deploy/charts/eurotransit/values-staging.yaml`
-   on `main` (via the EM-37 PR).
-2. Create the long-lived branch from main: `git switch -c staging main && git push -u origin staging`.
-3. After the AKS bootstrap, `root-app` creates the `eurotransit-staging`
-   Application automatically; Argo creates the namespace and syncs.
-
-## Known limitations
-
-- **Images:** staging pulls the same ACR images as prod. Until the ACR push +
-  pull-auth task lands, staging pods `ImagePullBackOff` (ingress/TLS still testable).
-- **Observability overlap:** stage ServiceMonitors are scraped by the same
-  Prometheus; filter by `namespace="eurotransit-staging"` in queries/dashboards.
-- **Budget:** two stacks on a 3-node pool is tight (ADR 0001). Staging runs 1
-  replica/service and no Kafka/PG to stay light; scale down or `az aks scale` up
-  if the pool gets full.
+- One wildcard record `*.eurotransit.vojtechn.dev → <Traefik LB IP>` covers
+  `argocd.` (and any future host). The prod apex `eurotransit.vojtechn.dev` has its
+  own record.
+- Prod uses `letsencrypt-prod` (trusted). Each host gets its own HTTP-01 cert.
