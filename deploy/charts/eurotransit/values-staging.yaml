@@ -20,11 +20,14 @@
 
 # ------------------------------------------------------------------------------
 # Ingress — staging host. One wildcard DNS record (*.eurotransit.vojtechn.dev →
-# Traefik LB IP) covers this and argocd.eurotransit.vojtechn.dev. TLS + certIssuer
-# (letsencrypt-staging) are inherited from values-azure.yaml.
+# Traefik LB IP) covers this and argocd.eurotransit.vojtechn.dev. TLS is inherited
+# from values-azure.yaml; certIssuer is pinned back to letsencrypt-staging here so
+# the throwaway stage env never consumes prod rate limits (values-azure went prod
+# for the real host after EM-34).
 # ------------------------------------------------------------------------------
 ingress:
   host: "staging.eurotransit.vojtechn.dev"
+  certIssuer: "letsencrypt-staging"
 
 # ------------------------------------------------------------------------------
 # One replica per service — staging is for validation, not load. Halves the

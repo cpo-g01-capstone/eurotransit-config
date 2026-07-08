@@ -35,7 +35,7 @@ ingress:
   tlsSecretName: "eurotransit-tls"
   # Start on staging to prove HTTP-01 works without burning prod rate limits;
   # switch to letsencrypt-prod once a staging cert is issued for this host.
-  certIssuer: "letsencrypt-staging"
+  certIssuer: "letsencrypt-prod"
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy is already enabled in the base values; on AKS (Azure CNI) these
