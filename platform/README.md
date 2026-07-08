@@ -23,12 +23,13 @@ Argo CD will pick it up on the next sync without touching any other file.
 
 - All operator Applications are pinned to explicit chart versions (never `HEAD`):
   cert-manager `v1.20.3`, traefik `41.0.1`, cloudnative-pg `0.29.0`,
-  strimzi `0.40.0`, kube-prometheus-stack `86.2.3`. Bump deliberately in a PR.
+  strimzi `1.1.0`, kube-prometheus-stack `86.2.3`. Bump deliberately in a PR.
   The `bootstrap/*` app-of-apps Applications correctly stay on git `HEAD` (they
   track `main`, which is how CI tag bumps reach the cluster).
-- `strimzi/strimzi.yaml` is pinned to `0.40.0` to match `just install-operator`.
-  ⚠️ Unresolved: the Justfile installs it into `eurotransit` while this Application
-  targets `strimzi-system` — the team must pick a single install path.
+- `strimzi/strimzi.yaml` is pinned to `1.1.0` (k8s 1.30–1.36; covers the AKS 1.34
+  target) — see ADR 0004. Must equal the Justfile `STRIMZI_VERSION`. Both install
+  paths target `strimzi-system` (operator watches `eurotransit`). The Kafka CR uses
+  broker `4.2.0`, the tested default shipped by Strimzi 1.1.0.
 - `sealed-secrets/sealed-secrets.yaml` uses `targetRevision: 2.15.x` (minor pinned,
   patch floats). Pin the exact `2.15.z` before the AKS deployment.
 - Grafana default credentials (`admin` / `prom-operator`) are fine for local k3d.

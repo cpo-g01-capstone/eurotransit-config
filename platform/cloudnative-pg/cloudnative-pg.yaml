@@ -10,12 +10,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://cloudnative-pg.github.io/charts'
+    repoURL: "https://cloudnative-pg.github.io/charts"
     # Pinned chart version (appVersion CloudNativePG 1.30.0). Bump deliberately in a PR.
     targetRevision: 0.29.0
     chart: cloudnative-pg
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: cnpg-system
   syncPolicy:
     automated:

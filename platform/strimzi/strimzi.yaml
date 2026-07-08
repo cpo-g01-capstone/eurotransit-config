@@ -11,12 +11,11 @@ spec:
   project: default
   source:
     repoURL: "https://strimzi.io/charts/"
-    # Pinned to match the Justfile `install-operator` decision (0.40.0).
-    # NOTE (team): latest is 0.49.0 (chart moved to 1.x). Two things to reconcile:
-    #   1. Justfile installs 0.40.0 into `eurotransit`; this Application installs
-    #      into `strimzi-system` — pick ONE install path, not both.
-    #   2. Decide whether to stay on 0.40.0 or bump; a bump may bring CRD changes.
-    targetRevision: 0.40.0
+    # Pinned 1.1.0 (operator + chart) — supports k8s 1.30–1.36, covers the AKS 1.34
+    # target with headroom. See ADR 0004. Must stay equal to the Justfile
+    # STRIMZI_VERSION constant (manual path installs the same version).
+    # Ripple: Strimzi 1.1.0 ships Kafka 4.2.0/4.2.1/4.3.0 — the Kafka CR uses 4.2.0.
+    targetRevision: 1.1.0
     chart: strimzi-kafka-operator
     helm:
       parameters:

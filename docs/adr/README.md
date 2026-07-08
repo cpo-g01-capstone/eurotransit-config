@@ -19,3 +19,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0001](0001-aks-cluster-sizing-and-budget.md) | AKS Cluster Sizing and Budget Strategy | Proposed | 2026-06-29 |
 | [0002](0002-graceful-shutdown-and-probes.md) | Graceful Shutdown and Probe Configuration | Proposed | 2026-06-29 |
 | [0003](0003-argocd-sync-options-for-operator-crds.md) | Argo CD Sync Options for Operator-CRD Dependencies | Proposed | 2026-07-01 |
+| [0004](0004-operator-version-pinning-and-cluster-parity.md) | Operator Version Pinning and Dev/Prod Cluster Parity | Proposed | 2026-07-01 |

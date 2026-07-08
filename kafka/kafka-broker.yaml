@@ -24,7 +24,10 @@ metadata:
     strimzi.io/kraft: enabled
 spec:
   kafka:
-    version: 3.7.0
+    # Kafka 4.2.0 — the tested default shipped by Strimzi 1.1.0 (see ADR 0004).
+    # 3.7.0 is no longer shipped by the 1.1.0 operator. CR is already KRaft, so no
+    # ZooKeeper migration. [app team] confirm kafka-clients >= 3.1 against a 4.2 broker.
+    version: 4.2.0
     listeners:
       - name: plain
         port: 9092

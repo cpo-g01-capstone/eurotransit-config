@@ -10,7 +10,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 # Operator versions — MUST match the pinned targetRevision in platform/*/*.yaml.
 # The manual bootstrap path below installs the same versions the GitOps path
 # (Argo CD) reconciles, so switching paths never creates a version mismatch.
-STRIMZI_VERSION := "0.40.0"
+STRIMZI_VERSION := "1.1.0"
 CNPG_VERSION := "0.29.0"
 
 # ==========================================================================
