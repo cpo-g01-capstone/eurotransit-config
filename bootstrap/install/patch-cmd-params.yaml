@@ -1,0 +1,15 @@
+# Serve argocd-server over plain HTTP inside the cluster. Traefik + cert-manager
+# terminate TLS at the edge (platform/argocd/ingressroute.yaml), so argocd-server
+# must NOT also do TLS — otherwise it's TLS-in-TLS and the UI breaks.
+# Strategic-merge patch: adds the one key to the upstream argocd-cmd-params-cm.
+#
+# Applied at `just install-argocd` time (a plain ConfigMap — no Traefik/cert-manager
+# dependency). Changing this on a running cluster needs an argocd-server restart.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # No namespace here: the kustomization's global `namespace: argocd` applies it.
+  # Adding it breaks strategic-merge target matching against the upstream base.
+  name: argocd-cmd-params-cm
+data:
+  server.insecure: "true"

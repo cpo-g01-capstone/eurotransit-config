@@ -1,0 +1,24 @@
+# TLS cert for the Argo CD UI (argocd.eurotransit.vojtechn.dev). cert-manager
+# issues it via HTTP-01 into secret `argocd-server-tls`, which the IngressRoute
+# serves. Managed by the platform app-of-apps (directory recurse).
+#
+# Wave 1 + SkipDryRunOnMissingResource: the cert-manager CRD is installed by a
+# SEPARATE wave-0 Application, so this tolerates the CRD not being registered yet
+# and the sync retries instead of hard-failing (same pattern as the ClusterIssuers).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-server-tls
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  secretName: argocd-server-tls
+  dnsNames:
+    - argocd.eurotransit.vojtechn.dev
+  issuerRef:
+    # Prod issuer — the HTTP-01 flow is already proven on this cluster (EM-34).
+    # A new hostname is a fresh cert, well within the per-domain rate limit.
+    name: letsencrypt-prod
+    kind: ClusterIssuer

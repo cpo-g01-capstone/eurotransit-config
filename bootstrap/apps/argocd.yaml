@@ -1,0 +1,38 @@
+# Argo CD self-management (app-of-apps).
+#
+# The chicken-and-egg: Argo CD can't deploy the FIRST Argo CD from Git, so a
+# minimal imperative seed installs it once (`just install-argocd` →
+# `kubectl apply -k bootstrap/install`). THIS Application then points back at the
+# SAME `bootstrap/install` kustomization and adopts those resources, so from here
+# on everything about Argo CD — the pinned version, `server.insecure`, RBAC,
+# CRDs — is reconciled from Git like everything else (self-heal + prune). The
+# seed becomes a one-time bootstrap, not the source of truth.
+#
+# Wave -1: reconcile the platform's own controller before the other platform
+# app-of-apps children (platform wave 0, workloads wave 1).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: HEAD
+    path: bootstrap/install
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Argo CD's own CRDs are too large for client-side apply (the same reason
+      # `just install-argocd` uses --server-side). Required or the sync fails on
+      # the last-applied-configuration annotation size limit.
+      - ServerSideApply=true

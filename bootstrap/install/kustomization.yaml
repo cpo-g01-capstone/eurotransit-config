@@ -5,3 +5,6 @@ resources:
   # Pinned to a release tag, not the moving `stable` branch, so the Argo CD version
   # that bootstraps the cluster is reproducible. Bump deliberately in a PR.
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.4/manifests/install.yaml
+patches:
+  # server.insecure=true so Traefik terminates TLS for the UI (EM-35).
+  - path: patch-cmd-params.yaml
