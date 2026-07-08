@@ -148,11 +148,15 @@ pod means over budget.
 
 Drafted with agent assistance during the live AKS bootstrap. Before ratifying:
 
-- [ ] Confirm `Standard_B2s_v2` is offered in Poland Central for this subscription.
-- [ ] Confirm the regional/`BALSv2`-family vCPU limits actually allow `3× B2s_v2`
-      (6 vCPU) — check `az vm list-usage -l polandcentral`.
-- [ ] After the rebuild, confirm 3 nodes `Ready`, all platform apps Synced/Healthy,
-      and no pods `Pending` for "Too many pods".
+- [x] `Standard_B2s_v2` is offered in Poland Central — pool `sysb2s` built 2026-07-08.
+- [x] Quota allows `3× B2s_v2`: **Total Regional vCPUs 6/6**, **Standard Bsv2 Family
+      6/10** (the `BSv2` family, *not* `BALSv2` — `B4als_v2`/`B2als_v2` are `BALSv2`,
+      which was exhausted and is why the `B2als_v2` userpool never provisioned).
+      Verified via `az vm list-usage -l polandcentral`.
+- [x] Post-rebuild: **3× `B2s_v2` nodes `Ready`** (~5.9 GB allocatable, max-pods 250
+      each), all platform apps Synced/Healthy, no pods `Pending` for pod-count. Live
+      state 2026-07-08: cert-manager/traefik/strimzi/cnpg/kube-prometheus-stack/
+      sealed-secrets Healthy; Traefik LB public IP `134.112.165.170`.
 - [ ] Under k6 load, confirm CPU throttling stays acceptable on the money path; if
       not, reduce replica counts or k6 VUs, and record it in `docs/agent-log.md`.
 - [ ] Team ratifies replacing ADR 0001's `3× B4als_v2` with `3× B2s_v2`.

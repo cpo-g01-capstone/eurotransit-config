@@ -13,10 +13,10 @@ spec:
       releaseName: eurotransit
       valueFiles:
         - values.yaml
-      # Azure (AKS) overlay — values-azure.yaml exists in the chart directory.
-      # Uncomment to point the live cluster at ACR + Azure FQDN + TLS (ADR 0001).
-      # Leave commented while reconciling against k3d / local defaults.
-      # - values-azure.yaml
+        # Azure (AKS) overlay — ACR registry + Azure FQDN (eurotransit.vojtechn.dev)
+        # + TLS (ADR 0001/0005). Active: the cluster is AKS (staging branch). Local
+        # k3d uses `just bootstrap-manual`, not this GitOps path.
+        - values-azure.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: eurotransit
