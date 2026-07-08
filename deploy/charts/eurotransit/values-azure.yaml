@@ -22,14 +22,15 @@ global:
 
 # ------------------------------------------------------------------------------
 # Ingress
-# No custom DNS yet — use the Azure-provided FQDN on the Traefik public IP:
-#   <dns-label>.<region>.cloudapp.azure.com
-# Set the label via the Traefik LoadBalancer Service annotation:
-#   service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01
-# Let's Encrypt can issue for this domain, so TLS is on.
+# Custom domain: eurotransit.vojtechn.dev. Create a DNS record pointing at the
+# Traefik LoadBalancer public IP — either a CNAME to the Azure-provided FQDN
+# (eurotransit-g01.<region>.cloudapp.azure.com, set via the Traefik Service
+# annotation service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01)
+# or an A record to the LB IP. Let's Encrypt issues for this host via HTTP-01,
+# so TLS is on; the chart's redirect Middleware forces HTTP→HTTPS.
 # ------------------------------------------------------------------------------
 ingress:
-  host: "eurotransit-g01.polandcentral.cloudapp.azure.com"
+  host: "eurotransit.vojtechn.dev"
   tls: true
   tlsSecretName: "eurotransit-tls"
   # Start on staging to prove HTTP-01 works without burning prod rate limits;
