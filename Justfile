@@ -117,12 +117,11 @@ bootstrap-branch BRANCH: up install-argocd
 # (see ADR 0001); these recipes only install Argo CD and point the app-of-apps
 # at a chosen branch. Argo reconciles everything else.
 #
-# Defaults to `staging`: `main` is currently behind (it lacks the chart/platform/
-# ADR stack), so bootstrapping against `main` would deploy almost nothing. Point
-# at an explicit branch to override; use `main` once it has caught up.
+# Defaults to `main` (the source of truth). Pass a feature branch to validate
+# unmerged work on the cluster before opening its PR; the normal path is main.
 #   just aks-creds                 # fetch kubeconfig + switch context to AKS
-#   just aks-bootstrap             # -> full stack from `staging`
-#   just aks-bootstrap main        # -> once main is the source of truth
+#   just aks-bootstrap             # -> full stack from `main`
+#   just aks-bootstrap feature/EM-xx-...   # -> test an unmerged branch
 # ==========================================================================
 
 #fetch the AKS kubeconfig (ADR 0001 resource names) and switch context to it
@@ -134,12 +133,11 @@ aks-creds RG="rg-eurotransit-g01" CLUSTER="aks-eurotransit-g01":
 #bootstrap the GitOps stack on the CURRENT (AKS) context, app-of-apps from BRANCH.
 #Mirrors bootstrap-branch but: no `up` (AKS already exists), a k3d context guard,
 #and an explicit confirmation before it touches a paid cluster. Requires BRANCH to
-#be PUSHED (Argo pulls from the remote). Excludes apps/eurotransit-staging.yaml —
-#that App self-targets `staging` and is only wanted once a real prod (main) runs
-#alongside it; bootstrapping the prod leaves FROM `staging` already deploys the
-#staging code into the eurotransit namespace for testing.
-#Usage: just aks-bootstrap [BRANCH]   (BRANCH defaults to staging)
-aks-bootstrap BRANCH="staging":
+#be PUSHED (Argo pulls from the remote). Note: for the steady state, prefer
+#`kubectl apply -f bootstrap/root-app.yaml` — root-app tracks main and manages the
+#whole app-of-apps tree; this recipe is mainly for testing an unmerged branch.
+#Usage: just aks-bootstrap [BRANCH]   (BRANCH defaults to main)
+aks-bootstrap BRANCH="main":
     #!/usr/bin/env bash
     set -euo pipefail
     ctx=$(kubectl config current-context)
