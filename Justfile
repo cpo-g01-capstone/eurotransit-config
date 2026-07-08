@@ -102,7 +102,7 @@ bootstrap-branch BRANCH: up install-argocd
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Pointing Argo at branch '{{ BRANCH }}' (committed files untouched)..."
-    for f in bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
+    for f in bootstrap/apps/argocd.yaml bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
       echo "  applying $f @ {{ BRANCH }}"
       sed "s|targetRevision: HEAD|targetRevision: {{ BRANCH }}|" "$f" | kubectl apply -f -
     done
@@ -158,7 +158,7 @@ aks-bootstrap BRANCH="staging":
     echo "Pointing Argo at branch '{{ BRANCH }}' (committed files untouched)..."
     # HEAD→BRANCH override hits the app-of-apps + prod/kafka/data leaves only.
     # (apps/eurotransit-staging.yaml is intentionally NOT applied here — see above.)
-    for f in bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
+    for f in bootstrap/apps/argocd.yaml bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
       echo "  applying $f @ {{ BRANCH }}"
       sed "s|targetRevision: HEAD|targetRevision: {{ BRANCH }}|" "$f" | kubectl apply -f -
     done
