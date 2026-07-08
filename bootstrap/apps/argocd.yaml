@@ -26,6 +26,18 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: argocd
+  # argocd-secret is created EMPTY by the upstream install, then populated at
+  # RUNTIME with server.secretkey (signs session JWTs) and admin.password. Without
+  # this, self-heal + prune would reconcile it back to empty and wipe those keys —
+  # argocd-server crashloops and everyone is logged out (the lab04 incident).
+  # Ignore its data entirely; the self-mgmt app has no business managing it.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: argocd-secret
+      namespace: argocd
+      jsonPointers:
+        - /data
   syncPolicy:
     automated:
       prune: true

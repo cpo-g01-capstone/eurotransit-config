@@ -1,0 +1,26 @@
+# GitHub SSO via Dex (EM-39). Strategic-merge patch onto the upstream argocd-cm.
+# No namespace here (the kustomization's global `namespace: argocd` applies it).
+#
+# - url: required so Argo builds correct OAuth callback URLs.
+# - dex.config: GitHub connector, login restricted to the cpo-g01-capstone org.
+#   clientID/clientSecret are referenced from a SEPARATE secret `argocd-github-oauth`
+#   (`$<secret>:<key>` syntax) rather than argocd-secret — keeps the OAuth creds out
+#   of the sensitive core secret and avoids patch-mode gymnastics. That secret is a
+#   SealedSecret (platform/argocd/secrets/) labelled app.kubernetes.io/part-of: argocd
+#   so Argo can read it for substitution.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  url: https://argocd.eurotransit.vojtechn.dev
+  dex.config: |
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: $argocd-github-oauth:clientID
+          clientSecret: $argocd-github-oauth:clientSecret
+          orgs:
+            - name: cpo-g01-capstone
