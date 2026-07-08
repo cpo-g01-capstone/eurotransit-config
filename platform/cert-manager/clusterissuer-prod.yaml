@@ -14,7 +14,8 @@ spec:
     # (e.g. 5 duplicate certs/week). Only point the app here after the staging
     # issuer has successfully issued for the same hostname.
     server: https://acme-v02.api.letsencrypt.org/directory
-    # TODO(team): confirm the ACME contact address (reused from Lab03).
+    # ACME contact — Let's Encrypt sends expiry/account notices here. Confirmed
+    # for EuroTransit (EM-34); carried over from Lab03.
     email: vojtech.novotny@studenti.polito.it
     privateKeySecretRef:
       name: letsencrypt-prod-account-key

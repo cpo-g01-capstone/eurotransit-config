@@ -15,7 +15,8 @@ spec:
     # first to prove the HTTP-01 flow end to end, then switch the app to the prod
     # issuer (ingress.certIssuer: letsencrypt-prod) once staging succeeds.
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    # TODO(team): confirm the ACME contact address (reused from Lab03).
+    # ACME contact — Let's Encrypt sends expiry/account notices here. Confirmed
+    # for EuroTransit (EM-34); carried over from Lab03.
     email: vojtech.novotny@studenti.polito.it
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
