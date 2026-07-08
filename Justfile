@@ -110,6 +110,62 @@ bootstrap-branch BRANCH: up install-argocd
     echo "NOTE: app pods will ImagePullBackOff until images exist in the registry."
 
 # ==========================================================================
+# Bootstrap — AKS (the graded cloud target)
+#
+# Brings up the GitOps stack on the CURRENT kube-context, which MUST be the AKS
+# cluster. Infra — the AKS cluster, ACR, public IP, DNS — must ALREADY exist
+# (see ADR 0001); these recipes only install Argo CD and point the app-of-apps
+# at a chosen branch. Argo reconciles everything else.
+#
+# Defaults to `staging`: `main` is currently behind (it lacks the chart/platform/
+# ADR stack), so bootstrapping against `main` would deploy almost nothing. Point
+# at an explicit branch to override; use `main` once it has caught up.
+#   just aks-creds                 # fetch kubeconfig + switch context to AKS
+#   just aks-bootstrap             # -> full stack from `staging`
+#   just aks-bootstrap main        # -> once main is the source of truth
+# ==========================================================================
+
+#fetch the AKS kubeconfig (ADR 0001 resource names) and switch context to it
+aks-creds RG="rg-eurotransit-g01" CLUSTER="aks-eurotransit-g01":
+    az aks get-credentials --resource-group {{ RG }} --name {{ CLUSTER }} --overwrite-existing
+    @echo "Kubeconfig updated. Current context:"
+    kubectl config current-context
+
+#bootstrap the GitOps stack on the CURRENT (AKS) context, app-of-apps from BRANCH.
+#Mirrors bootstrap-branch but: no `up` (AKS already exists), a k3d context guard,
+#and an explicit confirmation before it touches a paid cluster. Requires BRANCH to
+#be PUSHED (Argo pulls from the remote). Excludes apps/eurotransit-staging.yaml —
+#that App self-targets `staging` and is only wanted once a real prod (main) runs
+#alongside it; bootstrapping the prod leaves FROM `staging` already deploys the
+#staging code into the eurotransit namespace for testing.
+#Usage: just aks-bootstrap [BRANCH]   (BRANCH defaults to staging)
+aks-bootstrap BRANCH="staging":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ctx=$(kubectl config current-context)
+    case "$ctx" in
+      k3d-*)
+        echo "Refusing: current context '$ctx' is a k3d cluster, not AKS."
+        echo "Run 'just aks-creds' (or 'az aks get-credentials ...') first."
+        exit 1 ;;
+    esac
+    echo "About to bootstrap the GitOps stack on a NON-k3d context:"
+    echo "  context: $ctx"
+    echo "  branch : {{ BRANCH }}  (app-of-apps + prod/kafka/data source)"
+    read -r -p "Continue? [y/N] " ans
+    [ "$ans" = y ] || [ "$ans" = Y ] || { echo "Aborted."; exit 1; }
+    just install-argocd
+    echo "Pointing Argo at branch '{{ BRANCH }}' (committed files untouched)..."
+    # HEAD→BRANCH override hits the app-of-apps + prod/kafka/data leaves only.
+    # (apps/eurotransit-staging.yaml is intentionally NOT applied here — see above.)
+    for f in bootstrap/apps/platform.yaml apps/eurotransit.yaml apps/kafka.yaml apps/data-infrastructure.yaml; do
+      echo "  applying $f @ {{ BRANCH }}"
+      sed "s|targetRevision: HEAD|targetRevision: {{ BRANCH }}|" "$f" | kubectl apply -f -
+    done
+    echo "Done. Watch reconciliation: just argocd-status"
+    echo "NOTE: app pods ImagePullBackOff until ACR images exist (see the ACR task)."
+
+# ==========================================================================
 # Bootstrap — MANUAL path (escape hatch: offline / uncommitted iteration)
 #
 # Installs the operators and CRs directly with helm/kubectl — NO Argo CD.
