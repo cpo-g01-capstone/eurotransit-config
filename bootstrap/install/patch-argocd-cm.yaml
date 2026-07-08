@@ -24,3 +24,4 @@ data:
           clientSecret: $argocd-github-oauth:clientSecret
           orgs:
             - name: cpo-g01-capstone
+  admin.enabled: "false"
