@@ -8,3 +8,7 @@ resources:
 patches:
   # server.insecure=true so Traefik terminates TLS for the UI (EM-35).
   - path: patch-cmd-params.yaml
+  # GitHub SSO (Dex connector) + app URL (EM-39).
+  - path: patch-argocd-cm.yaml
+  # RBAC: org-restricted SSO users default to admin (EM-39).
+  - path: patch-rbac-cm.yaml
