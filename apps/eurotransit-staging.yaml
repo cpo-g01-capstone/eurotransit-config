@@ -1,0 +1,46 @@
+# Staging deployment of the EuroTransit app chart — a second, isolated stack on
+# the SAME AKS cluster as prod, for validating changes before they reach main.
+#
+# Prod  (apps/eurotransit.yaml):  main  → ns eurotransit         → eurotransit.vojtechn.dev
+# Stage (this file):              staging → ns eurotransit-staging → staging.eurotransit.vojtechn.dev
+#
+# This Application MANIFEST lives on main (root-app manages it), but its SOURCE
+# tracks the long-lived `staging` branch — so you test by pushing to `staging`,
+# never by editing main. Promote = merge staging → main. See
+# docs/delivery/staging-environment.md.
+#
+# Platform operators (Traefik, cert-manager, Strimzi, CNPG, Prometheus) are
+# cluster-wide and SHARED — not duplicated here. Kafka + Postgres are NOT
+# deployed for staging (app chart only); services needing them are NotReady,
+# which is fine for ingress/TLS/routing and progressive-delivery testing.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eurotransit-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: staging
+    path: deploy/charts/eurotransit
+    helm:
+      releaseName: eurotransit
+      valueFiles:
+        - values.yaml
+        - values-azure.yaml
+        - values-staging.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: eurotransit-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Same rationale as apps/eurotransit.yaml: the chart ships CRs whose CRDs
+      # come from separate platform apps (ServiceMonitor/PrometheusRule, Traefik
+      # IngressRoute/Middleware/TraefikService, cert-manager Certificate).
+      # Tolerate those not being registered yet so the sync retries.
+      - SkipDryRunOnMissingResource=true
