@@ -4,7 +4,7 @@
 - **Date:** 2026-06-29
 - **Deciders:** _<add team members>_
 - **Context tags:** platform, cost, AKS, capstone
-- **Supersedes / Superseded by:** —
+- **Supersedes / Superseded by:** node-sizing amended by [ADR 0005](0005-node-sizing-under-vcpu-quota.md) — `3× B4als_v2` was infeasible under the Poland Central vCPU quota; the cluster runs `3× B2s_v2`. Budget/naming/RBAC/stop-scale discipline below still apply.
 
 ---
 
