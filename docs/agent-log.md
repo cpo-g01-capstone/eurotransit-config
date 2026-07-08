@@ -14,6 +14,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 3 | 2026-06-20 | Delivery / docs vs CI | ACR documented but GHCR implemented in workflow |
 | 4 | 2026-07-08 | Async / eurotransit-config context docs | Notifications consumed-topics inconsistency (`order-confirmed` vs `notification-requested`) |
 | 5 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
+=======
 
 ---
 
@@ -202,3 +203,4 @@ bridge) and update ADR-004 / the spec accordingly.
 A passing happy-path test is not evidence the failure path works — for money-path handlers,
 always test the failure/DLT/redelivery paths explicitly. Framework "it compiles and consumes"
 does not imply "errors are handled"; verify exception propagation end-to-end.
+=======
