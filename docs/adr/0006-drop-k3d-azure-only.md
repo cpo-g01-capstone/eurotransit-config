@@ -4,7 +4,7 @@
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** platform, gitops, cost, delivery
-- **Supersedes / Superseded by:** Partially supersedes [ADR 0004](0004-operator-version-pinning-and-cluster-parity.md) (retires the k3d↔AKS parity requirement, point 2); revises the "develop on local k3d" cost strategy in [ADR 0001](0001-aks-cluster-sizing-and-budget.md) and [ADR 0005](0005-node-sizing-under-vcpu-quota.md).
+- **Supersedes / Superseded by:** Partially supersedes [ADR 0004](0004-operator-version-pinning.md) (retires the k3d↔AKS parity requirement; the operator pins stand); revises the "develop on local k3d" cost strategy in [ADR 0001](0001-aks-cluster-sizing-and-budget.md) and [ADR 0005](0005-node-sizing-under-vcpu-quota.md).
 
 ---
 
@@ -95,6 +95,6 @@ Drafted with agent assistance; the team must verify before ratifying:
 ## References
 
 - [ADR 0001 — AKS Cluster Sizing and Budget Strategy](0001-aks-cluster-sizing-and-budget.md)
-- [ADR 0004 — Operator Version Pinning and Dev/Prod Cluster Parity](0004-operator-version-pinning-and-cluster-parity.md)
+- [ADR 0004 — Operator Version Pinning](0004-operator-version-pinning.md)
 - [ADR 0005 — Node Sizing under Regional vCPU Quota](0005-node-sizing-under-vcpu-quota.md)
 - `docs/agent-log.md` — entries #8/#9 record the k3d version-pinning bugs that motivated the parity tax

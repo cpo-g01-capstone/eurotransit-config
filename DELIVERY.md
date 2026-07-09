@@ -44,7 +44,7 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 | 8 | Argo sync policy | `selfHeal: true` + `prune: true` | drift is force-corrected | [delivery-owner](.agent/agents/delivery-owner.md) |
 | 9 | Rollback | `git revert` on config-repo | never `kubectl rollout undo` | [ADR 0009](docs/adr/0009-trunk-based-single-stack.md) |
 | 10 | Operator/CRD sync | `ServerSideApply` + `SkipDryRunOnMissingResource` | weaker dry-run (kubeconform compensates) | [ADR 0003](docs/adr/0003-argocd-sync-options-for-operator-crds.md) |
-| 11 | Operator versions | pinned to support k8s 1.34 (Strimzi 1.1.0, CNPG 0.29.0) | manual bumps | [ADR 0004](docs/adr/0004-operator-version-pinning-and-cluster-parity.md) |
+| 11 | Operator versions | pinned to support k8s 1.34 (Strimzi 1.1.0, CNPG 0.29.0) | manual bumps | [ADR 0004](docs/adr/0004-operator-version-pinning.md) |
 | 12 | Image tagging | short Git SHA (immutable) | no semver in dev | [delivery-owner](.agent/agents/delivery-owner.md) |
 | 13 | Image pull policy | `IfNotPresent` (tags immutable) | — | [vojtech](docs/agents/vojtech.md) |
 | 14 | ACR push auth | GitHub OIDC → managed identity, AcrPush | one-time Owner setup | [ADR 0010](docs/adr/0010-acr-access-oidc-managed-identity.md) |
