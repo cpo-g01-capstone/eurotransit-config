@@ -98,6 +98,13 @@ status:
     kubectl get nodes -o wide
     kubectl get pods -A
 
+#install the local git hooks (pre-commit secret guard). Opt-in; run once per clone.
+#The hook is LOCAL fast feedback — the CI gate (validate.yml) is the real enforcement.
+install-hooks:
+    git config core.hooksPath .githooks
+    @chmod +x .githooks/* 2>/dev/null || true
+    @echo "Hooks installed (core.hooksPath=.githooks). For the deep scan: brew install gitleaks."
+
 # --------------------------------------------------------------------------
 # Helm chart verification (offline, no cluster)
 # --------------------------------------------------------------------------

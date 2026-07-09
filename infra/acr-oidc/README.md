@@ -39,11 +39,12 @@ comment still says "app registration", update it to "managed identity" — the
 az login                              # as the subscription Owner
 cd infra/acr-oidc
 
-./setup-acr-oidc.sh ci                # (a) identity + federated cred + AcrPush
+./setup-acr-oidc.sh ci                # (a) app-repo push identity + federated cred + AcrPush
 ./setup-acr-oidc.sh aks               # (b) attach ACR to AKS (AcrPull)
-./setup-acr-oidc.sh secrets           # print the 3 GitHub secrets (+ gh commands)
+./setup-acr-oidc.sh config-ci         # (c) config-repo READ-ONLY identity + federated cred + AcrPull
+./setup-acr-oidc.sh secrets           # print the 3 GitHub secrets for the app repo
 
-# or all three at once:
+# or all at once:
 ./setup-acr-oidc.sh all
 ```
 
@@ -64,6 +65,12 @@ GH_BRANCH=main GH_ALLOW_PR=true ./setup-acr-oidc.sh ci
   `global.imagePullSecrets` is already `[]` in `deploy/charts/eurotransit/values.yaml` —
   nothing to change. If you instead prefer an `acr-pull-secret`, skip the `aks` step, seal
   that secret, and set `global.imagePullSecrets: [{name: acr-pull-secret}]`.
+- **Config repo** (`cpo-g01-capstone/eurotransit-config`), only if you ran `config-ci`:
+  set the same 3 `AZURE_*` secrets here too (the `config-ci` step prints the commands).
+  This is a **separate, read-only** identity (`id-eurotransit-config-ci`, AcrPull) so the
+  config CI's `validate.yml` can check that referenced tags exist in ACR. Its `AZURE_CLIENT_ID`
+  **differs** from the app repo's (different identity); `AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID`
+  are the same. Until these are set, that job soft-skips — nothing breaks.
 
 ## What it creates in Azure
 
@@ -73,6 +80,9 @@ GH_BRANCH=main GH_ALLOW_PR=true ./setup-acr-oidc.sh ci
 | Federated credential | `gh-eurotransit-app-main` | on the identity |
 | Role assignment | `AcrPush` | `acreurotransitg01` (registry only) |
 | Role assignment (via `--attach-acr`) | `AcrPull` | AKS kubelet → `acreurotransitg01` |
+| User-assigned managed identity (`config-ci`) | `id-eurotransit-config-ci` | `rg-eurotransit-g01` |
+| Federated credentials (`config-ci`) | `gh-eurotransit-config-main`, `gh-eurotransit-config-pr` | on the config identity |
+| Role assignment (`config-ci`) | `AcrPull` (read only) | `acreurotransitg01` (registry only) |
 
 ## Least-privilege notes
 

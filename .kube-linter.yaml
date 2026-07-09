@@ -1,0 +1,25 @@
+# Policy-as-code for the EuroTransit chart (EM-38). Runs in validate.yml as a
+# BLOCKING gate — kube-linter's default check set enforces the manifest-checkable
+# "common mistakes" from CLAUDE.md (liveness/readiness probes present, resources
+# set, no privileged/host-namespace/docker-sock, no secrets in env vars, drop
+# NET_RAW, no privilege escalation, ...). Only the checks below are excluded, each
+# with a reason; re-enable one once the underlying gap is closed.
+checks:
+  exclude:
+    # Render artifact, not a real issue. The chart's default image tag is the
+    # placeholder "latest"; the app-repo CI overwrites it with an immutable
+    # Git-SHA before deploy (EM-32 / ADR 0004), so "latest" never reaches the
+    # cluster — but a chart render here always shows it. Tag immutability is
+    # enforced on the push side, not here.
+    - "latest-tag"
+    # Deferred hardening — tracked in docs/delivery/network-policy-checklist.md §3
+    # (Pod Security Admission). The five Spring Boot pods don't set a
+    # securityContext yet. Re-enable when they set runAsNonRoot +
+    # readOnlyRootFilesystem (start with PSA warn/audit, then enforce).
+    - "run-as-non-root"
+    - "no-read-only-root-fs"
+    # Pillar C (resilience owner): the Deployments don't yet declare pod
+    # anti-affinity or topology spread. Re-enable once spread is added.
+    - "no-anti-affinity"
+    # Low value for our PDBs; the default unhealthy-pod eviction policy is fine.
+    - "pdb-unhealthy-pod-eviction-policy"

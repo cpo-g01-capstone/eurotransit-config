@@ -1,0 +1,189 @@
+# EuroTransit — Configuration validation (EM-38)
+#
+# Gate config changes BEFORE Argo CD applies them. On `main` every commit is a
+# deploy, so this runs on PRs (block bad commits from merging) and on pushes to
+# main (belt-and-suspenders / direct pushes). This is the "policy-as-code" review
+# gate from the agentic-coding threat model (CLAUDE.md): helm lint + template +
+# kubeconform on every config-repo PR, so a bad manifest fails here, not in-cluster.
+#
+# The core steps run the SAME recipes you run locally before committing
+# (`just helm-verify`, `just helm-schema`) — one source of truth, no CI/local drift.
+name: Validate config (Helm chart + manifests)
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "apps/**"
+      - "bootstrap/**"
+      - "platform/**"
+      - "kafka/**"
+      - "postgres/**"
+      - "Justfile"
+      - "scripts/**"
+      - ".github/workflows/validate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "apps/**"
+      - "bootstrap/**"
+      - "platform/**"
+      - "kafka/**"
+      - "postgres/**"
+      - "Justfile"
+      - "scripts/**"
+      - ".github/workflows/validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-config-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CHART: deploy/charts/eurotransit
+
+jobs:
+  validate:
+    name: Lint & validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Secret hygiene — only *.sealed.yaml may live under any secrets/ dir.
+      #    .gitignore blocks plaintext; this fails the build if one was force-added.
+      - name: Block unsealed secrets
+        run: |
+          bad=$(git ls-files '**/secrets/*.yaml' | grep -v '\.sealed\.yaml$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Unsealed (plaintext) secret files committed:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK: no unsealed secrets committed."
+
+      # 2. Tooling
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - name: Set up just
+        uses: extractions/setup-just@v2
+      - name: Install kubeconform + yamllint + kube-linter + gitleaks
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+          curl -sSL https://github.com/stackrox/kube-linter/releases/download/v0.8.3/kube-linter-linux.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kube-linter
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          pipx install yamllint || pip install --user yamllint
+
+      # 2b. Deep secret scan of the tree (tokens, keys, high-entropy). SealedSecret
+      #     ciphertext + prose docs + public Azure identifiers are allowlisted in
+      #     .gitleaks.toml. Complements the convention check above by catching secrets
+      #     OUTSIDE secrets/ dirs. Same tool the local pre-commit hook runs.
+      - name: gitleaks (secret scan)
+        run: gitleaks dir . --redact --exit-code 1 -c .gitleaks.toml
+
+      # 3. The offline gate — identical to the local pre-commit check:
+      #    helm lint --strict + template render + no plaintext Secret in the
+      #    render + no public (LoadBalancer/NodePort) Service.
+      - name: just helm-verify
+        run: just helm-verify
+
+      # 4. Schema-validate every rendered manifest against the k8s API + CRD
+      #    schemas (kubeconform + datreeio CRDs-catalog). Compensating control
+      #    for the Argo SkipDryRunOnMissingResource decision (ADR 0003): a typo'd
+      #    kind/apiVersion fails here instead of retrying forever in-cluster.
+      - name: just helm-schema
+        run: just helm-schema
+
+      # 4b. Policy-as-code: enforce the manifest-checkable "common mistakes" from
+      #     CLAUDE.md against the rendered chart (probes present, resources set, no
+      #     privileged / host-namespace / docker-sock, no secrets in env, drop
+      #     NET_RAW, ...). Enforced set + documented exclusions live in .kube-linter.yaml.
+      - name: kube-linter (policy-as-code)
+        run: kube-linter lint "$CHART" --config .kube-linter.yaml
+
+      # 5. Static YAML lint of hand-written files (not Helm templates — those
+      #    aren't valid YAML until rendered).
+      - name: yamllint (values + Argo manifests)
+        run: |
+          yamllint -d relaxed \
+            "$CHART/values.yaml" "$CHART/Chart.yaml" \
+            apps/*.yaml bootstrap/apps/*.yaml
+
+      # 6. Schema-validate the standalone Argo CD Application/AppProject manifests
+      #    (their argoproj.io schemas come from the CRDs-catalog; unknown kinds
+      #    are ignored). Catches a malformed Application before root-app applies it.
+      - name: kubeconform Argo manifests
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            apps/*.yaml bootstrap/apps/*.yaml
+
+  # Verify the image tags referenced in values.yaml actually EXIST in ACR — the
+  # one thing kubeconform can't check (it needs registry access). Catches a typo'd
+  # tag as a red PR instead of an ImagePullBackOff after merge.
+  #
+  # Best-effort, NOT load-bearing: this is a pre-merge safety net, so it SKIPS
+  # (with a ::notice::) when the config repo's Azure OIDC secrets aren't set —
+  # its absence doesn't break the deploy, unlike a required step. (Contrast the
+  # app-repo write-back, which must fail if unconfigured.)
+  #
+  # To enable: give the CI identity a federated credential for THIS repo with
+  # AcrPull on acreurotransitg01, and set AZURE_CLIENT_ID / AZURE_TENANT_ID /
+  # AZURE_SUBSCRIPTION_ID as Actions secrets. See infra/acr-oidc/.
+  image-exists-in-acr:
+    name: Image tags exist in ACR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # Azure OIDC federated login
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is Azure OIDC configured?
+        id: oidc
+        env:
+          CID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -z "$CID" ]; then
+            echo "::notice::Azure OIDC not configured for this repo — skipping the ACR tag existence check (optional pre-merge safety net). See infra/acr-oidc/."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Azure login (OIDC)
+        if: steps.oidc.outputs.configured == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify referenced tags exist in ACR
+        if: steps.oidc.outputs.configured == 'true'
+        env:
+          VALUES: deploy/charts/eurotransit/values.yaml
+        run: |
+          set -euo pipefail
+          registry=$(yq e '.global.imageRegistry' "$VALUES")   # acreurotransitg01.azurecr.io
+          name="${registry%%.azurecr.io}"                      # acreurotransitg01
+          rc=0
+          for svc in catalog orders inventory payments notifications; do
+            repo=$(yq e ".${svc}.image.repository" "$VALUES")  # eurotransit/<svc>
+            tag=$(yq e ".${svc}.image.tag" "$VALUES")
+            if az acr repository show-tags --name "$name" --repository "$repo" -o tsv 2>/dev/null | grep -qx "$tag"; then
+              echo "✓ ${repo}:${tag} exists in ${name}"
+            else
+              echo "::error::${repo}:${tag} NOT found in ACR '${name}' — would ImagePullBackOff"
+              rc=1
+            fi
+          done
+          exit $rc

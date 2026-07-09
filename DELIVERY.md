@@ -61,6 +61,9 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 | 25 | Alerting | symptom-based PrometheusRules only | no CPU/mem alerts | [vojtech](docs/agents/vojtech.md) |
 | 26 | Argo blast radius | two scoped AppProjects (`platform` / `eurotransit`) | whitelists must track reality | [ADR 0011](docs/adr/0011-scoped-appprojects.md) |
 | 27 | North-south routing | Traefik `IngressRoute`/`Middleware`/`TraefikService` — no native `Ingress` | Traefik-tied; k9s "Ingresses" view is empty by design | [ADR 0012](docs/adr/0012-traefik-ingressroute-over-ingress.md) |
+| 28 | Config-repo CI | `validate.yml` gate on PRs + main (reuses `just helm-verify`/`helm-schema`) | must be a required check to actually block | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
+| 29 | Policy-as-code | kube-linter, **CI-only** (no admission controller) | 4 hardening checks excluded (deferred, tracked) | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
+| 30 | Secret scanning | gitleaks in CI + opt-in `.githooks` pre-commit | hooks bypassable; CI is the gate | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
 
 ---
 
@@ -154,6 +157,22 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 - **Symptom-based alerts only** — `CheckoutHighErrorRate`, `CheckoutHighP95Latency`,
   `InventoryServiceDown`, `KafkaConsumerLagHigh`. No CPU/memory threshold alerts (cause-based,
   noisy). SLO numbers are team-owned.
+
+### CI validation & policy-as-code (28–30)
+- **`validate.yml` is the config-repo review gate** (PRs + push to main). It reuses the local
+  gates (`just helm-verify`, `just helm-schema`) so CI and local never drift, plus yamllint and
+  kubeconform on the Argo manifests. Make it a **required check** on `main` for it to actually
+  block (ADR 0013).
+- **Policy-as-code is kube-linter, CI-only** — no in-cluster admission controller (Kyverno/
+  Gatekeeper) on the 6-vCPU budget. Blocking on the checks the chart passes; 4 hardening checks
+  (`run-as-non-root`, `no-read-only-root-fs`, `no-anti-affinity`, PDB eviction) are excluded as
+  **deferred**, tracked in the [network-policy checklist](docs/delivery/network-policy-checklist.md).
+- **Secret scanning is layered** — gitleaks in CI (enforced) + an opt-in `.githooks/pre-commit`
+  (`just install-hooks`) for local fast feedback. Hooks are bypassable, so CI is the gate. Plus
+  a `git ls-files` block on any unsealed `secrets/*.yaml` / `*.pem` / `*.key`.
+- **ACR tag-existence** check runs under a read-only identity (`id-eurotransit-config-ci`,
+  AcrPull) and soft-skips until the config-repo OIDC secrets are set (best-effort, not
+  load-bearing).
 
 ---
 

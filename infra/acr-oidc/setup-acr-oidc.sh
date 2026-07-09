@@ -4,7 +4,8 @@
 #
 # One-time Azure control-plane provisioning that lets:
 #   (a) GitHub Actions in the APP repo push images to ACR via OIDC — NO secret,
-#   (b) the AKS cluster pull those images.
+#   (b) the AKS cluster pull those images,
+#   (c) GitHub Actions in the CONFIG repo READ ACR tags (validate.yml) — read-only.
 #
 # This is CONTROL-PLANE setup, run once by the subscription Owner (the credit
 # holder). It is intentionally NOT wired into any CI workflow: the capstone rule
@@ -20,10 +21,11 @@
 #   - gh CLI logged in, if you use the `secrets` step to set repo secrets
 #
 # Usage:
-#   ./setup-acr-oidc.sh ci        # (a) managed identity + federated cred + AcrPush
+#   ./setup-acr-oidc.sh ci        # (a) app-repo push identity + federated cred + AcrPush
 #   ./setup-acr-oidc.sh aks       # (b) attach ACR to AKS kubelet (AcrPull)
-#   ./setup-acr-oidc.sh secrets   # print / set the 3 GitHub OIDC secrets
-#   ./setup-acr-oidc.sh all       # ci + aks + print secrets
+#   ./setup-acr-oidc.sh config-ci # (c) config-repo read-only identity + federated cred + AcrPull
+#   ./setup-acr-oidc.sh secrets   # print / set the 3 GitHub OIDC secrets (app repo)
+#   ./setup-acr-oidc.sh all       # ci + aks + secrets + config-ci
 #
 # Override any value via env, e.g.  GH_BRANCH=main ACR_NAME=... ./setup-acr-oidc.sh ci
 # =============================================================================
@@ -50,6 +52,11 @@ GH_BRANCH="${GH_BRANCH:-main}"      # CI pushes images on push to main
 # "false" to keep least-privilege to the main branch only.
 GH_ALLOW_PR="${GH_ALLOW_PR:-false}"
 
+# CONFIG repo (this repo) — its validate.yml CI READS ACR tags. Separate
+# least-privilege identity: AcrPull only, never push.
+GH_CONFIG_REPO="${GH_CONFIG_REPO:-eurotransit-config}"
+CONFIG_IDENTITY_NAME="${CONFIG_IDENTITY_NAME:-id-eurotransit-config-ci}"
+
 # -----------------------------------------------------------------------------
 log() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 
@@ -62,6 +69,28 @@ resolve_account() {
   TENANT_ID="${TENANT_ID:-$(az account show --query tenantId -o tsv)}"
   log "Subscription: ${SUBSCRIPTION_ID}"
   log "Tenant:       ${TENANT_ID}"
+}
+
+# Create a federated credential on an identity if it doesn't exist. The subject
+# must match the OIDC token GitHub mints for the run.
+#   add_federated_cred <identity_name> <identity_rg> <cred_name> <subject>
+add_federated_cred() {
+  local identity="$1" rg="$2" name="$3" subject="$4"
+  if az identity federated-credential show \
+       --name "${name}" --identity-name "${identity}" -g "${rg}" \
+       --only-show-errors >/dev/null 2>&1; then
+    echo "  federated-credential '${name}' already exists — skipping"
+  else
+    echo "  creating federated-credential '${name}'  subject=${subject}"
+    az identity federated-credential create \
+      --name "${name}" \
+      --identity-name "${identity}" \
+      --resource-group "${rg}" \
+      --issuer "https://token.actions.githubusercontent.com" \
+      --subject "${subject}" \
+      --audiences "api://AzureADTokenExchange" \
+      --only-show-errors >/dev/null
+  fi
 }
 
 # --- (a) CI push identity: managed identity + federated cred + AcrPush --------
@@ -82,32 +111,13 @@ setup_ci() {
   log "Identity clientId=${client_id}"
 
   # Federated credential(s): the trust that "GitHub Actions on <subject> may act
-  # as this identity". Subject must match the token GitHub mints for the run.
-  add_federated_cred() {
-    local name="$1" subject="$2"
-    if az identity federated-credential show \
-         --name "${name}" --identity-name "${IDENTITY_NAME}" -g "${IDENTITY_RG}" \
-         --only-show-errors >/dev/null 2>&1; then
-      echo "  federated-credential '${name}' already exists — skipping"
-    else
-      echo "  creating federated-credential '${name}'  subject=${subject}"
-      az identity federated-credential create \
-        --name "${name}" \
-        --identity-name "${IDENTITY_NAME}" \
-        --resource-group "${IDENTITY_RG}" \
-        --issuer "https://token.actions.githubusercontent.com" \
-        --subject "${subject}" \
-        --audiences "api://AzureADTokenExchange" \
-        --only-show-errors >/dev/null
-    fi
-  }
-
+  # as this identity".
   log "Ensuring federated credentials for ${GH_ORG}/${GH_APP_REPO}"
-  add_federated_cred "gh-${GH_APP_REPO}-${GH_BRANCH}" \
-    "repo:${GH_ORG}/${GH_APP_REPO}:ref:refs/heads/${GH_BRANCH}"
+  add_federated_cred "${IDENTITY_NAME}" "${IDENTITY_RG}" \
+    "gh-${GH_APP_REPO}-${GH_BRANCH}" "repo:${GH_ORG}/${GH_APP_REPO}:ref:refs/heads/${GH_BRANCH}"
   if [ "${GH_ALLOW_PR}" = "true" ]; then
-    add_federated_cred "gh-${GH_APP_REPO}-pr" \
-      "repo:${GH_ORG}/${GH_APP_REPO}:pull_request"
+    add_federated_cred "${IDENTITY_NAME}" "${IDENTITY_RG}" \
+      "gh-${GH_APP_REPO}-pr" "repo:${GH_ORG}/${GH_APP_REPO}:pull_request"
   fi
 
   # AcrPush on the ACR scope only (least privilege — cannot touch anything else).
@@ -162,13 +172,64 @@ print_secrets() {
 EOF
 }
 
+# --- (c) config-repo CI: read-only identity (AcrPull) for validate.yml --------
+setup_config_ci() {
+  require az
+  resolve_account
+
+  log "Ensuring read-only CI identity '${CONFIG_IDENTITY_NAME}' in '${IDENTITY_RG}'"
+  az identity create \
+    --name "${CONFIG_IDENTITY_NAME}" \
+    --resource-group "${IDENTITY_RG}" \
+    --location "${LOCATION}" \
+    --only-show-errors >/dev/null
+
+  local client_id principal_id
+  client_id=$(az identity show -n "${CONFIG_IDENTITY_NAME}" -g "${IDENTITY_RG}" --query clientId -o tsv)
+  principal_id=$(az identity show -n "${CONFIG_IDENTITY_NAME}" -g "${IDENTITY_RG}" --query principalId -o tsv)
+  log "Identity clientId=${client_id}"
+
+  # validate.yml's ACR job runs on PRs and on pushes to main → federate both.
+  log "Ensuring federated credentials for ${GH_ORG}/${GH_CONFIG_REPO}"
+  add_federated_cred "${CONFIG_IDENTITY_NAME}" "${IDENTITY_RG}" \
+    "gh-${GH_CONFIG_REPO}-${GH_BRANCH}" "repo:${GH_ORG}/${GH_CONFIG_REPO}:ref:refs/heads/${GH_BRANCH}"
+  add_federated_cred "${CONFIG_IDENTITY_NAME}" "${IDENTITY_RG}" \
+    "gh-${GH_CONFIG_REPO}-pr" "repo:${GH_ORG}/${GH_CONFIG_REPO}:pull_request"
+
+  # AcrPull (READ only) on the ACR scope — this CI only lists tags, never pushes.
+  local acr_id
+  acr_id=$(az acr show -n "${ACR_NAME}" -g "${ACR_RG}" --query id -o tsv)
+  log "Assigning AcrPull to the identity on ${ACR_NAME}"
+  az role assignment create \
+    --assignee-object-id "${principal_id}" \
+    --assignee-principal-type ServicePrincipal \
+    --role AcrPull \
+    --scope "${acr_id}" \
+    --only-show-errors >/dev/null 2>&1 \
+    && echo "  AcrPull assigned" \
+    || echo "  AcrPull already present (or propagating) — skipping"
+
+  log "GitHub Actions secrets for ${GH_ORG}/${GH_CONFIG_REPO} (OIDC — IDs, not passwords):"
+  cat <<EOF
+  AZURE_CLIENT_ID        ${client_id}
+  AZURE_TENANT_ID        ${TENANT_ID}
+  AZURE_SUBSCRIPTION_ID  ${SUBSCRIPTION_ID}
+
+  Set them with the gh CLI (run against the CONFIG repo):
+    gh secret set AZURE_CLIENT_ID       -R ${GH_ORG}/${GH_CONFIG_REPO} -b "${client_id}"
+    gh secret set AZURE_TENANT_ID       -R ${GH_ORG}/${GH_CONFIG_REPO} -b "${TENANT_ID}"
+    gh secret set AZURE_SUBSCRIPTION_ID -R ${GH_ORG}/${GH_CONFIG_REPO} -b "${SUBSCRIPTION_ID}"
+EOF
+}
+
 # --- dispatch ----------------------------------------------------------------
 case "${1:-all}" in
-  ci)      setup_ci ;;
-  aks)     setup_aks ;;
-  secrets) print_secrets ;;
-  all)     setup_ci; setup_aks; print_secrets ;;
-  *)       echo "Usage: $0 {ci|aks|secrets|all}" >&2; exit 2 ;;
+  ci)        setup_ci ;;
+  aks)       setup_aks ;;
+  config-ci) setup_config_ci ;;
+  secrets)   print_secrets ;;
+  all)       setup_ci; setup_aks; print_secrets; setup_config_ci ;;
+  *)         echo "Usage: $0 {ci|aks|config-ci|secrets|all}" >&2; exit 2 ;;
 esac
 
 log "Done."

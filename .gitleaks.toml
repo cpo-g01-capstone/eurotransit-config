@@ -1,0 +1,21 @@
+# gitleaks config (EM-38). Extends the built-in ruleset and allowlists the
+# encrypted SealedSecret blobs — they are base64 ciphertext that would otherwise
+# trip the high-entropy / generic-key rules, and they are safe to commit by design
+# (only the in-cluster controller's private key can decrypt them).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Encrypted secrets, prose docs, and public Azure identifiers"
+paths = [
+  # SealedSecret ciphertext — encrypted, safe to commit.
+  '''.*\.sealed\.yaml$''',
+  # Prose docs (ADRs, READMEs, DELIVERY.md): `generic-api-key` false-positives on
+  # ordinary text. Real secrets never live in docs — they are sealed manifests.
+  '''.*\.md$''',
+]
+regexes = [
+  # Public Azure resource identifiers (ADR 0001) — names, not secrets. They trip
+  # `generic-api-key` inside `KEY="..."` recipe/script patterns.
+  '''(rg-eurotransit-g01|aks-eurotransit-g01|acreurotransitg01)''',
+]
