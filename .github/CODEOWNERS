@@ -36,14 +36,14 @@ docs/design/                                  @Lollegro
 platform/observability/                       @marcodonatucci
 deploy/charts/eurotransit/templates/catalog/  @marcodonatucci
 
-# Data & consistency owner 
+# Data & consistency owner
 platform/cloudnative-pg/                      @MauroC0l
 deploy/charts/eurotransit/templates/inventory/ @MauroC0l
 deploy/charts/eurotransit/templates/payments/  @MauroC0l
 docs/design/consistency.md                    @MauroC0l
 docs/design/idempotency.md                    @MauroC0l
 
-# Graded collective deliverables — all five must approve
-docs/capstone-dod.md                          @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
-docs/agent-log.md                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
-docs/postmortem.md                            @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
+# Graded collective deliverables
+docs/capstone-dod.md                          @marcodonatucci
+docs/agent-log.md                             @marcodonatucci
+docs/postmortem.md                            @marcodonatucci
