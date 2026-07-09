@@ -1,7 +1,8 @@
 # Kafka topics — EuroTransit
 
 Cluster name (Strimzi CR): `eurotransit-kafka`
-Bootstrap service (internal): `eurotransit-kafka-kafka-bootstrap.eurotransit:9092`
+Bootstrap service (internal FQDN): `eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092`
+Spring Boot env var: `SPRING_KAFKA_BOOTSTRAP_SERVERS=eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092`
 
 | Topic | Partitions | Retention | Producer | Consumer(s) |
 |-------|-----------|-----------|----------|-------------|

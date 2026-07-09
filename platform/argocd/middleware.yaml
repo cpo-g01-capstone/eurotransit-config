@@ -1,0 +1,15 @@
+# HTTP→HTTPS redirect for the Argo CD UI, applied per-route to the web-entrypoint
+# IngressRoute (see ingressroute.yaml). Same redirect-https pattern as the app
+# chart (EM-33). Wave 1 + SkipDryRun: the Traefik CRD comes from a wave-0 app.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-redirect-https
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

@@ -1,0 +1,189 @@
+# ==============================================================================
+# EuroTransit — Helm values
+#
+# Defaults target local k3d. Azure overrides belong in a separate values file
+# or in the Argo CD Application's helm.values block — never edit this file
+# per-environment.
+#
+# CI bumps the `tag` field under each service's `image` block.
+# Everything else changes only when the team deliberately decides to.
+# ==============================================================================
+
+global:
+  # Set to ACR hostname for AKS: "myacr.azurecr.io"
+  imageRegistry: ""
+  # Set to [{name: acr-pull-secret}] for AKS
+  imagePullSecrets: []
+
+# ------------------------------------------------------------------------------
+# Graceful shutdown (shared across all services)
+#
+# Drain chain on SIGTERM (Pod deletion / rollout / node drain):
+#   1. Pod enters Terminating → removed from the Service's ready endpoints, so
+#      Traefik and kube-proxy stop sending NEW traffic to it.
+#   2. preStop `sleep` keeps the container alive while that endpoint removal
+#      propagates, so in-flight requests are not dropped mid-flight.
+#   3. SIGTERM reaches Spring Boot → graceful shutdown drains in-flight work and
+#      flips readiness to OUT_OF_SERVICE (requires server.shutdown=graceful in
+#      the app — verified app-side, Pillar A).
+#   4. The JVM exits before terminationGracePeriodSeconds elapses.
+#
+# Invariant: preStopSleepSeconds + shutdownTimeout < terminationGracePeriodSeconds.
+#            (5 + 50 = 55 < 60) — keep this true if you tune the numbers.
+# ------------------------------------------------------------------------------
+lifecycle:
+  terminationGracePeriodSeconds: 60
+  preStopSleepSeconds: 5
+  # Spring `spring.lifecycle.timeout-per-shutdown-phase`
+  shutdownTimeout: "50s"
+
+# ------------------------------------------------------------------------------
+# Probes (shared across all services)
+#
+# startup + liveness hit /actuator/health/liveness — LOCAL process only, never a
+# downstream dependency (a liveness probe that checks Kafka/DB causes cascading
+# restarts — hard rule).
+# readiness hits /actuator/health/readiness — includes Kafka/DB and reports
+# draining during shutdown so traffic is withdrawn.
+# ------------------------------------------------------------------------------
+probes:
+  startup:
+    failureThreshold: 20
+    periodSeconds: 10
+  liveness:
+    periodSeconds: 15
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 5
+    failureThreshold: 3
+
+# ------------------------------------------------------------------------------
+# Catalog — read-heavy, tolerant of staleness, no DB
+# ------------------------------------------------------------------------------
+catalog:
+  image:
+    repository: eurotransit/catalog
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# ------------------------------------------------------------------------------
+# Orders — synchronous entry point, publishes to Kafka, owns the DB
+# ------------------------------------------------------------------------------
+orders:
+  image:
+    repository: eurotransit/orders
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  db:
+    # Name of the CloudNativePG-generated secret (<cluster>-app)
+    secretName: "eurotransit-orders-db-app"
+    # Primary (read-write) service endpoint
+    host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
+    port: "5432"
+    name: "ordersdb"
+
+# ------------------------------------------------------------------------------
+# Inventory — contended resource, must never oversell
+# ------------------------------------------------------------------------------
+inventory:
+  image:
+    repository: eurotransit/inventory
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# ------------------------------------------------------------------------------
+# Payments — strict idempotency, must not double-charge
+# ------------------------------------------------------------------------------
+payments:
+  image:
+    repository: eurotransit/payments
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# ------------------------------------------------------------------------------
+# Notifications — fully async; failure must degrade gracefully
+# ------------------------------------------------------------------------------
+notifications:
+  image:
+    repository: eurotransit/notifications
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ------------------------------------------------------------------------------
+# Kafka (Strimzi cluster in the same namespace)
+# ------------------------------------------------------------------------------
+kafka:
+  bootstrapServers: "eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092"
+
+# ------------------------------------------------------------------------------
+# Ingress
+# Override host per environment. TLS is off locally; set tls: true for AKS.
+# ------------------------------------------------------------------------------
+ingress:
+  host: "eurotransit.local"
+  tls: false
+  tlsSecretName: "eurotransit-tls"
+  # ClusterIssuer used by the cert-manager Certificate when tls: true.
+  # Start on staging (high rate limits); switch to letsencrypt-prod once staging
+  # issues successfully for the host. Only takes effect when tls: true.
+  certIssuer: "letsencrypt-staging"
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy
+# Default-deny + explicit allows for the five application pods only.
+# NOTE: only enforced by a CNI that supports NetworkPolicy. k3d's default
+# Flannel does NOT enforce these (they apply as a no-op locally); AKS Azure CNI
+# / Calico does. See docs/delivery/network-policy-checklist.md before relying on
+# enforcement.
+# ------------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  appPort: 8080                  # container port the services listen on
+  dbPort: 5432                   # CloudNativePG (in-namespace)
+  kafkaPort: 9092                # Strimzi Kafka bootstrap (in-namespace)
+  ingressNamespace: "traefik"    # namespace Traefik runs in (north-south source)
+  monitoringNamespace: "monitoring"  # namespace Prometheus scrapes from

@@ -20,3 +20,6 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # The CloudNativePG Cluster CRD is installed by the separate CNPG platform app —
+      # tolerate it not being registered yet so the sync retries instead of failing.
+      - SkipDryRunOnMissingResource=true

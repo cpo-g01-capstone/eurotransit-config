@@ -3,12 +3,19 @@ kind: Application
 metadata:
   name: platform
   namespace: argocd
+  annotations:
+    # Wave 0: operators (CRDs + controllers) must be installed and Healthy before
+    # the workloads app applies the resources that depend on them — Kafka,
+    # CloudNativePG Cluster, SealedSecrets. See workloads.yaml (wave 1).
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
     repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     targetRevision: HEAD
     path: platform
+    directory:
+      recurse: true
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: default

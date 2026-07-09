@@ -4,6 +4,12 @@
 *-not-to-be-versioned.yaml
 *-not-to-be-versioned.json
 
+# Plaintext secrets under any secrets/ dir — commit only the sealed output.
+# Convention: secrets/*.yaml is the local plaintext (gitignored); the sealed
+# manifest MUST be named secrets/*.sealed.yaml (kept, negated below).
+**/secrets/*.yaml
+!**/secrets/*.sealed.yaml
+
 # Private keys and certificates
 *.pem
 *.key
@@ -23,3 +29,4 @@
 .agent/local/
 .claude.local.md
 .agents/*
+TODO.local.md

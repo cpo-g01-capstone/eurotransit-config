@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eurotransit-kafka
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: HEAD
+    path: kafka
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: eurotransit
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Kafka/KafkaTopic CRDs are installed by the separate Strimzi platform app —
+      # tolerate them not being registered yet so the sync retries instead of failing.
+      - SkipDryRunOnMissingResource=true

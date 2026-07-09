@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eurotransit
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    targetRevision: HEAD
+    path: deploy/charts/eurotransit
+    helm:
+      releaseName: eurotransit
+      valueFiles:
+        - values.yaml
+        # Azure (AKS) overlay — ACR registry + Azure FQDN (eurotransit.vojtechn.dev)
+        # + TLS (ADR 0001/0005). Active: the cluster is AKS (staging branch). Local
+        # k3d uses `just bootstrap-manual`, not this GitOps path.
+        - values-azure.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: eurotransit
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The chart ships CRs whose CRDs are installed by SEPARATE platform apps
+      # (ServiceMonitor/PrometheusRule ← kube-prometheus-stack; IngressRoute/
+      # TraefikService ← Traefik; Certificate ← cert-manager). Tolerate those CRDs
+      # not being registered yet so the sync retries instead of hard-failing.
+      # (In the real root-app flow, workloads (wave 1) sync after platform (wave 0),
+      # so the CRDs normally exist; this is belt-and-suspenders + fixes the
+      # bootstrap-branch test, which applies app leaves without that wave gating.)
+      - SkipDryRunOnMissingResource=true

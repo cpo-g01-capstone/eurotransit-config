@@ -1,0 +1,21 @@
+{{- if .Values.ingress.tls }}
+# cert-manager Certificate that populates the secret the IngressRoute references
+# (ingress.tlsSecretName). Only rendered when TLS is on (ingress.tls: true) —
+# i.e. on AKS, not local k3d. The referenced ClusterIssuer (ingress.certIssuer)
+# is installed by the platform layer (platform/cert-manager/clusterissuer-*.yaml).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: eurotransit-tls
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.ingress.tlsSecretName }}
+  dnsNames:
+    - {{ .Values.ingress.host | quote }}
+  issuerRef:
+    name: {{ .Values.ingress.certIssuer }}
+    kind: ClusterIssuer
+{{- end }}

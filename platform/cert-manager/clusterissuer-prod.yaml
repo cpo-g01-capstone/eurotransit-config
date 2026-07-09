@@ -1,0 +1,25 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  annotations:
+    # Wave 1: after the cert-manager operator (wave 0). cert-manager's CRDs are
+    # installed by a SEPARATE Argo Application, so SkipDryRunOnMissingResource lets
+    # the sync retry until cert-manager.io/ClusterIssuer exists instead of hard-failing.
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  acme:
+    # Let's Encrypt PRODUCTION — trusted certs, but strict rate limits
+    # (e.g. 5 duplicate certs/week). Only point the app here after the staging
+    # issuer has successfully issued for the same hostname.
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # ACME contact — Let's Encrypt sends expiry/account notices here. Confirmed
+    # for EuroTransit (EM-34); carried over from Lab03.
+    email: vojtech.novotny@studenti.polito.it
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

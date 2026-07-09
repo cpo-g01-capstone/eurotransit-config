@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    # Wave 0: installs the operator + Cluster CRD. The eurotransit-orders-db
+    # Cluster CR is synced by the workloads app (wave 1).
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: "https://cloudnative-pg.github.io/charts"
+    # Pinned chart version (appVersion CloudNativePG 1.30.0). Bump deliberately in a PR.
+    targetRevision: 0.29.0
+    chart: cloudnative-pg
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # CNPG's CRDs (clusters/poolers.postgresql.cnpg.io) exceed the client-side
+      # apply annotation size limit (262144 bytes). Server-side apply is required
+      # to install them — same as the monitoring stack.
+      - ServerSideApply=true

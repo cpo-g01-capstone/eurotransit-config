@@ -1,37 +1,55 @@
 # Platform
 
-This directory contains Argo CD `Application` manifests for cluster-wide infrastructure.
-Each file here is a child app of the `platform` app-of-apps (`bootstrap/apps/platform.yaml`),
-so adding a new component is just adding one `Application` manifest in this directory.
+Argo CD `Application` manifests for cluster-wide infrastructure operators.
+Each subdirectory is one platform component; `bootstrap/apps/platform.yaml` discovers
+them all via `directory.recurse: true`.
 
-Planned / in-progress components:
-- Traefik (Ingress)
-- cert-manager
-- CloudNativePG
-- Strimzi (Kafka)
-- kube-prometheus-stack ✅ (`kube-prometheus-stack.yaml`)
-- Chaos Mesh
-- Sealed Secrets ✅ (`sealed-secrets.yaml`)
-- CloudNativePG operator ✅ (`cloudnative-pg.yaml`)
+To add a new component: create a new subdirectory and drop an `Application` manifest in it.
+Argo CD will pick it up on the next sync without touching any other file.
 
-Orders DB cluster CR lives in `postgres/` (synced by `apps/data-infrastructure.yaml`).
+## Components
+
+| Directory | Component | Namespace | Status |
+|---|---|---|---|
+| `traefik/` | Traefik ingress controller | `traefik` | ✅ |
+| `cert-manager/` | TLS certificate automation | `cert-manager` | ✅ |
+| `cloudnative-pg/` | PostgreSQL operator | `cnpg-system` | ✅ |
+| `strimzi/` | Kafka operator | `strimzi-system` | ✅ |
+| `monitoring/` | kube-prometheus-stack (Prometheus + Grafana + Alertmanager) | `monitoring` | ✅ |
+| `sealed-secrets/` | Sealed Secrets controller | `kube-system` | ✅ |
+| `chaos-mesh/` | Chaos engineering controller | `chaos-testing` | ⬜ not yet added |
+
+## Notes
+
+- All operator Applications are pinned to explicit chart versions (never `HEAD`):
+  cert-manager `v1.20.3`, traefik `41.0.1`, cloudnative-pg `0.29.0`,
+  strimzi `1.1.0`, kube-prometheus-stack `86.2.3`. Bump deliberately in a PR.
+  The `bootstrap/*` app-of-apps Applications correctly stay on git `HEAD` (they
+  track `main`, which is how CI tag bumps reach the cluster).
+- `strimzi/strimzi.yaml` is pinned to `1.1.0` (k8s 1.30–1.36; covers the AKS 1.34
+  target) — see ADR 0004. Must equal the Justfile `STRIMZI_VERSION`. Both install
+  paths target `strimzi-system` (operator watches `eurotransit`). The Kafka CR uses
+  broker `4.2.0`, the tested default shipped by Strimzi 1.1.0.
+- `sealed-secrets/sealed-secrets.yaml` uses `targetRevision: 2.15.x` (minor pinned,
+  patch floats). Pin the exact `2.15.z` before the AKS deployment.
+- Grafana default credentials (`admin` / `prom-operator`) are fine for local k3d.
+  Replace with a SealedSecret before any shared cluster.
+
+Orders DB cluster CR lives in `postgres/` — synced by `apps/data-infrastructure.yaml`,
+not by this platform app-of-apps.
 
 ## Monitoring — kube-prometheus-stack
 
-`kube-prometheus-stack.yaml` deploys the Prometheus Operator, Prometheus, Alertmanager,
-Grafana, kube-state-metrics, and node-exporter via the upstream
-`prometheus-community/kube-prometheus-stack` Helm chart (pinned to `86.2.3`).
+`monitoring/kube-prometheus-stack.yaml` deploys Prometheus Operator, Prometheus,
+Alertmanager, Grafana, kube-state-metrics, and node-exporter.
 
-- **Namespace:** `monitoring` (auto-created by Argo CD)
-- **Release name:** `kube-prometheus-stack` — kept fixed so service `ServiceMonitor`s
-  labelled `release: kube-prometheus-stack` (see `CLAUDE.md`) are selected.
-- **Cross-namespace discovery:** `*SelectorNilUsesHelmValues: false` so Prometheus
-  scrapes any `ServiceMonitor`/`PodMonitor` and loads any `PrometheusRule`/`Probe` in the
-  cluster (e.g. the per-service ones shipped from the application chart in `eurotransit`).
-- **Sync:** `ServerSideApply=true` is required — the Operator CRDs exceed the client-side
-  `last-applied-configuration` annotation size limit.
-- **Storage:** ephemeral (emptyDir) for dev/k3d. Add a `storageSpec` PVC before any
-  environment that must retain metric history across restarts.
-- **Grafana access (dev):** `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80`
-  (default credentials `admin` / `prom-operator`). Replace with a SealedSecret before any
-  shared cluster — never commit a plaintext password.
+- **Release name:** `kube-prometheus-stack` — fixed so per-service `ServiceMonitor`s
+  labelled `release: kube-prometheus-stack` are selected automatically.
+- **Cross-namespace discovery:** `*SelectorNilUsesHelmValues: false` — Prometheus scrapes
+  any `ServiceMonitor`/`PodMonitor` and loads any `PrometheusRule` in the cluster.
+- **Sync:** `ServerSideApply=true` required — Operator CRDs exceed the client-side
+  annotation size limit.
+- **Storage:** ephemeral (`emptyDir`) for dev/k3d. Add a `storageSpec` PVC with the
+  `managed-csi` storage class before deploying to AKS.
+- **Grafana access (dev):**
+  `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80`

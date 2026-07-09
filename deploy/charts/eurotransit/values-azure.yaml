@@ -1,0 +1,52 @@
+# ==============================================================================
+# EuroTransit — Azure (AKS) overlay
+#
+# Applied ON TOP of values.yaml. Carries ONLY the deltas from the local k3d
+# baseline. Never duplicate unchanged keys here, and never put image tags here —
+# CI bumps tags in the base values.yaml, which both environments inherit.
+#
+# Usage:
+#   helm template eurotransit . -f values.yaml -f values-azure.yaml
+#   (Argo CD: list both files under helm.valueFiles — see apps/eurotransit.yaml)
+#
+# Cluster/registry names come from ADR 0001 (docs/adr/0001-...).
+# ==============================================================================
+
+global:
+  # ACR login server (ADR 0001). Prefixes every service image.
+  imageRegistry: "acreurotransitg01.azurecr.io"
+  # Pull secret for ACR. Created out-of-band (or replaced by AKS managed-identity
+  # ACR integration, in which case set this back to []).
+  imagePullSecrets:
+    - name: acr-pull-secret
+
+# ------------------------------------------------------------------------------
+# Ingress
+# Custom domain: eurotransit.vojtechn.dev. Create a DNS record pointing at the
+# Traefik LoadBalancer public IP — either a CNAME to the Azure-provided FQDN
+# (eurotransit-g01.<region>.cloudapp.azure.com, set via the Traefik Service
+# annotation service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01)
+# or an A record to the LB IP. Let's Encrypt issues for this host via HTTP-01,
+# so TLS is on; the chart's redirect Middleware forces HTTP→HTTPS.
+# ------------------------------------------------------------------------------
+ingress:
+  host: "eurotransit.vojtechn.dev"
+  tls: true
+  tlsSecretName: "eurotransit-tls"
+  # Start on staging to prove HTTP-01 works without burning prod rate limits;
+  # switch to letsencrypt-prod once a staging cert is issued for this host.
+  certIssuer: "letsencrypt-prod"
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy is already enabled in the base values; on AKS (Azure CNI) these
+# policies are actually ENFORCED, unlike k3d's Flannel. No override needed —
+# noted here for awareness. See docs/delivery/network-policy-checklist.md.
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# NOT handled by this chart (platform/infra layer):
+#   - Storage class (AKS: managed-csi) for Prometheus / Kafka / Postgres PVCs
+#   - Kafka broker count (3 on AKS vs 1 on k3d) — kafka/ Kafka CR
+#   - Postgres primary+standby — postgres/ CloudNativePG Cluster CR
+# Track these as a separate platform overlay task.
+# ------------------------------------------------------------------------------

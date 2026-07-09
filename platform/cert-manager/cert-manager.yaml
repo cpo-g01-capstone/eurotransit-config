@@ -3,11 +3,16 @@ kind: Application
 metadata:
   name: cert-manager
   namespace: argocd
+  annotations:
+    # Wave 0: installs the operator + CRDs. The ClusterIssuer(s) that depend on
+    # those CRDs live in this same directory at wave 1.
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
     repoURL: 'https://charts.jetstack.io'
-    targetRevision: HEAD
+    # Pinned chart version (== appVersion). Bump deliberately in a PR; never float.
+    targetRevision: v1.20.3
     chart: cert-manager
     helm:
       parameters:
@@ -22,3 +27,6 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # cert-manager's CRDs are large and can exceed the client-side apply
+      # annotation size limit. Server-side apply installs them reliably.
+      - ServerSideApply=true

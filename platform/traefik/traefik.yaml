@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    # Wave 0: ingress controller operator/CRDs (IngressRoute, TraefikService)
+    # must exist before the app chart's ingress resources sync in the workloads app.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: "https://helm.traefik.io/traefik"
+    # Pinned chart version (appVersion Traefik v3.7.5). Bump deliberately in a PR.
+    targetRevision: 41.0.1
+    chart: traefik
+    helm:
+      # Traefik chart values. Must live under source.helm.valuesObject — a bare
+      # `service:` under source.* is silently ignored by Argo CD.
+      valuesObject:
+        service:
+          type: LoadBalancer
+          annotations:
+            # Gives the LB a stable FQDN: eurotransit-g01.<region>.cloudapp.azure.com
+            service.beta.kubernetes.io/azure-dns-label-name: eurotransit-g01
+
+        # The chart already enables both providers (kubernetesCRD for our
+        # IngressRoute, kubernetesIngress for standard Ingress) by default, and
+        # creates a default IngressClass. Pin its name to `traefik` so the
+        # cert-manager HTTP-01 solver's `ingressClassName: traefik` matches
+        # deterministically. (lab03's providers.kubernetesIngress.ingressClass
+        # key no longer exists in chart 41.0.1 — class config moved here.)
+        ingressClass:
+          enabled: true
+          isDefaultClass: true
+          name: traefik
+        # Access logs on for edge observability. General log level stays at the
+        # default INFO — DEBUG is a temporary troubleshooting aid (noisy, adds
+        # overhead), not a permanent setting; raise `log.level` only when needed.
+        accessLog:
+          enabled: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

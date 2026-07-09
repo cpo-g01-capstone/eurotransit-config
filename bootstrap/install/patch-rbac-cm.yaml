@@ -1,0 +1,20 @@
+# Argo CD RBAC (EM-39). Strategic-merge patch onto the upstream argocd-rbac-cm.
+#
+# Decision: every teammate operates Argo, and Dex already restricts login to the
+# cpo-g01-capstone org — so any authenticated user IS a teammate. The default role
+# is therefore admin; org-restricted SSO login is the access gate.
+#
+# Trade-off (owned): this is broader than strict least-privilege. Acceptable for a
+# 5-person peer team where everyone runs the system. To scope down later, set
+# policy.default to role:readonly and grant admin to a specific GitHub team:
+#   policy.csv: |
+#     g, cpo-g01-capstone:<team>, role:admin
+# The built-in `admin` local user stays as break-glass until SSO is verified, then
+# is retired (delete argocd-initial-admin-secret; optionally admin.enabled: false).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  policy.default: role:admin
+  scopes: '[groups, email]'

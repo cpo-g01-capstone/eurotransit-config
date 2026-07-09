@@ -4,7 +4,10 @@ metadata:
   name: eurotransit-cluster
 servers: 1
 agents: 2                                       #worker nodes to test PodDisruptionBudget and topologySpreadConstraints of Pillar C
-image: rancher/k3s:v1.28.2-k3s1 
+# Exact parity with the AKS deliverable (k8s 1.34.8) — see ADR 0004. AKS is the
+# authoritative target; k3d matches it so "works on k3d" means "works on AKS".
+# All operator pins (Strimzi 1.1.0, CNPG 0.29.0, cert-manager v1.20.3) support 1.34.
+image: rancher/k3s:v1.34.8-k3s1
 ports:
   - port: 8081:80                               #maps port 80 from the cluster to 8081 locally to avoid conflicts with system ports
     nodeFilters:
