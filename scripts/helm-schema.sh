@@ -21,12 +21,9 @@ if ! command -v kubeconform >/dev/null 2>&1; then
   exit 127
 fi
 
-echo "Schema-validating rendered manifests (base + Azure overlay)..."
-for overlay in "" "-f ${CHART}/values-azure.yaml"; do
-  # shellcheck disable=SC2086
-  helm template eurotransit "$CHART" --namespace eurotransit -f "${CHART}/values.yaml" $overlay \
-    | kubeconform -strict -summary -ignore-missing-schemas \
-        -schema-location default \
-        -schema-location "$CATALOG"
-done
+echo "Schema-validating rendered manifests..."
+helm template eurotransit "$CHART" --namespace eurotransit -f "${CHART}/values.yaml" \
+  | kubeconform -strict -summary -ignore-missing-schemas \
+      -schema-location default \
+      -schema-location "$CATALOG"
 echo "OK: kubeconform schema validation passed."

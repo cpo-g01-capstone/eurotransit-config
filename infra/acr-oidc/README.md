@@ -60,10 +60,10 @@ GH_BRANCH=main GH_ALLOW_PR=true ./setup-acr-oidc.sh ci
   (the `secrets` step prints ready-to-paste `gh secret set` commands). The CI
   workflow's `azure/login` step then authenticates via OIDC and `docker push`es to
   `acreurotransitg01.azurecr.io`.
-- **This repo**: because AKS pull uses `--attach-acr` (kubelet AcrPull), set
-  `global.imagePullSecrets: []` in `deploy/charts/eurotransit/values-azure.yaml`.
-  If you instead prefer an `acr-pull-secret`, skip the `aks` step and seal that
-  secret rather than attaching.
+- **This repo**: because AKS pull uses `--attach-acr` (kubelet AcrPull),
+  `global.imagePullSecrets` is already `[]` in `deploy/charts/eurotransit/values.yaml` —
+  nothing to change. If you instead prefer an `acr-pull-secret`, skip the `aks` step, seal
+  that secret, and set `global.imagePullSecrets: [{name: acr-pull-secret}]`.
 
 ## What it creates in Azure
 

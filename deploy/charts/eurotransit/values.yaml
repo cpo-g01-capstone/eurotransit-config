@@ -1,17 +1,18 @@
 # ==============================================================================
 # EuroTransit — Helm values
 #
-# These are the baseline (registry-less, TLS-off) defaults. Azure (AKS) deltas
-# live in the values-azure.yaml overlay — never edit this file per-environment.
+# Single values file targeting the AKS cluster (one environment — ADR 0006/0009).
+# The former values-azure.yaml overlay was folded in here.
 #
 # CI bumps the `tag` field under each service's `image` block.
 # Everything else changes only when the team deliberately decides to.
 # ==============================================================================
 
 global:
-  # Set to ACR hostname for AKS: "myacr.azurecr.io"
-  imageRegistry: ""
-  # Set to [{name: acr-pull-secret}] for AKS
+  # ACR login server (ADR 0001) — prefixes every service image.
+  imageRegistry: "acreurotransitg01.azurecr.io"
+  # Empty: AKS pulls via the kubelet's AcrPull (`az aks update --attach-acr`, ADR 0010).
+  # Use [{name: acr-pull-secret}] only if you seal a pull secret instead of attaching.
   imagePullSecrets: []
 
 # ------------------------------------------------------------------------------
@@ -160,16 +161,16 @@ kafka:
 
 # ------------------------------------------------------------------------------
 # Ingress
-# Override host per environment. TLS is off locally; set tls: true for AKS.
+# Public host on AKS; TLS via cert-manager + Let's Encrypt (HTTP-01). The chart's
+# redirect Middleware forces HTTP→HTTPS. See docs/delivery/tls-issuance-runbook.md.
 # ------------------------------------------------------------------------------
 ingress:
-  host: "eurotransit.local"
-  tls: false
+  host: "eurotransit.vojtechn.dev"
+  tls: true
   tlsSecretName: "eurotransit-tls"
-  # ClusterIssuer used by the cert-manager Certificate when tls: true.
-  # Start on staging (high rate limits); switch to letsencrypt-prod once staging
-  # issues successfully for the host. Only takes effect when tls: true.
-  certIssuer: "letsencrypt-staging"
+  # ClusterIssuer for the cert-manager Certificate. letsencrypt-prod = trusted cert;
+  # switch to letsencrypt-staging (high rate limits) while iterating on issuance.
+  certIssuer: "letsencrypt-prod"
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy
