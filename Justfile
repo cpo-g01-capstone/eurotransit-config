@@ -55,6 +55,13 @@ aks-bootstrap BRANCH="main":
     echo "Done. Watch reconciliation: just argocd-status"
     echo "NOTE: app pods ImagePullBackOff until ACR images exist (see the ACR task)."
 
+#one-time ACR OIDC / pull provisioning (EM-41). Run once as the subscription
+#Owner: creates the CI managed identity + federated credential + AcrPush, attaches
+#ACR to AKS for pull, and prints the GitHub OIDC secrets. See infra/acr-oidc/README.md.
+#Usage: just acr-oidc [ci|aks|secrets|all]   (defaults to all)
+acr-oidc STEP="all":
+    bash infra/acr-oidc/setup-acr-oidc.sh {{ STEP }}
+
 #install Argo CD itself (pinned via bootstrap/install/kustomization.yaml)
 install-argocd:
     @echo "Creating argocd namespace..."
