@@ -22,3 +22,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0004](0004-operator-version-pinning-and-cluster-parity.md) | Operator Version Pinning and Dev/Prod Cluster Parity | Proposed | 2026-07-01 |
 | [0005](0005-node-sizing-under-vcpu-quota.md) | Node Sizing under Regional vCPU Quota (3× B2s_v2) | Proposed | 2026-07-08 |
 | [0006](0006-drop-k3d-azure-only.md) | Drop Local k3d; Run Everything on Azure (AKS) | Proposed | 2026-07-09 |
+| [0007](0007-gitops-writeback-github-app.md) | Cross-repo GitOps Write-back via a GitHub App (not a PAT) | Proposed | 2026-07-09 |

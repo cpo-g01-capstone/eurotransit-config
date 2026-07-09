@@ -94,7 +94,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 - If you add a new secret dependency, seal it first and commit only the `SealedSecret`
 
 ### Touching the CI workflow (`.github/workflows/ci.yml` in app-repo)
-- The `update-gitops` job must use `CONFIG_REPO_PAT` (not `GITHUB_TOKEN`) for cross-repo write access
+- The `update-gitops` job writes to the config repo via a **GitHub App installation token** (`actions/create-github-app-token`, secrets `CONFIG_REPO_APP_ID` / `CONFIG_REPO_APP_PRIVATE_KEY`), never `GITHUB_TOKEN`. See ADR 0007 + `infra/gitops-writeback-app/README.md`.
 - Never add `az aks get-credentials`, `kubectl`, or `helm upgrade` steps targeting the real cluster
 - If you change the `yq` path to `values.yaml`, verify it matches the actual YAML key path
 
@@ -204,21 +204,36 @@ spec:
 
 ### CI update-gitops job (canonical snippet)
 ```yaml
+# Mint a short-lived, org-owned token scoped to the config repo (ADR 0007).
+- name: Mint config-repo token (GitHub App)
+  id: app-token
+  uses: actions/create-github-app-token@v1
+  with:
+    app-id: ${{ secrets.CONFIG_REPO_APP_ID }}
+    private-key: ${{ secrets.CONFIG_REPO_APP_PRIVATE_KEY }}
+    owner: ${{ github.repository_owner }}
+    repositories: eurotransit-config
+- name: Checkout config repo
+  uses: actions/checkout@v4
+  with:
+    repository: ${{ github.repository_owner }}/eurotransit-config
+    token: ${{ steps.app-token.outputs.token }}
+    path: config
 - name: Update image tags in config-repo
   run: |
     yq e '.<service>.image.tag = "${{ needs.detect-changes.outputs.short_sha }}"' \
-      -i gitops/deploy/charts/eurotransit/values.yaml
+      -i config/deploy/charts/eurotransit/values.yaml
 - name: Commit and push
+  working-directory: config
   run: |
-    cd gitops
-    git config user.name "github-actions[bot]"
-    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+    git config user.email "<bot-user-id>+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
     git add deploy/charts/eurotransit/values.yaml
     git diff --cached --quiet && exit 0
     git commit -m "ci: bump <service> image tag to ${{ needs.detect-changes.outputs.short_sha }}"
     git push
 ```
-The `CONFIG_REPO_PAT` secret (fine-grained PAT, contents read+write on config-repo only) must be set in the application-repo GitHub Actions secrets. Never use `GITHUB_TOKEN` for cross-repo writes.
+Cross-repo write-back uses a **GitHub App** (org-owned, Contents: write on `eurotransit-config` only, short-lived per-run token), not a personal PAT — see ADR 0007. The app repo holds `CONFIG_REPO_APP_ID` + `CONFIG_REPO_APP_PRIVATE_KEY`; setup is in `infra/gitops-writeback-app/README.md`. Never use `GITHUB_TOKEN` for cross-repo writes.
 
 ### Sealing workflow (justfile recipe used by all teammates)
 ```bash
