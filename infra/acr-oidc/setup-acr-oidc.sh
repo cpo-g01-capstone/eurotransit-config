@@ -137,8 +137,8 @@ setup_aks() {
     --resource-group "${AKS_RG}" \
     --attach-acr "${ACR_NAME}" \
     --only-show-errors >/dev/null
-  echo "  Done. With attach-acr, imagePullSecrets are NOT needed:"
-  echo "  set  global.imagePullSecrets: []  in deploy/charts/eurotransit/values-azure.yaml"
+  echo "  Done. With attach-acr, imagePullSecrets are NOT needed —"
+  echo "  global.imagePullSecrets is already [] in deploy/charts/eurotransit/values.yaml."
 }
 
 # --- (c) GitHub secrets the app-repo workflow expects -------------------------

@@ -116,13 +116,6 @@ helm-lint:
     helm lint {{ CHART }} --strict
     @echo "OK: lint passed."
 
-# Render templates with the Azure overlay applied (catches a broken values-azure.yaml)
-helm-template-azure:
-    @echo "Rendering Helm templates with Azure overlay..."
-    helm template eurotransit {{ CHART }} --namespace eurotransit \
-        -f {{ CHART }}/values.yaml -f {{ CHART }}/values-azure.yaml > /dev/null
-    @echo "OK: Azure overlay renders without errors."
-
 # Render and check that no plaintext Secret manifests were generated
 helm-check-secrets:
     @echo "Checking for plaintext Secret manifests..."
@@ -141,7 +134,7 @@ helm-check-services:
 
 # Full offline check: lint + template render + no plaintext secrets + no public services
 # Run this before every commit; does not require a cluster.
-helm-verify: helm-lint helm-template helm-template-azure helm-check-secrets helm-check-services
+helm-verify: helm-lint helm-template helm-check-secrets helm-check-services
     @echo "All offline checks passed."
 
 # Schema-validate rendered manifests with kubeconform (compensating control for the

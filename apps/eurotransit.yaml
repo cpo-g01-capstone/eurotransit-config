@@ -12,10 +12,9 @@ spec:
     helm:
       releaseName: eurotransit
       valueFiles:
+        # Single values file — targets AKS directly (ACR registry, FQDN, TLS).
+        # The former values-azure.yaml overlay was folded in (ADR 0006/0009).
         - values.yaml
-        # Azure (AKS) overlay — ACR registry + Azure FQDN (eurotransit.vojtechn.dev)
-        # + TLS (ADR 0001/0005). Active: the cluster is AKS.
-        - values-azure.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: eurotransit

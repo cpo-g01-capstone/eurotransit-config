@@ -26,7 +26,7 @@ either an attached kubelet identity or an image-pull secret.
    `AZURE_CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID` secrets on the app repo are **IDs, not
    passwords**.
 2. **Pull (AKS → ACR):** `az aks update --attach-acr` grants the **kubelet AcrPull**; the
-   chart therefore sets `global.imagePullSecrets: []` in `values-azure.yaml`.
+   chart therefore sets `global.imagePullSecrets: []` in `values.yaml`.
 3. Provisioning is a checked-in, idempotent script — `infra/acr-oidc/` — run once by the
    subscription Owner, not wired into CI.
 
