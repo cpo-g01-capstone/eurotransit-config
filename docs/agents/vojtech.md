@@ -79,7 +79,7 @@ just helm-schema    # kubeconform schema-validates the rendered manifests
 
 ## Open questions
 
-- **Argo CD AppProject** — should we scope the Application to a named `AppProject` to restrict blast radius? Low effort, good practice before the demo.
+- **Argo CD AppProject** — ✅ resolved (ADR 0011, EM-42): two scoped projects — `platform` (broad) and `eurotransit` (namespace-locked, no cluster-scoped power). `bootstrap/apps/projects.yaml`.
 - **Argo CD webhook** — default polling is every 3 min. A GitHub webhook reduces sync lag to seconds. Worth adding before the live demo.
 - **Canary promotion thresholds** — need to be agreed with the Observability owner. Proposed: error rate < 1% and p95 < 300ms sustained over 5 minutes before promoting.
 - **Blue/green cleanup policy** — how long to keep the old Deployment after switching traffic? Proposed: delete after one full health-check cycle (≈5 min) with no errors.

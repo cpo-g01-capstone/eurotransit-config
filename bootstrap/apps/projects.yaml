@@ -1,0 +1,58 @@
+# AppProjects — scope the blast radius of Applications (ADR 0011).
+#
+# Two tiers matching the two privilege levels already in the app-of-apps:
+#   - platform:    the meta + operator apps (argocd self-mgmt, platform, workloads).
+#                  Broad — they legitimately install cluster-scoped resources (CRDs,
+#                  ClusterRoles, webhooks) across many namespaces.
+#   - eurotransit: the five app services + their Kafka/CNPG CRs. LOCKED to the
+#                  `eurotransit` namespace with NO cluster-scoped power — the tier
+#                  most likely to receive a bad/agent-generated manifest.
+#
+# Both restrict `sourceRepos` to the config repo. Created by root-app at wave -2 so
+# they exist before any Application references them (argocd -1, platform 0, workloads 1).
+# root-app itself stays on `project: default` — it is the trusted seed that CREATES
+# these projects, so it cannot depend on them.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  description: Platform meta + operator apps (cluster-scoped install rights, any namespace).
+  sourceRepos:
+    - 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+  destinations:
+    - server: 'https://kubernetes.default.svc'
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: eurotransit
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  description: The five app services + their Kafka/CNPG CRs — eurotransit namespace only.
+  sourceRepos:
+    - 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+  destinations:
+    - server: 'https://kubernetes.default.svc'
+      namespace: eurotransit
+  # No cluster-scoped resources EXCEPT the Namespace the apps deploy into
+  # (they use CreateNamespace=true). Blocks ClusterRole/CRD/ClusterIssuer/etc.
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Any namespaced kind is fine — the destination already pins it to eurotransit.
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

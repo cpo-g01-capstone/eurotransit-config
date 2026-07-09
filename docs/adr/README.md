@@ -26,3 +26,5 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0008](0008-single-helm-chart.md) | Single Helm Chart for All Five Services | Proposed | 2026-07-09 |
 | [0009](0009-trunk-based-single-stack.md) | Trunk-based Delivery; One Stack, No Staging | Proposed | 2026-07-09 |
 | [0010](0010-acr-access-oidc-managed-identity.md) | ACR Access via GitHub OIDC + Managed Identity | Proposed | 2026-07-09 |
+| [0011](0011-scoped-appprojects.md) | Scoped AppProjects (platform + eurotransit) | Proposed | 2026-07-09 |
+| [0012](0012-traefik-ingressroute-over-ingress.md) | Traefik IngressRoute over native Ingress | Proposed | 2026-07-09 |

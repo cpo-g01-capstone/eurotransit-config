@@ -122,7 +122,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 
 - **Kafka replication factor in dev** — single-broker means `replication.factor=1`. This is acceptable for dev but must be flagged clearly. Should we add a `min.insync.replicas=1` override or accept the Strimzi default?
 
-- **Argo CD AppProject** — should we create a scoped `AppProject` to limit blast radius (bonus from Lab04)? It restricts Argo CD to only reconcile our namespace and repo. Low effort, good practice.
+- **Argo CD AppProject** — ✅ resolved (ADR 0011, EM-42): two scoped projects — `platform` (broad, cluster-scoped install rights) and `eurotransit` (locked to the `eurotransit` namespace, no cluster-scoped power). Defined in `bootstrap/apps/projects.yaml`.
 
 - **Webhook vs polling for Argo CD sync trigger** — default polling is every 3 min + jitter. A GitHub webhook (config-repo → Argo CD `/api/webhook`) reduces lag to seconds. Worth adding before the demo.
 

@@ -9,7 +9,7 @@ metadata:
     # ahead of the controllers/CRDs they require.
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: platform
   source:
     repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     targetRevision: HEAD

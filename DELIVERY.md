@@ -59,6 +59,8 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 | 23 | Argo CD access | GitHub SSO (Dex) + `policy.default: role:admin` | broad RBAC (all operate) | [argocd-sso](docs/delivery/argocd-sso.md) |
 | 24 | Namespace isolation | default-deny NetworkPolicy, single app ns | enforcement is CNI-dependent | [netpol checklist](docs/delivery/network-policy-checklist.md) |
 | 25 | Alerting | symptom-based PrometheusRules only | no CPU/mem alerts | [vojtech](docs/agents/vojtech.md) |
+| 26 | Argo blast radius | two scoped AppProjects (`platform` / `eurotransit`) | whitelists must track reality | [ADR 0011](docs/adr/0011-scoped-appprojects.md) |
+| 27 | North-south routing | Traefik `IngressRoute`/`Middleware`/`TraefikService` — no native `Ingress` | Traefik-tied; k9s "Ingresses" view is empty by design | [ADR 0012](docs/adr/0012-traefik-ingressroute-over-ingress.md) |
 
 ---
 
@@ -74,7 +76,7 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
   render/CRD class of bugs instead. Trade-off: no free local cluster — on-cluster testing
   costs AKS time (ADR 0006).
 
-### Repository & GitOps topology (4–5, 8–9)
+### Repository & GitOps topology (4–5, 8–9, 26)
 - **Two repos.** App repo owns code + CI; config repo owns desired state. CI must never hold
   cluster credentials — this split is what makes that possible (course requirement).
 - **Pull-based, CI writes Git only.** Argo CD reconciles from inside the cluster. Trade-off:
@@ -82,6 +84,16 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 - **`selfHeal` + `prune` both `true`.** Git is the only source of truth; out-of-band drift is
   corrected automatically and orphaned resources are removed. Trade-off: you **cannot** hotfix
   live — a manual edit is reverted. That's intentional; rollback is `git revert` (ADR 0009).
+- **Two scoped AppProjects.** `platform` (broad — installs cluster-scoped operators) and
+  `eurotransit` (locked to the `eurotransit` namespace, no cluster-scoped power). Caps the
+  blast radius of the app tier — the code path most likely to get a bad manifest — without
+  hobbling the platform (ADR 0011).
+- **Kustomize tidy of `platform/argocd/` — considered, deferred.** Folding the hand-written
+  `Certificate`/`IngressRoute`/`Middleware` into a `kustomization.yaml` is cosmetic and not
+  worth the risk: the `platform` app is a *directory-recurse* app, so a kustomization would
+  have to be carved into its own Application (+ `directory.exclude`), and the intermediate
+  `prune` could briefly drop the Argo-UI route and force a **Let's Encrypt cert re-issue**
+  (against the 5/week prod limit) for zero functional gain. Left as raw manifests.
 
 ### Promotion & packaging (6–7)
 - **Trunk-based, one stack.** Staging (namespace + branch) was built then dropped — not graded,
@@ -108,13 +120,18 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
   Contents:write on the config repo only. Chosen over a personal PAT (person-coupled, expiry
   babysitting). Setup: `infra/gitops-writeback-app/` (ADR 0007).
 
-### Resilience, ingress & TLS (17–19)
+### Resilience, ingress & TLS (17–19, 27)
 - **Graceful shutdown + probes centralized in `values.yaml`.** `terminationGracePeriodSeconds:
   60`, 5s `preStop`, 50s drain; liveness checks the **local process only** (never DB/Kafka) to
   avoid cascading restarts; readiness gates traffic and flips during drain (ADR 0002).
 - **Traefik is the only public endpoint**; all app services are ClusterIP. **cert-manager +
   Let's Encrypt**, staging issuer first (high rate limit) then prod (trusted) — see the
   [TLS runbook](docs/delivery/tls-issuance-runbook.md).
+- **Routing is Traefik `IngressRoute`, not native `Ingress`** — required for the redirect
+  `Middleware` and the weighted-canary `TraefikService` (ADR 0012). Consequence: **k9s's
+  Ingresses view is empty by design** — look at `kubectl get ingressroute` instead. The only
+  native `Ingress` that ever appears is cert-manager's ephemeral `cm-acme-http-solver-*` during
+  a cert challenge.
 
 ### Progressive delivery (20)
 - **Canary** via `TraefikService` weighted routing (shift stable→canary, watch SLIs, promote
