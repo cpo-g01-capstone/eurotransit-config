@@ -1,8 +1,8 @@
 # ==============================================================================
 # EuroTransit — Azure (AKS) overlay
 #
-# Applied ON TOP of values.yaml. Carries ONLY the deltas from the local k3d
-# baseline. Never duplicate unchanged keys here, and never put image tags here —
+# Applied ON TOP of values.yaml. Carries ONLY the deltas from the baseline
+# values.yaml. Never duplicate unchanged keys here, and never put image tags here —
 # CI bumps tags in the base values.yaml, which both environments inherit.
 #
 # Usage:
@@ -39,14 +39,14 @@ ingress:
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy is already enabled in the base values; on AKS (Azure CNI) these
-# policies are actually ENFORCED, unlike k3d's Flannel. No override needed —
-# noted here for awareness. See docs/delivery/network-policy-checklist.md.
+# policies are actually ENFORCED. No override needed — noted here for awareness.
+# See docs/delivery/network-policy-checklist.md.
 # ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
 # NOT handled by this chart (platform/infra layer):
 #   - Storage class (AKS: managed-csi) for Prometheus / Kafka / Postgres PVCs
-#   - Kafka broker count (3 on AKS vs 1 on k3d) — kafka/ Kafka CR
+#   - Kafka broker count (3 on AKS) — kafka/ Kafka CR
 #   - Postgres primary+standby — postgres/ CloudNativePG Cluster CR
 # Track these as a separate platform overlay task.
 # ------------------------------------------------------------------------------

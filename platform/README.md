@@ -32,7 +32,7 @@ Argo CD will pick it up on the next sync without touching any other file.
   broker `4.2.0`, the tested default shipped by Strimzi 1.1.0.
 - `sealed-secrets/sealed-secrets.yaml` uses `targetRevision: 2.15.x` (minor pinned,
   patch floats). Pin the exact `2.15.z` before the AKS deployment.
-- Grafana default credentials (`admin` / `prom-operator`) are fine for local k3d.
+- Grafana default credentials (`admin` / `prom-operator`) are fine for local dev.
   Replace with a SealedSecret before any shared cluster.
 
 Orders DB cluster CR lives in `postgres/` — synced by `apps/data-infrastructure.yaml`,
@@ -49,7 +49,7 @@ Alertmanager, Grafana, kube-state-metrics, and node-exporter.
   any `ServiceMonitor`/`PodMonitor` and loads any `PrometheusRule` in the cluster.
 - **Sync:** `ServerSideApply=true` required — Operator CRDs exceed the client-side
   annotation size limit.
-- **Storage:** ephemeral (`emptyDir`) for dev/k3d. Add a `storageSpec` PVC with the
+- **Storage:** ephemeral (`emptyDir`) for dev. Add a `storageSpec` PVC with the
   `managed-csi` storage class before deploying to AKS.
 - **Grafana access (dev):**
   `kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80`

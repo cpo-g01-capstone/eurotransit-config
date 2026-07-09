@@ -88,7 +88,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 
 ### Touching the Helm chart (`deploy/charts/eurotransit/`)
 - Run `just helm-verify` before opening a PR (lint + template render + plaintext secret check — no cluster needed)
-- Run `just helm-dry-run` if you have a cluster available (server-side dry-run catches unknown CRDs)
+- Run `just helm-schema` for kubeconform schema validation of the rendered manifests (no cluster needed)
 - Do not hardcode image tags — use `{{ .Values.<service>.image.tag }}`
 - Every new template file needs a corresponding entry in `values.yaml` with safe defaults
 - If you add a new secret dependency, seal it first and commit only the `SealedSecret`
@@ -128,7 +128,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 
 - **Canary promotion criteria** — the capstone says "watch SLIs, promote or abort" but does not define the threshold. This must be agreed with the Observability owner before the canary demo. Proposed: error rate < 1% and p95 < 300ms over 5 minutes.
 
-- **Strimzi version pin** — ✅ resolved: `0.40.0` pinned in `just install-operator`. Platform `platform/strimzi.yaml` still uses `targetRevision: HEAD` — should be pinned to match.
+- **Strimzi version pin** — the operator version is pinned in the platform Application (`platform/strimzi/strimzi.yaml`), the single source of truth now that the manual install path is gone. Confirm `targetRevision` is a fixed version, not `HEAD`.
 
 - **Blue/green cleanup timing** — how long do we keep the old Deployment around after switching traffic? Need to define a policy (e.g. one successful health check cycle = 5 minutes).
 
@@ -254,7 +254,7 @@ The ACR registry is a global prefix, not baked into each repository field. CI on
 
 ```yaml
 global:
-  imageRegistry: ""           # empty for k3d; "myacr.azurecr.io" for AKS
+  imageRegistry: ""           # empty for the baseline; "myacr.azurecr.io" for AKS
   imagePullSecrets: []        # [{name: acr-pull-secret}] for AKS
 
 catalog:

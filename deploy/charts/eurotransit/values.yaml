@@ -1,9 +1,8 @@
 # ==============================================================================
 # EuroTransit — Helm values
 #
-# Defaults target local k3d. Azure overrides belong in a separate values file
-# or in the Argo CD Application's helm.values block — never edit this file
-# per-environment.
+# These are the baseline (registry-less, TLS-off) defaults. Azure (AKS) deltas
+# live in the values-azure.yaml overlay — never edit this file per-environment.
 #
 # CI bumps the `tag` field under each service's `image` block.
 # Everything else changes only when the team deliberately decides to.
@@ -175,9 +174,9 @@ ingress:
 # ------------------------------------------------------------------------------
 # NetworkPolicy
 # Default-deny + explicit allows for the five application pods only.
-# NOTE: only enforced by a CNI that supports NetworkPolicy. k3d's default
-# Flannel does NOT enforce these (they apply as a no-op locally); AKS Azure CNI
-# / Calico does. See docs/delivery/network-policy-checklist.md before relying on
+# NOTE: only enforced by a CNI that supports NetworkPolicy. AKS Azure CNI /
+# Calico enforces these; a CNI without NetworkPolicy support applies them as a
+# no-op. See docs/delivery/network-policy-checklist.md before relying on
 # enforcement.
 # ------------------------------------------------------------------------------
 networkPolicy:

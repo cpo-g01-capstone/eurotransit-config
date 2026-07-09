@@ -14,14 +14,9 @@ Orders database cluster managed by the [CloudNativePG](https://cloudnative-pg.io
 
 ## GitOps
 
-Synced by the `eurotransit-data` Argo CD Application (`apps/data-infrastructure.yaml`), a child of the root app-of-apps.
-
-## Local bootstrap (k3d)
-
-After the cluster and CNPG operator are up:
+Synced by the `eurotransit-data` Argo CD Application (`apps/data-infrastructure.yaml`), a child of the root app-of-apps. Once Argo CD reconciles the cluster CR:
 
 ```bash
-just deploy-postgres
 kubectl -n eurotransit get cluster eurotransit-orders-db
 kubectl -n eurotransit get secret eurotransit-orders-db-app
 ```

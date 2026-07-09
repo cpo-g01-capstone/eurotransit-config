@@ -11,12 +11,12 @@ I am responsible for the **Delivery & Platform** area of EuroTransit. My scope i
 - Platform operators declared in `platform/` (Traefik, cert-manager, CloudNativePG, Strimzi, kube-prometheus-stack, Sealed Secrets)
 - Kafka infrastructure: Strimzi operator, `Kafka` CR, `KafkaTopic` CRs in `kafka/`
 - Sealed Secrets workflow — sealing, scoping, and the `just seal` recipe
-- Local development cluster: `k3d-config.yaml`, `Justfile`, bootstrap scripts
+- Cluster bootstrap tooling: `Justfile`, `bootstrap/` (Argo CD install + app-of-apps)
 
 ## Decisions made
 
 - **Single Helm chart** for all five services (`deploy/charts/eurotransit/`). One `values.yaml` updated by CI; no per-service charts.
-- **Global image registry** via `global.imageRegistry` in `values.yaml`. Local k3d leaves it empty; AKS sets it to the ACR hostname. CI bumps only the `tag` field — never the registry prefix.
+- **Global image registry** via `global.imageRegistry` in `values.yaml`. The baseline leaves it empty; the AKS overlay sets it to the ACR hostname. CI bumps only the `tag` field — never the registry prefix.
 - **`imagePullPolicy: IfNotPresent`** everywhere. Tags are immutable SHAs; pulling on every restart would be wasteful and non-deterministic.
 - **All services ClusterIP** — only Traefik gets a public endpoint. Internal routing stays inside the cluster.
 - **Liveness probes check `/actuator/health/liveness` only.** Never downstream. Readiness checks `/actuator/health/readiness`, which includes Kafka + DB availability.
@@ -49,9 +49,9 @@ Run the offline gate — no cluster needed:
 just helm-verify    # lint + template render + no plaintext secrets
 ```
 
-If you have a cluster available, also run:
+For deeper schema validation (needs kubeconform, no cluster), also run:
 ```bash
-just helm-dry-run   # server-side dry-run catches unknown CRDs and invalid values
+just helm-schema    # kubeconform schema-validates the rendered manifests
 ```
 
 ### Adding a new Kubernetes resource

@@ -28,9 +28,9 @@ spec:
 ---
 {{- end }}
 # --- Application router ---
-# On AKS (tls: true) this serves the routes on websecure (:443) with the
-# cert-manager-issued cert; plain-HTTP is handled by the redirect router above.
-# On local k3d (tls: false) it serves the same routes on web (:80), no redirect.
+# With TLS on (tls: true, i.e. AKS) this serves the routes on websecure (:443)
+# with the cert-manager-issued cert; plain-HTTP is handled by the redirect router
+# above. With TLS off (tls: false) it serves the same routes on web (:80), no redirect.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

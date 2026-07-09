@@ -4,7 +4,7 @@
 - **Date:** 2026-07-01
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** platform, gitops, kafka
-- **Supersedes / Superseded by:** —
+- **Supersedes / Superseded by:** Point 2 (k3d↔AKS parity) superseded by [ADR 0006](0006-drop-k3d-azure-only.md); the operator/k8s pins (points 1, 3) stand.
 
 ---
 
