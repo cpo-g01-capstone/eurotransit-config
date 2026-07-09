@@ -23,3 +23,6 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0005](0005-node-sizing-under-vcpu-quota.md) | Node Sizing under Regional vCPU Quota (3× B2s_v2) | Proposed | 2026-07-08 |
 | [0006](0006-drop-k3d-azure-only.md) | Drop Local k3d; Run Everything on Azure (AKS) | Proposed | 2026-07-09 |
 | [0007](0007-gitops-writeback-github-app.md) | Cross-repo GitOps Write-back via a GitHub App (not a PAT) | Proposed | 2026-07-09 |
+| [0008](0008-single-helm-chart.md) | Single Helm Chart for All Five Services | Proposed | 2026-07-09 |
+| [0009](0009-trunk-based-single-stack.md) | Trunk-based Delivery; One Stack, No Staging | Proposed | 2026-07-09 |
+| [0010](0010-acr-access-oidc-managed-identity.md) | ACR Access via GitHub OIDC + Managed Identity | Proposed | 2026-07-09 |

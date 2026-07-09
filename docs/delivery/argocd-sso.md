@@ -55,7 +55,7 @@ kubeseal --controller-name sealed-secrets --controller-namespace sealed-secrets 
 
 ## Step 3 — deploy
 
-Merge EM-39 → `staging`, push. Then:
+Merge EM-39 → `main`, push. Then:
 - the **argocd self-management** app reconciles `bootstrap/install` → `argocd-cm`
   (Dex config) + `argocd-rbac-cm` are updated;
 - the **platform** app applies the SealedSecret → sealed-secrets controller

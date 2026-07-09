@@ -34,6 +34,11 @@ platform/             — platform component configurations (installed once per 
 docs/                 — team documentation, DoD, chaos reports, postmortem
 ```
 
+## Delivery decisions
+
+[`DELIVERY.md`](DELIVERY.md) is the overview of every delivery/platform decision (with
+trade-offs), indexing the [ADRs](docs/adr/) and [runbooks](docs/delivery/).
+
 ## How to work here
 
 All changes to `main` go through a pull request with at least one approval.
