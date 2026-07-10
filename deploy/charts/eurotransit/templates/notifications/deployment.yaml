@@ -35,6 +35,9 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
+            # Pin to the chart's standard http port (see catalog/deployment.yaml).
+            - name: SERVER_PORT
+              value: "8080"
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
