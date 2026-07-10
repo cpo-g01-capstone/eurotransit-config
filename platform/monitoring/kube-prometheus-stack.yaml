@@ -29,7 +29,7 @@ spec:
             ruleSelectorNilUsesHelmValues: false
             probeSelectorNilUsesHelmValues: false
             retention: 7d
-            # Dev/k3d: metrics are ephemeral (emptyDir). Add a storageSpec (PVC) before
+            # Dev: metrics are ephemeral (emptyDir). Add a storageSpec (PVC) before
             # any environment where metric history must survive a Pod restart.
         grafana:
           defaultDashboardsEnabled: true

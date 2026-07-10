@@ -6,7 +6,7 @@ metadata:
   name: eurotransit-data
   namespace: argocd
 spec:
-  project: default
+  project: eurotransit
   source:
     repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     targetRevision: HEAD

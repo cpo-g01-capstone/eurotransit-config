@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# EuroTransit — pre-commit secret guard (EM-38).
+#
+# LOCAL fast feedback only. The real enforcement is the CI gate (validate.yml):
+# git hooks are opt-in, not installed on clone, and bypassable with
+# `git commit --no-verify` — so this complements, never replaces, CI.
+#
+# Install once:  just install-hooks   (sets core.hooksPath to .githooks)
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+fail=0
+
+# 1. Convention check: no plaintext secret material may be staged. Only
+#    *.sealed.yaml (kubeseal output) is allowed under a secrets/ dir; never
+#    commit *.pem / *.key.
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+bad="$(printf '%s\n' "$staged" | grep -E '(/secrets/.*\.yaml$|\.pem$|\.key$)' | grep -v '\.sealed\.yaml$' || true)"
+if [ -n "$bad" ]; then
+  echo "✗ Plaintext secret material staged — seal it (kubeseal) and commit only *.sealed.yaml:"
+  printf '   %s\n' "$bad"
+  fail=1
+fi
+
+# 2. Deep scan of the staged diff (tokens, keys, high-entropy strings). Skipped
+#    with a warning if gitleaks isn't installed — CI still scans the whole tree.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --staged --redact --exit-code 1 -c "$root/.gitleaks.toml"; then
+    echo "✗ gitleaks found potential secrets in the staged changes (see above)."
+    fail=1
+  fi
+else
+  echo "⚠ gitleaks not installed — skipping deep scan (brew install gitleaks). CI still scans."
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "pre-commit: BLOCKED. Fix the above, or bypass with 'git commit --no-verify' if you are certain."
+  exit 1
+fi
+echo "pre-commit: OK — no secrets detected."

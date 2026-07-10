@@ -30,9 +30,9 @@ default-deny to them risks breaking replication / leader election.
 
 To verify with the team:
 
-- [ ] 🟡 **CNI enforcement.** k3d's default Flannel does **not** enforce
-      NetworkPolicy — these are a no-op locally. Confirm the target cluster (AKS
-      Azure CNI / Calico, or a Calico-enabled k3d) actually enforces them.
+- [ ] 🟡 **CNI enforcement.** NetworkPolicy is only enforced by a CNI that
+      supports it — a CNI without support treats these as a no-op. Confirm the
+      target cluster (AKS Azure CNI / Calico) actually enforces them.
 - [ ] Namespace label `kubernetes.io/metadata.name` exists on `kube-system`,
       `traefik`, `monitoring` (auto-applied by k8s ≥1.21 — confirm on the target).
 - [ ] Positive test: checkout money path still works with policies applied

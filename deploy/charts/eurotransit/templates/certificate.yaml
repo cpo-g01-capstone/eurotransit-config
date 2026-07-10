@@ -1,7 +1,7 @@
 {{- if .Values.ingress.tls }}
 # cert-manager Certificate that populates the secret the IngressRoute references
 # (ingress.tlsSecretName). Only rendered when TLS is on (ingress.tls: true) —
-# i.e. on AKS, not local k3d. The referenced ClusterIssuer (ingress.certIssuer)
+# i.e. on AKS. The referenced ClusterIssuer (ingress.certIssuer)
 # is installed by the platform layer (platform/cert-manager/clusterissuer-*.yaml).
 apiVersion: cert-manager.io/v1
 kind: Certificate

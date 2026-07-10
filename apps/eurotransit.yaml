@@ -4,7 +4,7 @@ metadata:
   name: eurotransit
   namespace: argocd
 spec:
-  project: default
+  project: eurotransit
   source:
     repoURL: 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     targetRevision: HEAD
@@ -12,11 +12,9 @@ spec:
     helm:
       releaseName: eurotransit
       valueFiles:
+        # Single values file — targets AKS directly (ACR registry, FQDN, TLS).
+        # The former values-azure.yaml overlay was folded in (ADR 0006/0009).
         - values.yaml
-        # Azure (AKS) overlay — ACR registry + Azure FQDN (eurotransit.vojtechn.dev)
-        # + TLS (ADR 0001/0005). Active: the cluster is AKS (staging branch). Local
-        # k3d uses `just bootstrap-manual`, not this GitOps path.
-        - values-azure.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: eurotransit
@@ -32,5 +30,5 @@ spec:
       # not being registered yet so the sync retries instead of hard-failing.
       # (In the real root-app flow, workloads (wave 1) sync after platform (wave 0),
       # so the CRDs normally exist; this is belt-and-suspenders + fixes the
-      # bootstrap-branch test, which applies app leaves without that wave gating.)
+      # aks-bootstrap branch test, which applies app leaves without that wave gating.)
       - SkipDryRunOnMissingResource=true

@@ -12,9 +12,9 @@ AKS cluster with the DNS record in place.
   Verify: `dig +short eurotransit.vojtechn.dev` returns the LB IP.
 - **Platform Synced/Healthy:** `cert-manager` (operator + `letsencrypt-staging` /
   `letsencrypt-prod` ClusterIssuers) and `traefik` Applications are Healthy in Argo CD.
-- **App overlay applied:** the `eurotransit` Application renders with `values-azure.yaml`
+- **App values applied:** the `eurotransit` Application renders `values.yaml`
   (`ingress.tls: true`, `ingress.host: eurotransit.vojtechn.dev`,
-  `ingress.certIssuer: letsencrypt-staging`).
+  `ingress.certIssuer` — iterate on `letsencrypt-staging` first, then prod; see below).
 
 ## What the chart renders (the moving parts)
 
@@ -65,7 +65,7 @@ Only after staging has issued for this exact host. Flip the issuer in the overla
 this is a **reviewed Git commit**, not a live edit (Argo self-heal would revert a live edit):
 
 ```yaml
-# deploy/charts/eurotransit/values-azure.yaml
+# deploy/charts/eurotransit/values.yaml
 ingress:
   certIssuer: "letsencrypt-prod"     # was: letsencrypt-staging
 ```

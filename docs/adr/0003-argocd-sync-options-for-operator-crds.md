@@ -49,12 +49,39 @@ across separate Argo Applications.
    gives up — a typo'd `kind`/`apiVersion` should fail a PR, not be silently treated as
    a missing CRD that retries forever.
 
+### Cross-Application ordering is a hint, not a gate
+
+The app-of-apps uses `sync-wave: "0"` on `platform` and `"1"` on `workloads`, and finer
+waves inside them. **Sync-waves reliably order resources *within a single Application's*
+sync; between *separate* Applications they only order when Argo creates the child
+Application resource — they do not block wave 1 from syncing until wave 0's children are
+Healthy.** So the wave annotations are a *hint* that usually helps, but they are **not** the
+mechanism that prevents a workload CR from applying before its CRD exists.
+
+The real guarantee is decision **2** — `SkipDryRunOnMissingResource` + Argo's idempotent
+retry: a CR whose CRD isn't registered yet is retried, not hard-failed, until the CRD
+appears. This is coherent and sufficient for our bootstrap. If stronger gating is ever
+wanted, the right lever is a **health-based retry/backoff** on the workload Applications
+(let Argo's health assessment + a `retry` backoff converge), **not** strict CRD-first
+ordering (see Alternatives). Low priority — the retry already converges in practice.
+
 ## Alternatives considered
 
 - **Strict CRD-first ordering** (a dedicated Application installing all operator CRDs at
-  the earliest sync-wave, so every downstream app can assume they exist). Cleanest, but
-  more moving parts and duplicates CRD management the operator charts already do.
-  Deferred; may revisit if eventual-consistency proves noisy.
+  the earliest sync-wave, so every downstream app can assume they exist). **Evaluated and
+  rejected** (2026-07-09):
+  - **Ongoing maintenance / drift.** cert-manager, CloudNativePG, Strimzi and
+    kube-prometheus-stack ship their CRDs *inside* their charts. CRD-first means extracting
+    those into a separately-versioned manifest set that must be re-synced on every operator
+    bump — new duplication and a new drift failure mode (the CRD copy silently lagging the
+    operator version).
+  - **Doesn't fully solve ordering.** Some operators need the *controller* running, not just
+    the CRD registered — e.g. the CNPG `Cluster` admission webhook (agent-log case 9). CRD-first
+    would still race the webhook, so it adds complexity without closing the gap.
+  - **Validation is already recovered** by the `kubeconform` control (decision 3), so the main
+    benefit of CRD-first (keeping downstream dry-run) is largely redundant here.
+  - **When it would be worth it:** many teams/apps sharing CRDs under strict change management —
+    not a single-cluster, five-person capstone. Revisit only if the retry approach proves noisy.
 - **`Replace=true`** to sidestep the annotation-size limit. Rejected: it is destructive
   (deletes and recreates resources) and risky for CRDs holding live CRs.
 - **Rely on sync-waves / retries alone.** Rejected: cases 9–10 showed wave gating does
@@ -81,8 +108,8 @@ Drafted with agent assistance during the EM-31 platform-bootstrap work. Before r
 - [ ] Confirm the three workload apps converge (their CRs apply once CRDs exist).
 - [ ] Confirm `just helm-schema` (kubeconform) runs in CI and fails on a deliberately
       broken manifest.
-- [ ] Decide whether to adopt strict CRD-first ordering later, or accept
-      eventual-consistency as the standing approach.
+- [x] Strict CRD-first ordering evaluated and rejected (2026-07-09); eventual-consistency
+      via `SkipDryRunOnMissingResource` + retry is the standing approach (see Alternatives).
 
 ## References
 

@@ -10,7 +10,7 @@ metadata:
   name: eurotransit-orders-db
   namespace: eurotransit
 spec:
-  # 1 instance for dev/k3d. Bump to 3 before CE-5 (failover) / production HA.
+  # 1 instance for dev. Bump to 3 before CE-5 (failover) / production HA.
   instances: 1
   primaryUpdateStrategy: unsupervised
   storage:

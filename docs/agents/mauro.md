@@ -27,7 +27,7 @@ I am responsible for the **Data & Consistency** area of the EuroTransit Marketpl
 
 ## Useful context for AI
 - **Stack:** Kotlin + Spring Boot, Coroutines/Flows.
-- **Infrastructure:** Kubernetes (k3d), Argo CD, Traefik, Strimzi (Kafka), CloudNativePG.
+- **Infrastructure:** Kubernetes (AKS), Argo CD, Traefik, Strimzi (Kafka), CloudNativePG.
 - **Idempotency implementation:** When generating code for consumers or endpoints, always include a check against an idempotency table or unique constraint. 
 - **Database interactions:** Must be non-blocking. Use Spring Data R2DBC or wrap JDBC calls in appropriate IO coroutine dispatchers (`Dispatchers.IO`).
 - **Agent mistakes:** Any generated code that is unsafe, non-idempotent, or violates the consistency invariants must be logged in `docs/agent-log.md` with an explanation.

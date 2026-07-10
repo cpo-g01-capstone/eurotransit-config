@@ -12,10 +12,10 @@
 # money path actually needs.
 #
 # ENFORCEMENT CAVEAT: NetworkPolicy is only enforced by a CNI that supports it.
-# k3d's default Flannel does NOT enforce these — they render and apply cleanly
-# but are a no-op locally. Real enforcement happens on AKS (Azure CNI / Calico)
-# or a Calico-enabled k3d cluster. Verify enforcement with the team before
-# relying on it (see docs/delivery/network-policy-checklist.md).
+# Real enforcement happens on AKS (Azure CNI / Calico); a CNI without
+# NetworkPolicy support renders and applies these cleanly but treats them as a
+# no-op. Verify enforcement with the team before relying on it
+# (see docs/delivery/network-policy-checklist.md).
 # ==============================================================================
 ---
 # Default-deny all ingress and egress for application pods.

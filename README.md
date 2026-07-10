@@ -34,10 +34,25 @@ platform/             — platform component configurations (installed once per 
 docs/                 — team documentation, DoD, chaos reports, postmortem
 ```
 
+## Delivery decisions
+
+[`DELIVERY.md`](DELIVERY.md) is the overview of every delivery/platform decision (with
+trade-offs), indexing the [ADRs](docs/adr/) and [runbooks](docs/delivery/).
+
 ## How to work here
 
 All changes to `main` go through a pull request with at least one approval.
 See `.github/CODEOWNERS` for path-based reviewers.
+
+Every PR is validated by [`.github/workflows/validate.yml`](.github/workflows/validate.yml) —
+helm lint/template, kubeconform schema checks, **kube-linter** policy-as-code, and **gitleaks**
+secret scanning (ADR 0013). Run the same offline gate locally before pushing:
+
+```bash
+just helm-verify      # lint + template + no plaintext secrets + no public services
+just helm-schema      # kubeconform schema validation (needs kubeconform)
+just install-hooks    # once: opt-in pre-commit secret guard (needs gitleaks)
+```
 
 **Do not** run `helm upgrade` or `kubectl apply` against the live cluster directly.
 Change `deploy/charts/eurotransit/values.yaml` or templates → open PR → merge → Argo CD reconciles.

@@ -1,18 +1,18 @@
 # ==============================================================================
 # EuroTransit — Helm values
 #
-# Defaults target local k3d. Azure overrides belong in a separate values file
-# or in the Argo CD Application's helm.values block — never edit this file
-# per-environment.
+# Single values file targeting the AKS cluster (one environment — ADR 0006/0009).
+# The former values-azure.yaml overlay was folded in here.
 #
 # CI bumps the `tag` field under each service's `image` block.
 # Everything else changes only when the team deliberately decides to.
 # ==============================================================================
 
 global:
-  # Set to ACR hostname for AKS: "myacr.azurecr.io"
-  imageRegistry: ""
-  # Set to [{name: acr-pull-secret}] for AKS
+  # ACR login server (ADR 0001) — prefixes every service image.
+  imageRegistry: "acreurotransitg01.azurecr.io"
+  # Empty: AKS pulls via the kubelet's AcrPull (`az aks update --attach-acr`, ADR 0010).
+  # Use [{name: acr-pull-secret}] only if you seal a pull secret instead of attaching.
   imagePullSecrets: []
 
 # ------------------------------------------------------------------------------
@@ -161,23 +161,23 @@ kafka:
 
 # ------------------------------------------------------------------------------
 # Ingress
-# Override host per environment. TLS is off locally; set tls: true for AKS.
+# Public host on AKS; TLS via cert-manager + Let's Encrypt (HTTP-01). The chart's
+# redirect Middleware forces HTTP→HTTPS. See docs/delivery/tls-issuance-runbook.md.
 # ------------------------------------------------------------------------------
 ingress:
-  host: "eurotransit.local"
-  tls: false
+  host: "eurotransit.vojtechn.dev"
+  tls: true
   tlsSecretName: "eurotransit-tls"
-  # ClusterIssuer used by the cert-manager Certificate when tls: true.
-  # Start on staging (high rate limits); switch to letsencrypt-prod once staging
-  # issues successfully for the host. Only takes effect when tls: true.
-  certIssuer: "letsencrypt-staging"
+  # ClusterIssuer for the cert-manager Certificate. letsencrypt-prod = trusted cert;
+  # switch to letsencrypt-staging (high rate limits) while iterating on issuance.
+  certIssuer: "letsencrypt-prod"
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy
 # Default-deny + explicit allows for the five application pods only.
-# NOTE: only enforced by a CNI that supports NetworkPolicy. k3d's default
-# Flannel does NOT enforce these (they apply as a no-op locally); AKS Azure CNI
-# / Calico does. See docs/delivery/network-policy-checklist.md before relying on
+# NOTE: only enforced by a CNI that supports NetworkPolicy. AKS Azure CNI /
+# Calico enforces these; a CNI without NetworkPolicy support applies them as a
+# no-op. See docs/delivery/network-policy-checklist.md before relying on
 # enforcement.
 # ------------------------------------------------------------------------------
 networkPolicy:

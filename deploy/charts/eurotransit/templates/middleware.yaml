@@ -5,7 +5,7 @@
 # the app routes so it never interferes with other entrypoints (e.g. the
 # cert-manager HTTP-01 ACME challenge). lab04 `redirect-https` pattern.
 #
-# Only rendered when TLS is on (ingress.tls: true — i.e. AKS). On local k3d the
+# Only rendered when TLS is on (ingress.tls: true — i.e. AKS). With TLS off the
 # app is served over plain HTTP with no redirect (no cert to redirect to).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
