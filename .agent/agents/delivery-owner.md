@@ -187,7 +187,10 @@ Adjust weights in `traefik-services.yaml` to shift traffic. The IngressRoute in 
 
 ### Kafka topic CR pattern
 ```yaml
-apiVersion: kafka.strimzi.io/v1beta2
+# apiVersion is kafka.strimzi.io/v1 — the Strimzi 1.1.0 operator serves only v1
+# and dropped v1beta2. Do not emit v1beta2 (Argo CD sync fails: "no matches for
+# kind ... ensure CRDs are installed first"). See ADR 0014.
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: order-placed

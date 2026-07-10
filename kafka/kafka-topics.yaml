@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: order-placed
@@ -12,7 +12,7 @@ spec:
     retention.ms: 604800000
     segment.bytes: 1073741824
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: inventory-reserved
@@ -25,7 +25,7 @@ spec:
   config:
     retention.ms: 604800000
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: payment-authorized
@@ -38,7 +38,7 @@ spec:
   config:
     retention.ms: 604800000
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: order-confirmed
@@ -51,7 +51,7 @@ spec:
   config:
     retention.ms: 604800000
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: notification-requested
