@@ -14,7 +14,6 @@ global:
   # Empty: AKS pulls via the kubelet's AcrPull (`az aks update --attach-acr`, ADR 0010).
   # Use [{name: acr-pull-secret}] only if you seal a pull secret instead of attaching.
   imagePullSecrets: []
-
 # ------------------------------------------------------------------------------
 # Graceful shutdown (shared across all services)
 #
@@ -36,7 +35,6 @@ lifecycle:
   preStopSleepSeconds: 5
   # Spring `spring.lifecycle.timeout-per-shutdown-phase`
   shutdownTimeout: "50s"
-
 # ------------------------------------------------------------------------------
 # Probes (shared across all services)
 #
@@ -56,14 +54,13 @@ probes:
   readiness:
     periodSeconds: 5
     failureThreshold: 3
-
 # ------------------------------------------------------------------------------
 # Catalog — read-heavy, tolerant of staleness, no DB
 # ------------------------------------------------------------------------------
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "latest"
+    tag: "eda65de"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -77,14 +74,13 @@ catalog:
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
-
 # ------------------------------------------------------------------------------
 # Orders — synchronous entry point, publishes to Kafka, owns the DB
 # ------------------------------------------------------------------------------
 orders:
   image:
     repository: eurotransit/orders
-    tag: "latest"
+    tag: "eda65de"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -101,14 +97,13 @@ orders:
     host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "ordersdb"
-
 # ------------------------------------------------------------------------------
 # Inventory — contended resource, must never oversell
 # ------------------------------------------------------------------------------
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "latest"
+    tag: "eda65de"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -118,14 +113,13 @@ inventory:
     limits:
       cpu: "1000m"
       memory: "1Gi"
-
 # ------------------------------------------------------------------------------
 # Payments — strict idempotency, must not double-charge
 # ------------------------------------------------------------------------------
 payments:
   image:
     repository: eurotransit/payments
-    tag: "latest"
+    tag: "eda65de"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -135,14 +129,13 @@ payments:
     limits:
       cpu: "1000m"
       memory: "1Gi"
-
 # ------------------------------------------------------------------------------
 # Notifications — fully async; failure must degrade gracefully
 # ------------------------------------------------------------------------------
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "latest"
+    tag: "eda65de"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
@@ -152,13 +145,11 @@ notifications:
     limits:
       cpu: "500m"
       memory: "512Mi"
-
 # ------------------------------------------------------------------------------
 # Kafka (Strimzi cluster in the same namespace)
 # ------------------------------------------------------------------------------
 kafka:
   bootstrapServers: "eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092"
-
 # ------------------------------------------------------------------------------
 # Ingress
 # Public host on AKS; TLS via cert-manager + Let's Encrypt (HTTP-01). The chart's
@@ -171,7 +162,6 @@ ingress:
   # ClusterIssuer for the cert-manager Certificate. letsencrypt-prod = trusted cert;
   # switch to letsencrypt-staging (high rate limits) while iterating on issuance.
   certIssuer: "letsencrypt-prod"
-
 # ------------------------------------------------------------------------------
 # NetworkPolicy
 # Default-deny + explicit allows for the five application pods only.
@@ -182,8 +172,8 @@ ingress:
 # ------------------------------------------------------------------------------
 networkPolicy:
   enabled: true
-  appPort: 8080                  # container port the services listen on
-  dbPort: 5432                   # CloudNativePG (in-namespace)
-  kafkaPort: 9092                # Strimzi Kafka bootstrap (in-namespace)
-  ingressNamespace: "traefik"    # namespace Traefik runs in (north-south source)
-  monitoringNamespace: "monitoring"  # namespace Prometheus scrapes from
+  appPort: 8080 # container port the services listen on
+  dbPort: 5432 # CloudNativePG (in-namespace)
+  kafkaPort: 9092 # Strimzi Kafka bootstrap (in-namespace)
+  ingressNamespace: "traefik" # namespace Traefik runs in (north-south source)
+  monitoringNamespace: "monitoring" # namespace Prometheus scrapes from
