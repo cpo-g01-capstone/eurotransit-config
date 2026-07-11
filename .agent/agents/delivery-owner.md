@@ -73,6 +73,8 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
    - `payment-authorized`
    - `order-confirmed`
    - `notification-requested`
+   - `order-failed` (seat-release compensation — decision D4, 2026-07-11)
+   - `order-confirmed.DLT` (notifications dead-letter — D4; CR name `order-confirmed-dlt`)
 
 4. **`TraefikService` canary weights are the only mechanism for canary traffic splitting.** Do not introduce a service mesh or another ingress controller for this purpose.
 

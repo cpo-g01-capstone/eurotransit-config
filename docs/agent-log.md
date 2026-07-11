@@ -7,6 +7,10 @@ Reviewed like any PR (single approval — ADR 0019); substantive changes should 
 
 Custodian: @marcodonatucci (Observability & Verification).
 
+**Ratification:** cases 1–10 approved with the initial log; **cases 11–14 formally approved by
+the team on 2026-07-11 (decision D12)** — this closes the approval backlog for the agentic-coding
+deliverable. New cases keep requiring one PR approval as above.
+
 | # | Date | Area | Summary |
 |---|------|------|---------|
 | 1 | 2026-06-20 | CI / eurotransit-app | Wrong `paths-filter` globs for service modules |
