@@ -1,0 +1,31 @@
+# CloudNativePG cluster for the Payments service (EM-25).
+#
+# Operator: deployed by platform/cloudnative-pg.yaml into cnpg-system.
+# Application secret (auto-generated): eurotransit-payments-db-app
+#   keys: username, password, dbname, host, port, uri, jdbc-uri
+# Read/write endpoint: eurotransit-payments-db-rw.eurotransit.svc:5432
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: eurotransit-payments-db
+  namespace: eurotransit
+spec:
+  # 1 instance for dev/k3d. Bump to 3 before CE-5 (failover) / production HA.
+  instances: 1
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: paymentsdb
+      owner: app
+      encoding: UTF8
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  monitoring:
+    enablePodMonitor: true
