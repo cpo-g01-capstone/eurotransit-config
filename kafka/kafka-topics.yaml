@@ -1,3 +1,13 @@
+# All topics at replication factor 3 (ADR 0021, D8) — with the brokers'
+# min.insync.replicas=2 an acked write survives one broker loss (CE-4).
+#
+# MIGRATION NOTE (one-time, live cluster): the Strimzi topic operator cannot
+# change the replication factor of an EXISTING topic without Cruise Control —
+# it flags the KafkaTopic as NotReady instead. Since broker storage is
+# ephemeral and there is no production data, the agreed path (ADR 0021) is to
+# recreate: delete the five topics once after the 3-broker pool is up
+# (`kubectl delete kafkatopic -n eurotransit --all`) and let Argo CD re-sync
+# them at RF 3. Coordinate with the team — in-flight events are lost.
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
@@ -7,7 +17,7 @@ metadata:
     strimzi.io/cluster: eurotransit-kafka
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
@@ -21,7 +31,7 @@ metadata:
     strimzi.io/cluster: eurotransit-kafka
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 604800000
 ---
@@ -34,7 +44,7 @@ metadata:
     strimzi.io/cluster: eurotransit-kafka
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 604800000
 ---
@@ -47,7 +57,7 @@ metadata:
     strimzi.io/cluster: eurotransit-kafka
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 604800000
 ---
@@ -60,6 +70,6 @@ metadata:
     strimzi.io/cluster: eurotransit-kafka
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 604800000

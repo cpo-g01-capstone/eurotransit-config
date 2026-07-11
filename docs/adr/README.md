@@ -36,3 +36,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0017](0017-chaos-mesh-installation.md) | Chaos Mesh installation and experiment execution model | Proposed | 2026-07-11 |
 | [0018](0018-sync-payment-authorization-circuit-breaker.md) | Synchronous payment authorization with a circuit breaker (D1 = option A) | Accepted | 2026-07-11 |
 | [0019](0019-single-approval-review-policy.md) | Single-approval review policy (CODEOWNERS flattened) | Accepted | 2026-07-11 |
+| [0021](0021-ha-replicas-and-rto-rpo.md) | HA replicas for stateful services and declared RTO/RPO (D8, D9) | Proposed | 2026-07-11 |
