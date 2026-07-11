@@ -29,4 +29,4 @@
 .agent/local/
 .claude.local.md
 .agents/*
-TODO.local.md
+*.local.md

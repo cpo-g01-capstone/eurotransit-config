@@ -29,6 +29,18 @@ spec:
             ruleSelectorNilUsesHelmValues: false
             probeSelectorNilUsesHelmValues: false
             retention: 7d
+            # Memory rightsizing (2026-07-11): Prometheus ran with NO resources,
+            # using ~660Mi unrequested — the main overcommit/eviction risk on the
+            # node it lands on (the scheduler couldn't see it). Requests reflect
+            # measured RSS + headroom; the limit is deliberately loose because
+            # heavy dashboard queries spike RSS and an OOMKilled Prometheus loses
+            # the chaos-experiment evidence the PVC exists to protect.
+            resources:
+              requests:
+                cpu: 100m
+                memory: 768Mi
+              limits:
+                memory: 1536Mi
             # PVC (T8/D13): chaos-experiment evidence must survive Pod restarts —
             # several experiments restart pods on the node Prometheus runs on.
             # 10Gi fits the ADR 0001 sizing at 7d retention / current cardinality.

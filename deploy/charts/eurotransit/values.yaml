@@ -86,10 +86,17 @@ orders:
   resources:
     requests:
       cpu: "150m"
-      memory: "512Mi"
+      # PROPOSAL (memory rightsizing, 2026-07-11): 512Mi -> 384Mi requests and
+      # 1Gi -> 768Mi limits for the three DB-backed services (orders/inventory/
+      # payments). Measured RSS 215-260Mi; frees 128Mi of scheduling reservation
+      # per pod (more once HPA scales out). Java 21 sizes default heap off the
+      # limit, so the lower limit also trims worst-case. Watch for GC pressure /
+      # OOMKill after rollout — if a pod restarts on memory, bump that service's
+      # limit back to 1Gi and keep the request.
+      memory: "384Mi"
     limits:
       cpu: "1000m"
-      memory: "1Gi"
+      memory: "768Mi"
   db:
     # Name of the CloudNativePG-generated secret (<cluster>-app)
     secretName: "eurotransit-orders-db-app"
@@ -109,10 +116,11 @@ inventory:
   resources:
     requests:
       cpu: "150m"
-      memory: "512Mi"
+      # See memory-rightsizing proposal under orders.resources (2026-07-11).
+      memory: "384Mi"
     limits:
       cpu: "1000m"
-      memory: "1Gi"
+      memory: "768Mi"
   # HPA (ADR 0023 / D11): the contended money-path service. CPU is a proxy signal
   # (the truer one would be consumer lag via prometheus-adapter — future work);
   # maxReplicas capped to fit the 6 vCPU budget alongside the D8 HA replicas.
@@ -139,10 +147,11 @@ payments:
   resources:
     requests:
       cpu: "150m"
-      memory: "512Mi"
+      # See memory-rightsizing proposal under orders.resources (2026-07-11).
+      memory: "384Mi"
     limits:
       cpu: "1000m"
-      memory: "1Gi"
+      memory: "768Mi"
   # HPA (ADR 0023 / D11): sized like inventory; the sync authorize call (ADR 0018)
   # makes Payments latency directly user-visible, so headroom matters.
   hpa:
