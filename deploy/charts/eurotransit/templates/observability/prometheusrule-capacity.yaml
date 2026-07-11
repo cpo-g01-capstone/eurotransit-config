@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: eurotransit-capacity
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-capacity
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: kube-prometheus-stack
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  groups:
+    # Capacity ticket, NOT a page (D2, docs/design/slo-definitions.md).
+    # Repo policy stands: no cause-based paging. This is the one agreed
+    # exception as a non-paging saturation early-warning (USE) on the money
+    # path — if users are actually affected, the checkout burn-rate alerts
+    # page independently. Do not raise this to severity: critical.
+    - name: eurotransit.capacity
+      interval: 30s
+      rules:
+        - alert: MoneyPathCpuSaturationHigh
+          expr: |
+            sum by (pod) (
+              rate(container_cpu_usage_seconds_total{namespace="{{ .Release.Namespace }}", pod=~"eurotransit-(orders|inventory|payments).*", container!="", image!=""}[5m])
+            )
+              /
+            sum by (pod) (
+              kube_pod_container_resource_limits{namespace="{{ .Release.Namespace }}", resource="cpu", pod=~"eurotransit-(orders|inventory|payments).*"}
+            )
+            > 0.8
+          for: 10m
+          labels:
+            severity: warning
+            team: eurotransit
+          annotations:
+            summary: "Money-path pod above 80% of its CPU limit for 10 minutes"
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} is using {{ "{{" }} $value | humanizePercentage {{ "}}" }} of its CPU limit. Throttling is close: check HPA headroom and resource limits before latency degrades."

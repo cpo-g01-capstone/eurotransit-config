@@ -10,6 +10,62 @@ metadata:
     {{- include "eurotransit.commonLabels" . | nindent 4 }}
 spec:
   groups:
+    # Checkout SLI recording rules (D2, docs/design/slo-definitions.md).
+    # Error ratio of the money-path entry (POST /orders): 5xx over total.
+    # 429 (deliberate load shedding) is NOT in the numerator by design — it is
+    # degradation, not failure, and never consumes error budget.
+    # `or vector(0)` keeps the ratio at 0 (not absent) when there are no 5xx.
+    - name: eurotransit.checkout.sli
+      interval: 30s
+      rules:
+        - record: eurotransit:checkout_error_ratio:rate5m
+          expr: |
+            (sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST", status=~"5.."}[5m])) or vector(0))
+              / sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST"}[5m]))
+        - record: eurotransit:checkout_error_ratio:rate1h
+          expr: |
+            (sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST", status=~"5.."}[1h])) or vector(0))
+              / sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST"}[1h]))
+        - record: eurotransit:checkout_error_ratio:rate6h
+          expr: |
+            (sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST", status=~"5.."}[6h])) or vector(0))
+              / sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-orders", uri="/orders", method="POST"}[6h]))
+
+    # Multi-window burn-rate alerts on the 99% success SLO (error budget = 1%).
+    # Burn rate = error_ratio / 0.01. Requiring BOTH windows avoids paging on a
+    # short blip (long window filters noise) and avoids paging long after
+    # recovery (short window resets fast).
+    - name: eurotransit.checkout.burnrate
+      interval: 30s
+      rules:
+        # 14x burn: the 30-day budget is consumed in ~2 days. Page now.
+        - alert: CheckoutErrorBudgetFastBurn
+          expr: |
+            eurotransit:checkout_error_ratio:rate5m > (14 * 0.01)
+              and
+            eurotransit:checkout_error_ratio:rate1h > (14 * 0.01)
+          for: 2m
+          labels:
+            severity: critical
+            team: eurotransit
+          annotations:
+            summary: "Checkout error budget fast burn (>14x)"
+            description: "Checkout is burning error budget at more than 14x the sustainable rate on both the 5m and 1h windows. At this pace the 30-day budget is gone in ~2 days."
+
+        # 6x burn: the 30-day budget is consumed in ~5 days. Ticket, business hours.
+        - alert: CheckoutErrorBudgetSlowBurn
+          expr: |
+            eurotransit:checkout_error_ratio:rate1h > (6 * 0.01)
+              and
+            eurotransit:checkout_error_ratio:rate6h > (6 * 0.01)
+          for: 15m
+          labels:
+            severity: warning
+            team: eurotransit
+          annotations:
+            summary: "Checkout error budget slow burn (>6x)"
+            description: "Checkout has been burning error budget at more than 6x the sustainable rate on both the 1h and 6h windows. Investigate within business hours before the budget is exhausted."
+
     - name: eurotransit.checkout.slos
       interval: 30s
       rules:
@@ -28,7 +84,7 @@ spec:
             summary: "Checkout error rate above 5%"
             description: "{{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}% of checkout requests are returning 5xx."
 
-        # Fires when p95 checkout latency exceeds 500ms for 3 minutes.
+        # Fires when p95 checkout latency exceeds the 500ms SLO (D2) for 3 minutes.
         - alert: CheckoutHighP95Latency
           expr: |
             histogram_quantile(0.95,
@@ -42,19 +98,7 @@ spec:
             team: eurotransit
           annotations:
             summary: "Checkout p95 latency above 500ms"
-            description: "p95 latency is {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}ms."
-
-        # Fires when the Inventory scrape target goes down for 1 minute.
-        - alert: InventoryServiceDown
-          expr: |
-            absent(up{job="eurotransit-inventory", namespace="{{ .Release.Namespace }}"} == 1)
-          for: 1m
-          labels:
-            severity: critical
-            team: eurotransit
-          annotations:
-            summary: "Inventory service scrape target is down"
-            description: "No healthy Inventory pods have been scraped for over 1 minute."
+            description: "p95 latency is {{ "{{" }} $value | printf \"%.2f\" {{ "}}" }}s."
 
         # Fires when Kafka consumer lag is high, indicating the async pipeline is stalling.
         - alert: KafkaConsumerLagHigh

@@ -54,7 +54,7 @@
     },
     {
       "id": 5, "type": "stat", "title": "Checkout success rate (1h)",
-      "description": "SLI for the success-rate SLO (POST /orders, non-5xx). Target proposed in docs/design/slo-definitions.md: >= 99.5%. Note: 429 (load shedding) counts as success by design.",
+      "description": "SLI for the success-rate SLO (POST /orders, non-5xx). Ratified target (D2, docs/design/slo-definitions.md): >= 99%. Red = SLO violated, yellow = meeting the SLO with thin headroom. 429 (load shedding) counts as success by design.",
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
@@ -67,7 +67,7 @@
     },
     {
       "id": 6, "type": "stat", "title": "Checkout p95 (5m)",
-      "description": "SLI for the latency SLO. Target proposed: < 500 ms (matches the CheckoutHighP95Latency alert threshold).",
+      "description": "SLI for the latency SLO. Ratified target (D2): p95 < 500 ms (matches the CheckoutHighP95Latency alert threshold); yellow from 350 ms = approaching the SLO.",
       "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s",
