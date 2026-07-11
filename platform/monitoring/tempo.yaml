@@ -54,6 +54,15 @@ spec:
           enabled: true
           storageClassName: managed-csi
           size: 5Gi
+        # Pod-level securityContext (the chart's top-level key lands on the
+        # pod spec). REQUIRED with persistence: the grafana/tempo image runs
+        # as a non-root user and a freshly provisioned PVC is root-owned —
+        # without fsGroup the kubelet never chowns the volume and Tempo
+        # crashloops on "mkdir /var/tempo/traces: permission denied". Any
+        # fsGroup value works (it is added as a supplemental group to every
+        # container); 10001 matches the image's tempo user.
+        securityContext:
+          fsGroup: 10001
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
