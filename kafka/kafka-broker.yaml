@@ -39,9 +39,14 @@ spec:
     # ZooKeeper migration. [app team] confirm kafka-clients >= 3.1 against a 4.2 broker.
     version: 4.2.0
     # Keep broker JVM heap bounded so 3 brokers fit the B2s_v2 nodes (ADR 0021).
+    # PROPOSAL (memory rightsizing, 2026-07-11): 512m -> 384m. Brokers used
+    # ~380-470Mi RSS at demo load (a few msg/s); 384m heap + JVM overhead still
+    # fits the 768Mi request and frees ~384Mi on the memory-pressure node.
+    # Validate with a k6 baseline BEFORE CE-4 — if broker RSS approaches the
+    # limit during the partition test, revert to 512m.
     jvmOptions:
-      -Xms: 512m
-      -Xmx: 512m
+      -Xms: 384m
+      -Xmx: 384m
     listeners:
       - name: plain
         port: 9092
@@ -57,5 +62,8 @@ spec:
       default.replication.factor: 3
       min.insync.replicas: 2
   entityOperator:
-    topicOperator: {}
-    userOperator: {}
+    topicOperator: {}   # manages the five KafkaTopic CRs — required
+    # userOperator removed (memory rightsizing, 2026-07-11): zero KafkaUser CRs
+    # exist — the plain listener has no authentication (tls: false, no auth
+    # block), so nothing creates users. Saved ~200Mi in the entity-operator pod.
+    # Reinstate if a KafkaUser / authenticated listener is ever introduced.
