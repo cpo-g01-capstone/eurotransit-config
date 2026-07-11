@@ -562,3 +562,41 @@ allowance).
 When an agent assigns an Application to a scoped AppProject, it must check the project's
 `sourceRepos` (and destinations) against the Application's actual source. "More scoped"
 projects fail closed: an external Helm repo needs an explicit, pinned entry.
+
+---
+
+## Case 16 — 2026-07-11 — HPA added while the Deployment kept a pinned `spec.replicas` (eurotransit-config)
+
+**What the AI produced:**
+PR #42 (ADR 0023 / D11) added HPAs for inventory and payments (catalog's already existed),
+targeting Deployments whose templates render `replicas: {{ .Values.<svc>.replicaCount }}`.
+The pin was left in place alongside the new HPAs.
+
+**Why it was wrong:**
+Two controllers now owned `spec.replicas`: the HPA scales it at runtime, while Argo CD —
+`selfHeal: true`, no `ignoreDifferences` — enforces the manifest's `replicas: 2`. Any HPA
+scale-out above `minReplicas` becomes "drift" that Argo CD immediately reverts, so the HPAs
+were silently capped at 2, defeating the point of D11. The bug was latent: measured CPU sat
+at 3–8% of requests, so no HPA ever scaled above min and everything looked Synced/Healthy.
+It would have first fired during a k6 load test or chaos run — exactly when the capacity
+was needed and the failure would be hardest to attribute.
+
+**How it was caught:**
+Not by CI (`helm lint`, kubeconform and Argo CD all accept the manifests — they are
+individually valid; the conflict is between controllers, not in any single resource). Found
+on 2026-07-11 during the review of what `replicaCount` was for, while diagnosing the stuck
+Kafka broker-0 roll (node CPU-request saturation), before any load ever triggered it.
+
+**How it was corrected:**
+`spec.replicas` removed from the three HPA-managed Deployment templates and `replicaCount`
+removed from their `values.yaml` entries; the availability baseline is now expressed once as
+`hpa.minReplicas: 2`. Orders and notifications (no HPA) keep `replicaCount`. Decision and
+the one-time re-apply caveat (transient dip to 1 replica until the HPA reconciles) recorded
+in ADR 0025.
+
+**Lesson learned:**
+When an agent adds an HPA to an existing Deployment, removing (or conditioning) the
+`replicas:` pin is part of the same change — and in a GitOps setup with `selfHeal`, every
+runtime-mutated field needs exactly one owner. "Renders, syncs, and shows Healthy" does not
+prove two controllers won't fight; latent conflicts must be hunted at review time by asking
+who owns each mutable field.
