@@ -38,14 +38,20 @@ spec:
             # Pin to the chart's standard http port (see catalog/deployment.yaml).
             - name: SERVER_PORT
               value: "8080"
-            - name: SPRING_DATASOURCE_URL
+            # DB env var names must match orders-service application.yml (ORDERS_DB_*),
+            # not Spring's SPRING_DATASOURCE_*. The app uses R2DBC at runtime and a
+            # separate JDBC URL for Flyway migrations (Flyway is JDBC-only). Wrong
+            # names → the app silently falls back to its localhost default and crashes.
+            - name: ORDERS_DB_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.orders.db.host }}:{{ .Values.orders.db.port }}/{{ .Values.orders.db.name }}"
+            - name: ORDERS_DB_JDBC_URL
               value: "jdbc:postgresql://{{ .Values.orders.db.host }}:{{ .Values.orders.db.port }}/{{ .Values.orders.db.name }}"
-            - name: SPRING_DATASOURCE_USERNAME
+            - name: ORDERS_DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.orders.db.secretName }}
                   key: username
-            - name: SPRING_DATASOURCE_PASSWORD
+            - name: ORDERS_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.orders.db.secretName }}
