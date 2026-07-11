@@ -14,8 +14,8 @@ Draining one node that hosts critical-path pods will NOT make the money path una
 3. once the node is uncordoned, the cluster rebalances and steady state returns.
 
 ⚠️ **Known weakness to observe honestly:** we have no topology-spread/anti-affinity yet
-(decision D11). If both replicas of a service happen to sit on the drained node, the PDB
-will stall the drain (good: no outage) but that *finding* motivates D11 — record it.
+(ADR 0023). If both replicas of a service happen to sit on the drained node, the PDB
+will stall the drain (good: no outage) but that *finding* motivates the spread constraints (ADR 0023) — record it.
 
 ## Steady state
 
@@ -42,7 +42,7 @@ will stall the drain (good: no outage) but that *finding* motivates D11 — reco
   the budget doing its job); drain events blocked/waiting.
 - **Pod rescheduling time** (gap between eviction and Ready on another node) vs the
   startup-probe window.
-- **Where replicas land** — evidence for/against D11 (spread constraints).
+- **Where replicas land** — evidence for/against the spread constraints (ADR 0023).
 
 ## Pass / fail
 
@@ -54,11 +54,11 @@ will stall the drain (good: no outage) but that *finding* motivates D11 — reco
 
 ## Results (fill during the run)
 
-| Date | Operator | Node drained | Pods evicted | Drain duration | Checkout SLI dip | PDB held? | Findings for D11 | Outcome |
+| Date | Operator | Node drained | Pods evicted | Drain duration | Checkout SLI dip | PDB held? | Findings for ADR 0023 | Outcome |
 |------|----------|--------------|--------------|----------------|------------------|-----------|------------------|---------|
 |      |          |              |              |                |                  |           |                  |         |
 
 ## Conclusion
 
 *(Did the hypothesis hold? If the drain stalled or a service went to 0 replicas, feed the
-finding into decision D11 — topology spread + anti-affinity.)*
+finding into ADR 0023 — topology spread + anti-affinity.)*

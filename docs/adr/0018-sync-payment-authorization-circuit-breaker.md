@@ -1,8 +1,8 @@
-# ADR 0018 — Synchronous payment authorization with a circuit breaker (decision D1 = option A)
+# ADR 0018 — Synchronous payment authorization with a circuit breaker
 
 - **Status:** Accepted (team decision, 2026-07-11)
 - **Date:** 2026-07-11
-- **Deciders:** whole team (D1 in the decision agenda)
+- **Deciders:** whole team (voted)
 - **Related:** capstone spec Pillar C + chaos experiment #1; `docs/design/service-boundaries.md`;
   ADR 0017 (chaos execution model)
 
@@ -13,7 +13,7 @@ The capstone spec requires *"circuit breakers on cross-service **synchronous** c
 the Orders circuit breaker open and the fallback engage, while Catalog browsing stays
 healthy?"*. Our pipeline had drifted to fully Kafka-driven stages: with no synchronous
 call there was no place for a breaker, and CE-1 was not demonstrable (flagged as decision
-**D1**).
+this ADR).
 
 ## Decision
 
@@ -43,7 +43,7 @@ team-proposed defaults, to be tuned after the first k6 baseline and recorded her
 - **App-repo work item** (needs a YouTrack card): add Resilience4j to `orders-service`,
   implement the call + policy above, expose breaker state as a Micrometer metric
   (`resilience4j_circuitbreaker_state`) so the experiment can *show* the transition on a
-  dashboard. ⚠️ Build it on the canonical Orders implementation — **blocked by decision D3**
+  dashboard. ⚠️ Build it on the canonical Orders implementation — **blocked by the convergence decision (app ADR 0005)**
   (EM-25 as base) until that merge happens.
 - `docs/design/service-boundaries.md` updated: the sync-vs-Kafka open point is resolved.
 - Payments keeps emitting `payment-authorized` for the downstream Kafka stages (audit +
@@ -54,4 +54,4 @@ team-proposed defaults, to be tuned after the first k6 baseline and recorded her
 - **Option B — stay fully async and remap resilience onto Kafka** (DLT, bounded redelivery,
   consumer-lag backpressure): less code, but deviates from the spec's explicit requirement,
   forces a redesign of CE-1, and loses the cleanest demonstration of the
-  breaker/bulkhead/timeout patterns the course grades. Rejected by team vote (D1).
+  breaker/bulkhead/timeout patterns the course grades. Rejected by team vote.

@@ -1,7 +1,7 @@
-# Weighted TraefikService for the Orders canary (T6 / ADR 0026).
+# Weighted TraefikService for the Orders canary (ADR 0026).
 #
 # The /api/orders IngressRoute ALWAYS routes through this resource (see
-# ingress.yaml) — before T6 it pointed straight at the Service and the weights
+# ingress.yaml) — before the progressive-delivery wiring (#54) it pointed straight at the Service and the weights
 # here were dead config. With the canary disabled, the stable track simply
 # gets 100%.
 #
@@ -10,7 +10,7 @@
 #   1. Set orders.canary.enabled=true, orders.canary.tag=<candidate SHA>,
 #      orders.canary.weight (default 10) → Argo deploys the canary track and
 #      starts splitting traffic.
-#   2. Watch the canary's OWN SLIs (dedicated ServiceMonitor). D6 gate:
+#   2. Watch the canary's OWN SLIs (dedicated ServiceMonitor). Ratified gate (ADR 0026):
 #      error rate < 1% AND p95 < 300ms sustained for 5 minutes.
 #   3. Promote: orders.image.tag=<candidate SHA>, canary.enabled=false.
 #      Abort:   canary.enabled=false (weight collapses to stable 100%).

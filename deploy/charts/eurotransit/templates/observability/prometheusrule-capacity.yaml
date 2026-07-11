@@ -10,7 +10,7 @@ metadata:
     {{- include "eurotransit.commonLabels" . | nindent 4 }}
 spec:
   groups:
-    # Capacity ticket, NOT a page (D2, docs/design/slo-definitions.md).
+    # Capacity ticket, NOT a page (ratified SLOs, docs/design/slo-definitions.md).
     # Repo policy stands: no cause-based paging. This is the one agreed
     # exception as a non-paging saturation early-warning (USE) on the money
     # path — if users are actually affected, the checkout burn-rate alerts

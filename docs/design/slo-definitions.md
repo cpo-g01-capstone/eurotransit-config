@@ -2,9 +2,9 @@
 
 *Owner: @marcodonatucci*
 
-**Ratified by the team on 2026-07-11 (decision D2).** Numbers below are the voted targets and are
+**Ratified by the team on 2026-07-11.** Numbers below are the voted targets and are
 the single source of truth for alert thresholds, dashboard stat-panel thresholds, and canary
-promotion criteria (D6). Any change requires a new team vote.
+promotion criteria (ADR 0026). Any change requires a new team vote.
 
 ## Checkout latency SLO
 
@@ -53,8 +53,8 @@ promotion criteria (D6). Any change requires a new team vote.
 
 ## Decision log
 
-- [x] Targets ratified: p95 < 500 ms / success ≥ 99% (D2, 2026-07-11). To be re-validated against
-      the k6 baseline (T9); if the baseline contradicts them, re-vote.
+- [x] Targets ratified: p95 < 500 ms / success ≥ 99% (team vote, 2026-07-11). Validated against the first k6
+      baseline (docs/delivery/2026-07-11-progressive-delivery-demo-results.md): p95 ~97 ms, 0 errors.
 - [x] 429-exclusion policy confirmed: 429 is not an error.
 - [x] Burn-rate windows/multipliers fixed: 14× (5 m + 1 h) page · 6× (1 h + 6 h) ticket.
 - [x] CPU: non-paging capacity ticket only (>80% of limit, 10 min, money path).

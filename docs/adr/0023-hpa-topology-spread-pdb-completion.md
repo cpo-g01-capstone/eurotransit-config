@@ -1,9 +1,9 @@
-# ADR 0023 — HPA for the contended services, topology spread, PDB completion (decision D11)
+# ADR 0023 — HPA for the contended services, topology spread, PDB completion
 
-- **Status:** Proposed (this PR is the ratification vehicle for D11)
+- **Status:** Proposed (this PR is the ratification vehicle)
 - **Date:** 2026-07-11
 - **Author:** @giova95 (resilience)
-- **Related:** ADR 0021 (D8 HA replicas), #41 (CPU-request trim), CE-3 (node drain),
+- **Related:** ADR 0021 (HA replicas), #41 (CPU-request trim), CE-3 (node drain),
   capstone Pillar C ("Kubernetes-level resilience configured deliberately rather than defaulted")
 
 ## Context

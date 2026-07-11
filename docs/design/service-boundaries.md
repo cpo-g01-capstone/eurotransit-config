@@ -23,7 +23,7 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 | **Payments** | authorize (decision now) | produces `payment-authorized` | **Strict idempotency** — see `idempotency.md` |
 | **Notifications** | — (no public API) | consumes `notification-requested` | **None** — may fail entirely (graceful degradation) |
 
-> ✅ **RESOLVED (team decision D1, 2026-07-11 — see ADR 0018).** The **payment authorization is a
+> ✅ **RESOLVED (team vote, 2026-07-11 — see ADR 0018).** The **payment authorization is a
 > synchronous HTTP call** `Orders → Payments` (idempotent, wrapped in a Resilience4j circuit
 > breaker + timeout + bulkhead, with a queued-retry fallback). The reservation and the rest of the
 > pipeline stay Kafka-driven. Rationale: authorizing the customer's money is a decision needed
@@ -31,7 +31,7 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 
 ## Money path trace (checkout)
 
-Order state machine (from the Orders schema): `DRAFT → RESERVED → CONFIRMED` (or `FAILED`). (`PAID` removed post-D1: authorize is synchronous, ADR 0018.)
+Order state machine (from the Orders schema): `DRAFT → RESERVED → CONFIRMED` (or `FAILED`). (`PAID` removed: authorize is synchronous, ADR 0018.)
 
 1. `client → gateway (Traefik) → POST /orders`.
 2. Orders generates an `orderId` (UUID), writes the order as `DRAFT`, publishes `order-placed`,
@@ -54,5 +54,5 @@ Every step is idempotent (Kafka is at-least-once; remote calls are retried). See
   resource-allocation decision, not a performance tweak.
 
 ## Open items for the owner
-- [x] Sync vs Kafka boundary — RESOLVED by D1/ADR 0018 (payment authorize sync; reservation stays Kafka-driven).
+- [x] Sync vs Kafka boundary — RESOLVED by team vote / ADR 0018 (payment authorize sync; reservation stays Kafka-driven).
 - [ ] Confirm Catalog's availability-refresh strategy (event-driven vs timer).

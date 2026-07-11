@@ -1,6 +1,6 @@
-# ADR 0022 — Distributed tracing: Tempo + OpenTelemetry over OTLP (decision D10)
+# ADR 0022 — Distributed tracing: Tempo + OpenTelemetry over OTLP
 
-- **Status:** Proposed (this PR is the ratification vehicle for decision D10)
+- **Status:** Proposed (this PR is the ratification vehicle)
 - **Date:** 2026-07-11
 - **Author:** @giova95 (observability & verification)
 - **Related:** RED/USE dashboards (#33); chaos experiment reports ("observe on our own
@@ -33,7 +33,7 @@ datasource and the network path were missing.
    egress, so a dedicated NetworkPolicy (`eurotransit-allow-egress-tracing`, port 4318
    toward `monitoring`) ships with the chart — without it spans would be dropped
    *silently*, the worst failure mode for an observability signal.
-6. **Retention 48h, no persistence yet** — same trade-off (and same D13 fix) as
+6. **Retention 48h, no persistence yet** — same trade-off (and same later PVC fix, #43) as
    Prometheus storage: add a PVC before the demo cluster.
 
 ## Consequences

@@ -1,5 +1,5 @@
 {{- if .Values.orders.canary.enabled }}
-# Canary-track Service (T6 / ADR 0026): the second arm of the weighted
+# Canary-track Service (ADR 0026): the second arm of the weighted
 # TraefikService in traefik-services.yaml.
 apiVersion: v1
 kind: Service
@@ -22,7 +22,7 @@ spec:
       targetPort: http
       protocol: TCP
 ---
-# Scrape the canary separately: the D6 gate compares the canary's OWN error
+# Scrape the canary separately: the promotion gate (ADR 0026) compares the canary's OWN error
 # rate and p95 against the thresholds, not the blended aggregate.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

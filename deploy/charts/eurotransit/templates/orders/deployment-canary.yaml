@@ -1,5 +1,5 @@
 {{- if .Values.orders.canary.enabled }}
-# Canary track for Orders (T6 / ADR 0026). Rendered only during a rollout —
+# Canary track for Orders (ADR 0026). Rendered only during a rollout —
 # a second money-path pod is real budget on 6 vCPU.
 #
 # Kept deliberately in LOCKSTEP with deployment.yaml: same env contract, same
@@ -33,7 +33,7 @@ spec:
         app.kubernetes.io/track: canary
         # NetworkPolicy selector — same coverage as the stable track (the
         # policies select part-of; without it the canary pod would run
-        # UNSEGMENTED, the exact failure mode of audit BUG-1).
+        # UNSEGMENTED, the exact failure mode fixed in #52).
         app.kubernetes.io/part-of: eurotransit
     spec:
       terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}

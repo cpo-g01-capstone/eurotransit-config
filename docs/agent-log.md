@@ -23,7 +23,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 12 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
 | 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
-| 15 | 2026-07-12 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the D4 `order-failed` publish (took `--theirs` = its own stale commit) |
+| 15 | 2026-07-08 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the `order-failed` compensation publish (took `--theirs` = its own stale commit) |
 
 ---
 
@@ -569,7 +569,7 @@ projects fail closed: an external Helm repo needs an explicit, pinned entry.
 ## Case 16 — 2026-07-11 — HPA added while the Deployment kept a pinned `spec.replicas` (eurotransit-config)
 
 **What the AI produced:**
-PR #42 (ADR 0023 / D11) added HPAs for inventory and payments (catalog's already existed),
+PR #42 (ADR 0023) added HPAs for inventory and payments (catalog's already existed),
 targeting Deployments whose templates render `replicas: {{ .Values.<svc>.replicaCount }}`.
 The pin was left in place alongside the new HPAs.
 
@@ -577,7 +577,7 @@ The pin was left in place alongside the new HPAs.
 Two controllers now owned `spec.replicas`: the HPA scales it at runtime, while Argo CD —
 `selfHeal: true`, no `ignoreDifferences` — enforces the manifest's `replicas: 2`. Any HPA
 scale-out above `minReplicas` becomes "drift" that Argo CD immediately reverts, so the HPAs
-were silently capped at 2, defeating the point of D11. The bug was latent: measured CPU sat
+were silently capped at 2, defeating the point of the scale-out decision (ADR 0023). The bug was latent: measured CPU sat
 at 3–8% of requests, so no HPA ever scaled above min and everything looked Synced/Healthy.
 It would have first fired during a k6 load test or chaos run — exactly when the capacity
 was needed and the failure would be hardest to attribute.
@@ -626,7 +626,7 @@ repository used an explicit `@Query INSERT` from day one.
 
 **How it was caught:**
 By the FIRST real `POST /orders` ever sent through the gateway — a wiring check
-during T6 demo preparation returned 500. Everything before that had exercised the
+during progressive-delivery demo preparation returned 500. Everything before that had exercised the
 system via SQL seeds, reads, or unit tests.
 
 **How it was corrected:**
@@ -739,7 +739,7 @@ of the happy path is what turns "frozen" into "obviously frozen".
 
 **What the AI produced:**
 The observability stack's latency layer: RED dashboard p95 panels, the
-`CheckoutHighP95Latency` PrometheusRule and the T6 canary-gate PromQL — all built on
+`CheckoutHighP95Latency` PrometheusRule and the canary-gate PromQL — all built on
 `histogram_quantile(0.95, ... http_server_requests_seconds_bucket ...)` — while the
 services' configuration never enabled `percentiles-histogram`, so Micrometer
 published `http_server_requests_seconds` as a plain summary (count/sum/max) with NO
@@ -753,7 +753,7 @@ exposition format each looked correct in isolation; they had never been run agai
 each other with real traffic.
 
 **How it was caught:**
-During the LIVE T6 canary gate: error-rate and split queries returned data, the p95
+During the LIVE canary gate: error-rate and split queries returned data, the p95
 query returned nothing — with traffic demonstrably flowing. One targeted probe
 (`http_server_requests_seconds_bucket` → 0 series) pinned it. The gate was assessed
 from server-side max (32ms) + k6 client-side p95 (<120ms), both far inside the
@@ -761,11 +761,11 @@ from server-side max (32ms) + k6 client-side p95 (<120ms), both far inside the
 
 **How it was corrected:**
 App PR #24: `management.metrics.distribution.percentiles-histogram.http.server.requests=true`
-on all five services, with SLO-aligned bucket boundaries (300ms = D6 gate,
-500ms = D2 p95 SLO).
+on all five services, with SLO-aligned bucket boundaries (300 ms = the canary
+promotion gate, 500 ms = the p95 SLO).
 
 **Lesson learned:**
-Repeats BUG-2's lesson one layer deeper: it is not enough for a query's METRIC NAME
+Repeats the mute-lag-alert lesson (#52) one layer deeper: it is not enough for a query's METRIC NAME
 to exist — the metric's TYPE must support the function applied to it. Every
 `histogram_quantile` needs `_bucket` series; verify by running the exact
 dashboard/alert query against live exposition (`/api/v1/query`, not just

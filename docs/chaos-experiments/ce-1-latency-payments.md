@@ -5,7 +5,7 @@
 (synchronous Orders→Payments authorize + Resilience4j breaker).*
 
 > ⛔ **Prerequisite not yet deployed:** the circuit breaker implementation in
-> `orders-service` (app-repo work item from ADR 0018, blocked on decision D3).
+> `orders-service` (app-repo work item from ADR 0018, blocked on the convergence decision — since resolved, app ADR 0005).
 > Do not run this experiment before it lands — without a breaker the injection just
 > produces timeouts and proves nothing.
 

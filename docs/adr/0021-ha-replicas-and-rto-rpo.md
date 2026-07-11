@@ -1,4 +1,4 @@
-# ADR 0021 — HA replicas for stateful services and declared RTO/RPO (D8, D9)
+# ADR 0021 — HA replicas for stateful services and declared RTO/RPO
 
 - **Status:** Proposed (drafted for team ratification via this PR)
 - **Date:** 2026-07-11
@@ -11,8 +11,8 @@
 ## Context
 
 Chaos experiments CE-4 (Kafka partition) and CE-5 (CloudNativePG failover) are blocked on
-decision **D8**: with a single Kafka broker and a single Postgres instance there is nothing to
-partition or fail over to. **D9** requires the team to declare RTO/RPO for the Orders database
+the team's HA decision: with a single Kafka broker and a single Postgres instance there is nothing to
+partition or fail over to. The same vote requires the team to declare RTO/RPO for the Orders database
 *before* running CE-5, so the experiment verifies a stated objective instead of retrofitting one.
 
 The constraint is the ADR 0005 capacity budget: 3× `Standard_B2s_v2` = ~5.5 allocatable vCPU,
@@ -21,7 +21,7 @@ and *Postgres primary + 1 standby*.
 
 ## Decision
 
-### Kafka: 3 dual-role brokers (D8)
+### Kafka: 3 dual-role brokers
 
 `KafkaNodePool dual-role` goes to **`replicas: 3`** with cluster defaults
 `default.replication.factor: 3`, `min.insync.replicas: 2` (and the offsets/transaction internal
@@ -33,7 +33,7 @@ pipeline converges**, which is the actual claim the capstone asks us to prove. T
 bill bounded, brokers run lean: 250m request / 500m limit and a fixed 512 MiB JVM heap each
 (~750m total requests — accepted trade-off, see Consequences).
 
-### Postgres: 2 instances with synchronous replication (D8)
+### Postgres: 2 instances with synchronous replication
 
 `eurotransit-orders-db` goes to **`instances: 2`** (primary + 1 standby) with **synchronous
 replication** (`method: any`, `number: 1`, `dataDurability: preferred`). Two instances — not the
@@ -42,7 +42,7 @@ target) and a third instance would spend another 250m CPU request without changi
 experiment can demonstrate. Other databases (inventory, payments, notifications) stay at 1
 instance: they are not the subject of CE-5 and the budget does not allow blanket HA.
 
-### Declared RTO/RPO for the Orders database (D9)
+### Declared RTO/RPO for the Orders database
 
 - **RTO = 60 s** — from primary loss to checkout writes succeeding again (standby promoted,
   `-rw` service repointed, application reconnected).
@@ -86,17 +86,17 @@ CE-5 passes only if the observed failover meets both numbers.
   Documented in `kafka/kafka-topics.yaml` and the CE-4 runbook.
 - **Write latency:** synchronous replication adds one intra-cluster round-trip to every Orders
   commit. Expected to be well inside the 500 ms checkout p95 (same-node-pool network); verify
-  against the k6 baseline (T9) after merge.
+  against the k6 baseline after merge.
 - **Kafka pod anti-affinity:** with 3 nodes and 3 brokers the scheduler usually spreads them,
-  but nothing enforces it yet — D11 (topology spread) should cover Kafka too, otherwise CE-3/CE-4
+  but nothing enforces it yet — the topology-spread work (ADR 0023) should cover Kafka too, otherwise CE-3/CE-4
   evidence is weaker if two brokers share a node.
 
 ## Verification & ownership (agentic-coding policy)
 
 Drafted with agent assistance; replica counts, RTO/RPO numbers and the durability trade-off are
-team decisions (D8/D9 vote). Before ratifying:
+team decisions (recorded by this ADR). Before ratifying:
 
-- [ ] Team confirms the D8 vote (3 brokers / 2 Postgres instances) and the D9 numbers (60 s / 0
+- [ ] Team confirms the vote (3 brokers / 2 Postgres instances) and the RTO/RPO numbers (60 s / 0
       with the stated single-failure bound).
 - [ ] After merge: 3 broker pods + 2 `orders-db` pods Running, no `Pending` pods
       (`kubectl top nodes` within budget).
@@ -107,6 +107,6 @@ team decisions (D8/D9 vote). Before ratifying:
 ## References
 
 - ADR 0005 (capacity budget; amended replica discipline) · ADR 0004 (operator pinning)
-- D8/D9 in the team decision log (handoff snapshot 2026-07-11)
+- Team vote of 2026-07-11, recorded by this ADR
 - `docs/chaos-experiments/ce-4-kafka-partition.md`, `ce-5-cnpg-failover.md`
 - CNPG synchronous replication: <https://cloudnative-pg.io/documentation/current/replication/>

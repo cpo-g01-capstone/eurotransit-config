@@ -41,7 +41,7 @@ spec:
                 memory: 768Mi
               limits:
                 memory: 1536Mi
-            # PVC (T8/D13): chaos-experiment evidence must survive Pod restarts —
+            # PVC: chaos-experiment evidence must survive Pod restarts —
             # several experiments restart pods on the node Prometheus runs on.
             # 10Gi fits the ADR 0001 sizing at 7d retention / current cardinality.
             storageSpec:
@@ -63,7 +63,7 @@ spec:
               uid: tempo
               access: proxy
               url: http://tempo.monitoring.svc.cluster.local:3100
-          # Admin credentials from a SealedSecret (T8/D13) — replaces the chart
+          # Admin credentials from a SealedSecret — replaces the chart
           # default admin/prom-operator. Sealed manifest:
           # platform/monitoring/secrets/grafana-admin.sealed.yaml; plaintext is
           # NOT in Git (ask the delivery owner, or reseal to rotate). Applies on

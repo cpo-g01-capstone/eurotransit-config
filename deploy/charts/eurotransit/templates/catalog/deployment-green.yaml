@@ -1,5 +1,5 @@
 {{- if .Values.catalog.blueGreen.enabled }}
-# Green track for Catalog (T6 / ADR 0026): the CANDIDATE version, deployed
+# Green track for Catalog (ADR 0026): the CANDIDATE version, deployed
 # alongside the regular Deployment (the "blue" track) during a blue/green
 # rollout. Traffic reaches it only when the IngressRoute is switched
 # (catalog.blueGreen.activeTrack: "green").
@@ -35,7 +35,7 @@ spec:
         app.kubernetes.io/name: eurotransit-catalog-green
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/track: green
-        # NetworkPolicy selector — same coverage as blue (audit BUG-1: a pod
+        # NetworkPolicy selector — same coverage as blue (see #52: a pod
         # without part-of runs unsegmented).
         app.kubernetes.io/part-of: eurotransit
     spec:
