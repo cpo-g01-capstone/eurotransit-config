@@ -60,7 +60,7 @@ probes:
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "e6d51b4"
+    tag: "96e16a6"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "a74b678"
+    tag: "96e16a6"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -103,7 +103,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "e6d51b4"
+    tag: "96e16a6"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -126,7 +126,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "a74b678"
+    tag: "96e16a6"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -149,7 +149,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "e6d51b4"
+    tag: "96e16a6"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
