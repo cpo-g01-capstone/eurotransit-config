@@ -73,3 +73,39 @@ spec:
   replicas: 3
   config:
     retention.ms: 604800000
+---
+# Seat-release compensation event (decision D4, 2026-07-11): produced by Orders
+# when payment redeliveries are exhausted (order -> FAILED); consumed by
+# Inventory to release the order's RESERVED seats. Closes the ADR-005 gap.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-failed
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 604800000
+---
+# Dead-letter topic for the Notifications order-confirmed consumer (decision D4).
+# The DeadLetterPublishingRecoverer targets "<topic>.DLT"; with
+# auto.create.topics.enable=false the DLT publish FAILS unless the topic exists
+# as a CR. Kafka topic names may contain uppercase but Kubernetes resource
+# names may not — hence metadata.name != spec.topicName here.
+# Longer retention (14d): dead letters are incident evidence, not traffic.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-confirmed-dlt
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  topicName: order-confirmed.DLT
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 1209600000
