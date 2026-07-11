@@ -113,6 +113,13 @@ inventory:
     limits:
       cpu: "1000m"
       memory: "1Gi"
+  # HPA (ADR 0023 / D11): the contended money-path service. CPU is a proxy signal
+  # (the truer one would be consumer lag via prometheus-adapter — future work);
+  # maxReplicas capped to fit the 6 vCPU budget alongside the D8 HA replicas.
+  hpa:
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
   db:
     # CloudNativePG-generated secret for cluster eurotransit-inventory-db (ADR-0020)
     secretName: "eurotransit-inventory-db-app"
@@ -136,6 +143,12 @@ payments:
     limits:
       cpu: "1000m"
       memory: "1Gi"
+  # HPA (ADR 0023 / D11): sized like inventory; the sync authorize call (ADR 0018)
+  # makes Payments latency directly user-visible, so headroom matters.
+  hpa:
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
   db:
     # CloudNativePG-generated secret for cluster eurotransit-payments-db
     secretName: "eurotransit-payments-db-app"
