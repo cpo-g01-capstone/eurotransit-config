@@ -189,6 +189,7 @@ networkPolicy:
   appPort: 8080 # container port the services listen on
   dbPort: 5432 # CloudNativePG (in-namespace)
   kafkaPort: 9092 # Strimzi Kafka bootstrap (in-namespace)
+  otlpPort: 4318 # Tempo OTLP/HTTP receiver in the monitoring namespace (trace export, ADR 0022)
   ingressNamespace: "traefik" # namespace Traefik runs in (north-south source)
   monitoringNamespace: "monitoring" # namespace Prometheus scrapes from
 # ------------------------------------------------------------------------------

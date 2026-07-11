@@ -27,6 +27,7 @@ spec:
   sourceRepos:
     - 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
     - 'https://charts.chaos-mesh.org'   # chaos-mesh operator chart, pinned 2.7.2 (ADR 0017; agent-log case 14)
+    - 'https://grafana.github.io/helm-charts'   # tempo trace backend, pinned (ADR 0020)
   destinations:
     - server: 'https://kubernetes.default.svc'
       namespace: '*'
