@@ -49,21 +49,29 @@ spec:
   routes:
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/catalog`)
       kind: Rule
+      middlewares:
+        - name: eurotransit-strip-api
       services:
         - name: eurotransit-catalog
           port: 80
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/orders`)
       kind: Rule
+      middlewares:
+        - name: eurotransit-strip-api
       services:
         - name: eurotransit-orders
           port: 80
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/inventory`)
       kind: Rule
+      middlewares:
+        - name: eurotransit-strip-api
       services:
         - name: eurotransit-inventory
           port: 80
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/payments`)
       kind: Rule
+      middlewares:
+        - name: eurotransit-strip-api
       services:
         - name: eurotransit-payments
           port: 80
