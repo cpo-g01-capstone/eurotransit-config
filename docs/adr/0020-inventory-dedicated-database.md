@@ -28,7 +28,7 @@ The config repo already ships a CloudNativePG cluster manifest
 (`postgres/eurotransit-inventory-db.yaml`), but the **Helm chart never wires the DB
 credentials into the Deployment**. Without `INVENTORY_DB_*` env vars, the app falls back to
 its `localhost` default and crashes with `Failed to determine a suitable R2DBC Connection
-URL` — the same class of bug as notifications (ADR-0016, agent-log Case 11).
+URL` — the same class of bug as notifications (ADR 0024, agent-log Case 13).
 
 This ADR records the data-ownership decision and the delivery fix.
 
@@ -91,7 +91,7 @@ Drafted with agent assistance; the team must verify before ratifying:
 
 ## References
 
-- [ADR 0016 — Dedicated CloudNativePG cluster for Notifications](0016-notifications-dedicated-database.md) — mirrored pattern
+- [ADR 0024 — Dedicated CloudNativePG cluster for Notifications](0024-notifications-dedicated-database.md) — mirrored pattern
 - [ADR 0008 — Single Helm Chart for All Five Services](0008-single-helm-chart.md)
 - `postgres/eurotransit-inventory-db.yaml` — the CNPG cluster manifest
 - `postgres/eurotransit-orders-db.yaml` — the mirrored Orders cluster
