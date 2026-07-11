@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "543bace"
+    tag: "f04d354"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -110,7 +110,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "543bace"
+    tag: "f04d354"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
