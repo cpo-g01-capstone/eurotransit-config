@@ -23,11 +23,11 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 | **Payments** | authorize (decision now) | produces `payment-authorized` | **Strict idempotency** — see `idempotency.md` |
 | **Notifications** | — (no public API) | consumes `notification-requested` | **None** — may fail entirely (graceful degradation) |
 
-> ⚠️ **Point to reconcile with the team.** The assignment describes `Orders → Inventory` and
-> `Orders → Payments` as **synchronous** calls ("where a decision must be made *now*"). The current
-> EM-23/EM-20 implementation performs the reservation through the **Kafka** pipeline (consumer-driven)
-> rather than a synchronous HTTP call. Decide and document which boundary we actually use — and be
-> ready to justify it at the oral. Both are defensible, but the doc and the code must agree.
+> ✅ **RESOLVED (team decision D1, 2026-07-11 — see ADR 0018).** The **payment authorization is a
+> synchronous HTTP call** `Orders → Payments` (idempotent, wrapped in a Resilience4j circuit
+> breaker + timeout + bulkhead, with a queued-retry fallback). The reservation and the rest of the
+> pipeline stay Kafka-driven. Rationale: authorizing the customer's money is a decision needed
+> *now* (the sync rule above); this also makes chaos experiment CE-1 demonstrable as specified.
 
 ## Money path trace (checkout)
 
@@ -54,5 +54,5 @@ Every step is idempotent (Kafka is at-least-once; remote calls are retried). See
   resource-allocation decision, not a performance tweak.
 
 ## Open items for the owner
-- [ ] Confirm the sync vs Kafka-driven reservation boundary (see the ⚠️ note above) and align code/doc.
+- [x] Sync vs Kafka boundary — RESOLVED by D1/ADR 0018 (payment authorize sync; reservation stays Kafka-driven).
 - [ ] Confirm Catalog's availability-refresh strategy (event-driven vs timer).
