@@ -8,7 +8,10 @@
 #                  `eurotransit` namespace with NO cluster-scoped power — the tier
 #                  most likely to receive a bad/agent-generated manifest.
 #
-# Both restrict `sourceRepos` to the config repo. Created by root-app at wave -2 so
+# `eurotransit` restricts `sourceRepos` to the config repo; `platform` additionally
+# allows the PINNED external chart repos of the operators it installs (currently
+# chaos-mesh — the other operators still run under `project: default`). Created by
+# root-app at wave -2 so
 # they exist before any Application references them (argocd -1, platform 0, workloads 1).
 # root-app itself stays on `project: default` — it is the trusted seed that CREATES
 # these projects, so it cannot depend on them.
@@ -23,6 +26,7 @@ spec:
   description: Platform meta + operator apps (cluster-scoped install rights, any namespace).
   sourceRepos:
     - 'https://github.com/cpo-g01-capstone/eurotransit-config.git'
+    - 'https://charts.chaos-mesh.org'   # chaos-mesh operator chart, pinned 2.7.2 (ADR 0017; agent-log case 14)
   destinations:
     - server: 'https://kubernetes.default.svc'
       namespace: '*'
