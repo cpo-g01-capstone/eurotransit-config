@@ -18,6 +18,11 @@ spec:
       labels:
         app.kubernetes.io/name: eurotransit-notifications
         app.kubernetes.io/instance: {{ .Release.Name }}
+        # Grants the pod the NetworkPolicy selector (BUG-1, final audit):
+        # the policies select part-of, which commonLabels puts on the
+        # Deployment but NOT on the pod template — without this line every
+        # policy silently matched zero pods.
+        app.kubernetes.io/part-of: eurotransit
     spec:
       terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
       {{- include "eurotransit.topologySpread" (dict "name" "eurotransit-notifications" "instance" .Release.Name) | nindent 6 }}

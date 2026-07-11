@@ -5,6 +5,15 @@ primary pod of `eurotransit-orders-db` and observing the operator promote the st
 Prerequisites: the ADR 0021 topology reconciled (`instances: 2`, synchronous replication) and the
 `kubectl cnpg` plugin installed (`brew install kubectl-cnpg` or krew).*
 
+## Scope (explicit, final audit item #4)
+
+This experiment covers **`eurotransit-orders-db` only** — the money-path writer and the one
+database with an HA topology (2 instances, sync replication — ADR 0021). Inventory, payments
+and notifications DBs deliberately run 1 instance (ADR 0005 CPU budget; ADR 0021 records the
+trade-off): killing their primary means downtime-until-restart, not failover, and that is
+**out of scope by declared design**, not an oversight. If the budget discussion reopens,
+inventory-db is the next candidate for 2 instances.
+
 ## Declared objectives (D9 — stated BEFORE the run, ADR 0021)
 
 - **RTO = 60 s**: from primary kill to checkout writes succeeding again.

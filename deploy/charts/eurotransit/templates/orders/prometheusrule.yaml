@@ -101,10 +101,15 @@ spec:
             description: "p95 latency is {{ "{{" }} $value | printf \"%.2f\" {{ "}}" }}s."
 
         # Fires when Kafka consumer lag is high, indicating the async pipeline is stalling.
+        # Metric is the Micrometer/spring-kafka one scraped from the apps — the SAME
+        # source the RED dashboard uses. The previous expr used kafka_consumergroup_lag,
+        # which only exists with Strimzi's kafkaExporter (not deployed): the alert was
+        # structurally mute (BUG-2, final audit). Verify any new query against
+        # Prometheus /api/v1/label/__name__/values before committing.
         - alert: KafkaConsumerLagHigh
           expr: |
-            sum by (consumergroup, topic) (
-              kafka_consumergroup_lag{namespace="{{ .Release.Namespace }}"}
+            sum by (job, topic) (
+              kafka_consumer_fetch_manager_records_lag{namespace="{{ .Release.Namespace }}"}
             ) > 1000
           for: 5m
           labels:
@@ -112,4 +117,4 @@ spec:
             team: eurotransit
           annotations:
             summary: "Kafka consumer lag is high"
-            description: "Consumer group {{ "{{" }} $labels.consumergroup {{ "}}" }} on topic {{ "{{" }} $labels.topic {{ "}}" }} has lag {{ "{{" }} $value {{ "}}" }}."
+            description: "Consumer {{ "{{" }} $labels.job {{ "}}" }} on topic {{ "{{" }} $labels.topic {{ "}}" }} has lag {{ "{{" }} $value {{ "}}" }}."
