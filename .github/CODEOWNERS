@@ -12,7 +12,7 @@
 # Default: every PR needs at least one review from any team member
 *                                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
 
-# Delivery owner
+<!-- # Delivery owner
 deploy/charts/                                @vojtech-n
 platform/argocd/                              @vojtech-n
 platform/traefik/                             @vojtech-n
@@ -44,6 +44,6 @@ docs/design/consistency.md                    @MauroC0l
 docs/design/idempotency.md                    @MauroC0l
 
 # Graded collective deliverables
-docs/capstone-dod.md                          @marcodonatucci
-docs/agent-log.md                             @marcodonatucci
-docs/postmortem.md                            @marcodonatucci
+docs/capstone-dod.md                          @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
+docs/agent-log.md                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
+docs/postmortem.md                            @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l -->
