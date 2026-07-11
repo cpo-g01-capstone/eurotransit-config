@@ -1,0 +1,24 @@
+# TLS cert for the Grafana UI (grafana.eurotransit.vojtechn.dev). cert-manager
+# issues it via HTTP-01 into secret `grafana-tls`, which the IngressRoute serves.
+# Same pattern as the Argo CD UI cert (platform/argocd/certificate.yaml).
+#
+# Wave 1 + SkipDryRunOnMissingResource: the cert-manager CRD is installed by a
+# SEPARATE wave-0 Application, so this tolerates the CRD not being registered yet
+# and the sync retries instead of hard-failing.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  secretName: grafana-tls
+  dnsNames:
+    - grafana.eurotransit.vojtechn.dev
+  issuerRef:
+    # Prod issuer — HTTP-01 flow already proven on this cluster (EM-34); a new
+    # hostname is a fresh cert, well within the per-domain rate limit.
+    name: letsencrypt-prod
+    kind: ClusterIssuer

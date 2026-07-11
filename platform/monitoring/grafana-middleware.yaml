@@ -1,0 +1,16 @@
+# HTTP→HTTPS redirect for the Grafana UI, applied per-route to the web-entrypoint
+# IngressRoute (see grafana-ingressroute.yaml). Same redirect-https pattern as the
+# Argo CD UI and the app chart (EM-33). Middlewares are namespaced and Traefik does
+# not allow cross-namespace references here, hence a monitoring-local copy.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-redirect-https
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
