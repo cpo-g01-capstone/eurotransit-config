@@ -29,3 +29,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0011](0011-scoped-appprojects.md) | Scoped AppProjects (platform + eurotransit) | Proposed | 2026-07-09 |
 | [0012](0012-traefik-ingressroute-over-ingress.md) | Traefik IngressRoute over native Ingress | Proposed | 2026-07-09 |
 | [0013](0013-config-ci-validation.md) | Config-repo CI Validation: Policy-as-code + Secret Scanning | Proposed | 2026-07-09 |
+| [0014](0014-strimzi-v1-api-migration.md) | Migrate Kafka CRs to the `kafka.strimzi.io/v1` API | Proposed | 2026-07-10 |
