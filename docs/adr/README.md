@@ -29,4 +29,5 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0011](0011-scoped-appprojects.md) | Scoped AppProjects (platform + eurotransit) | Proposed | 2026-07-09 |
 | [0012](0012-traefik-ingressroute-over-ingress.md) | Traefik IngressRoute over native Ingress | Proposed | 2026-07-09 |
 | [0013](0013-config-ci-validation.md) | Config-repo CI Validation: Policy-as-code + Secret Scanning | Proposed | 2026-07-09 |
-| [0014](0014-config-repo-branch-protection-ci-bypass.md) | Config-repo Branch Protection with a CI-app Bypass Actor | Proposed | 2026-07-10 |
+| [0014](0014-strimzi-v1-api-migration.md) | Migrate Kafka CRs to the `kafka.strimzi.io/v1` API | Proposed | 2026-07-10 |
+| [0015](0015-argocd-github-webhook.md) | Argo CD GitHub webhook via a patch-mode SealedSecret | Proposed | 2026-07-11 |

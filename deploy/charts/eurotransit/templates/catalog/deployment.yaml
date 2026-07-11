@@ -35,6 +35,13 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
+            # Pin the app to the single http port the chart standardises on:
+            # containerPort, Service targetPort, ServiceMonitor and NetworkPolicy
+            # (networkPolicy.appPort) all assume 8080. The service images each
+            # default to a distinct dev port (8081-8085), so without this the
+            # startup/liveness probes hit a closed 8080 and the Pod restart-loops.
+            - name: SERVER_PORT
+              value: "8080"
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
             # Spring graceful shutdown — drain in-flight work before the JVM exits.
