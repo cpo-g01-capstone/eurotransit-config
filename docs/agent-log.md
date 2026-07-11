@@ -19,9 +19,10 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 8 | 2026-07-01 | Platform / eurotransit-config | k3d pinned to k8s 1.28.2 but CNPG chart 0.29.0 requires `kubeVersion >=1.29` — incompatible |
 | 9 | 2026-07-01 | Delivery / Justfile | `install-cnpg` waited only for the CRD, not the controller webhook — `deploy-postgres` raced and failed |
 | 10 | 2026-07-01 | Platform / eurotransit-config | ClusterIssuer `sync-wave` assumed to gate on a CRD installed by a *different* Argo app — `SyncFailed` |
-| 11 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 11 | 2026-07-08 | Async / eurotransit-config context docs | Notifications consumed-topics inconsistency (`order-confirmed` vs `notification-requested`) |
 | 12 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
+| 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
+| 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
 
 ---
 
@@ -375,7 +376,7 @@ dependency explicit with a separate, later-ordered Application.
 
 ---
 
-## Case 11 — 2026-07-11 — DB env var names in the chart didn't match the app's contract (eurotransit-config)
+## Case 13 — 2026-07-11 — DB env var names in the chart didn't match the app's contract (eurotransit-config)
 
 **What the AI produced:**
 `deploy/charts/eurotransit/templates/orders/deployment.yaml` wired the database connection
@@ -526,3 +527,38 @@ bridge) and update ADR-004 / the spec accordingly.
 A passing happy-path test is not evidence the failure path works — for money-path handlers,
 always test the failure/DLT/redelivery paths explicitly. Framework "it compiles and consumes"
 does not imply "errors are handled"; verify exception propagation end-to-end.
+
+---
+
+## Case 14 — 2026-07-11 — chaos-mesh Application's chart repo not allowed by its AppProject (eurotransit-config)
+
+**What the AI produced:**
+The Chaos Mesh installation (ADR 0017, PR #31) declared the Argo CD Application under
+`project: platform`, sourcing the chart from `https://charts.chaos-mesh.org`.
+
+**Why it was wrong:**
+Argo CD validates an Application's `source.repoURL` against its AppProject's
+`sourceRepos`. The `platform` project (ADR 0011) allowed **only the config repo**, so the
+Application was rejected at sync time with
+`InvalidSpecError: application repo https://charts.chaos-mesh.org is not permitted in project 'platform'`.
+The other six operators never hit this because they run under `project: default`, whose
+`sourceRepos` is `*`. The agent adopted the platform-scoping intent without validating the
+project's source constraints against an external chart source — the scoping model
+constrains *sources*, not just destinations and resource kinds.
+
+**How it was caught:**
+At sync, by the delivery owner: the Application stuck `Unknown/InvalidSpecError` while the
+other operators synced fine. He diagnosed the mismatch and proposed two options
+(extend `platform.sourceRepos` vs fall back to `project: default`).
+
+**How it was corrected:**
+Option A — the pinned chart repo added to the platform project's `sourceRepos`
+(`bootstrap/apps/projects.yaml`), keeping ADR 0017's deliberate platform-scoping intact;
+the now-inaccurate "Both restrict sourceRepos to the config repo" comment updated; the
+ADR 0017 consequence corrected (it wrongly claimed the required change was a CRD-group
+allowance).
+
+**Lesson learned:**
+When an agent assigns an Application to a scoped AppProject, it must check the project's
+`sourceRepos` (and destinations) against the Application's actual source. "More scoped"
+projects fail closed: an external Helm repo needs an explicit, pinned entry.

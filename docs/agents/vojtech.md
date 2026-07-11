@@ -224,4 +224,4 @@ built from `.Values.<svc>.db.{host,port,name}`, creds via `secretKeyRef` on `<sv
 - name: ORDERS_DB_PASSWORD    # secretKeyRef key: password
 ```
 Notifications uses the `NOTIFICATIONS_DB_*` equivalents. Using `SPRING_DATASOURCE_*` silently
-fails — the app ignores it and defaults to `localhost:5432`. See agent-log Case 11.
+fails — the app ignores it and defaults to `localhost:5432`. See agent-log Case 13.

@@ -57,9 +57,12 @@ questions had to be answered:
   broker / 1 DB instance there is nothing to fail over to).
 - CE-3 (node disruption) needs no operator support beyond PDBs: `kubectl drain` on an AKS
   node is the injection; a manifest-less runbook will be added with its report.
-- The `platform` AppProject must allow the `chaos-mesh.org` CRD group in `chaos-testing`;
-  experiment CRs are applied with user credentials, not by Argo, so the `eurotransit`
-  AppProject is untouched.
+- The `platform` AppProject must list `https://charts.chaos-mesh.org` in its
+  `sourceRepos` — Argo validates an Application's `source.repoURL` against its
+  project's `sourceRepos`, and the platform project only allowed the config repo
+  (caught at sync as `InvalidSpecError`; see agent-log case 14). Experiment CRs are
+  applied with user credentials, not by Argo, so the `eurotransit` AppProject is
+  untouched.
 
 ## Alternatives considered
 
