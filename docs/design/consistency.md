@@ -106,3 +106,15 @@ Payments consumer is also idempotent.
 | Pod kill mid-reservation (CE-2) | Transaction rolls back; Kafka redelivers; retry succeeds | Transient delay, no oversell |
 
 **We sacrifice availability and latency. We never sacrifice consistency.**
+
+## Contrast with Catalog (two consistency models in one system)
+
+| Service | CAP | PACELC | Why |
+|---------|-----|--------|-----|
+| **Catalog** | AP | EL | An offer list may be slightly stale; favour availability + low latency (may serve cached/replica reads). |
+| **Inventory** | CP | PC/EC | A seat is a finite, contended resource; correctness always wins over availability and latency. |
+
+The two models are deliberately different because the *data* is different: staleness on a
+catalog listing is harmless, staleness on the seat counter is an oversell. Being able to
+justify a **per-resource** consistency choice (rather than one global model) is the point
+of the CAP/PACELC analysis.
