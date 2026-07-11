@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "806dd2c"
+    tag: "0ddca86"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -116,7 +116,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "f04d354"
+    tag: "0ddca86"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
