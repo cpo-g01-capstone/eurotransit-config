@@ -145,6 +145,13 @@ notifications:
     limits:
       cpu: "500m"
       memory: "512Mi"
+  db:
+    # CloudNativePG-generated secret for cluster eurotransit-notifications-db (ADR-002)
+    secretName: "eurotransit-notifications-db-app"
+    # Primary (read-write) service endpoint
+    host: "eurotransit-notifications-db-rw.eurotransit.svc.cluster.local"
+    port: "5432"
+    name: "notificationsdb"
 # ------------------------------------------------------------------------------
 # Kafka (Strimzi cluster in the same namespace)
 # ------------------------------------------------------------------------------

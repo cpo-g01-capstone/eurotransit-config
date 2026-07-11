@@ -38,6 +38,24 @@ spec:
             # Pin to the chart's standard http port (see catalog/deployment.yaml).
             - name: SERVER_PORT
               value: "8080"
+            # DB env var names must match notifications-service application.yml
+            # (NOTIFICATIONS_DB_*), not SPRING_DATASOURCE_*. R2DBC at runtime; a
+            # separate JDBC URL for Flyway (JDBC-only). See agent-log Case 11 and
+            # ADR-002 (durable dedup store, cluster eurotransit-notifications-db).
+            - name: NOTIFICATIONS_DB_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.notifications.db.host }}:{{ .Values.notifications.db.port }}/{{ .Values.notifications.db.name }}"
+            - name: NOTIFICATIONS_DB_JDBC_URL
+              value: "jdbc:postgresql://{{ .Values.notifications.db.host }}:{{ .Values.notifications.db.port }}/{{ .Values.notifications.db.name }}"
+            - name: NOTIFICATIONS_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.notifications.db.secretName }}
+                  key: username
+            - name: NOTIFICATIONS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.notifications.db.secretName }}
+                  key: password
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
