@@ -12,3 +12,6 @@ patches:
   - path: patch-argocd-cm.yaml
   # RBAC: org-restricted SSO users default to admin (EM-39).
   - path: patch-rbac-cm.yaml
+  # Sealed-secrets patch-mode annotations so the GitHub webhook secret can be
+  # merged into argocd-secret without wiping server.secretkey (webhook setup).
+  - path: patch-argocd-secret.yaml

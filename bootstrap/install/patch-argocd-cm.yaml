@@ -25,3 +25,9 @@ data:
           orgs:
             - name: cpo-g01-capstone
   admin.enabled: "false"
+  # Fallback reconciliation polling. The GitHub webhook (/api/webhook) is the
+  # primary trigger — it reconciles in seconds; this poll is only a safety net for
+  # missed/failed deliveries. Default is 180s + jitter; tighten so a dropped webhook
+  # still converges quickly. Set to 0s to disable polling and rely on the webhook alone.
+  timeout.reconciliation: 30s
+  timeout.reconciliation.jitter: 5s
