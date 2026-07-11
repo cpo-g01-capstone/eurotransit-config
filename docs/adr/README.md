@@ -40,3 +40,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0021](0021-ha-replicas-and-rto-rpo.md) | HA replicas for stateful services and declared RTO/RPO (D8, D9) | Proposed | 2026-07-11 |
 | [0022](0022-distributed-tracing-tempo-otlp.md) | Distributed tracing: Tempo + OpenTelemetry over OTLP (D10) | Proposed | 2026-07-11 |
 | [0023](0023-hpa-topology-spread-pdb-completion.md) | HPA for contended services, topology spread, PDB completion (D11) | Proposed | 2026-07-11 |
+| [0024](0024-hpa-owned-replica-count.md) | HPA-managed Deployments omit `spec.replicas` (HPA owns the replica count) | Proposed | 2026-07-11 |
