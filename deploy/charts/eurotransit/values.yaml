@@ -136,6 +136,13 @@ payments:
     limits:
       cpu: "1000m"
       memory: "1Gi"
+  db:
+    # CloudNativePG-generated secret for cluster eurotransit-payments-db
+    secretName: "eurotransit-payments-db-app"
+    # Primary (read-write) service endpoint
+    host: "eurotransit-payments-db-rw.eurotransit.svc.cluster.local"
+    port: "5432"
+    name: "paymentsdb"
 # ------------------------------------------------------------------------------
 # Notifications — fully async; failure must degrade gracefully
 # ------------------------------------------------------------------------------

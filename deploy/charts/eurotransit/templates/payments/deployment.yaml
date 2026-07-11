@@ -38,6 +38,23 @@ spec:
             # Pin to the chart's standard http port (see catalog/deployment.yaml).
             - name: SERVER_PORT
               value: "8080"
+            # DB env-var names must match payments-service application.yml (PAYMENTS_DB_*).
+            # R2DBC at runtime; a separate JDBC URL for Flyway (JDBC-only). Wrong
+            # names -> the app silently falls back to localhost:5432 and crashes.
+            - name: PAYMENTS_DB_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.payments.db.host }}:{{ .Values.payments.db.port }}/{{ .Values.payments.db.name }}"
+            - name: PAYMENTS_DB_JDBC_URL
+              value: "jdbc:postgresql://{{ .Values.payments.db.host }}:{{ .Values.payments.db.port }}/{{ .Values.payments.db.name }}"
+            - name: PAYMENTS_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.payments.db.secretName }}
+                  key: username
+            - name: PAYMENTS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.payments.db.secretName }}
+                  key: password
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
