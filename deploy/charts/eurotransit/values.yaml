@@ -84,7 +84,7 @@ catalog:
     enabled: true
     # Which track the IngressRoute serves: "blue" (the regular Deployment) or
     # "green" (the candidate). Change THIS value to switch traffic.
-    activeTrack: "blue"
+    activeTrack: "green"
     # Image tag for the green candidate (a specific immutable SHA).
     # T6 demo run: same SHA as blue — proves stand-up, atomic cutover and the
     # instant-rollback path at zero behavioural risk (runbook §B).
