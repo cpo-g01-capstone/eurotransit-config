@@ -185,3 +185,32 @@ platform-verify:
       echo "ERROR: a pinned chart version is missing or won't render."
       exit 1
     fi
+
+# --------------------------------------------------------------------------
+# Chaos engineering (ADR 0017)
+# Experiments are NOT Argo-managed (selfHeal would re-inject the fault forever):
+# manifests live in docs/chaos-experiments/ and are applied manually, one at a
+# time, during a documented experiment window. Fill the paired report while
+# running (docs/chaos-experiments/<name>.md).
+# --------------------------------------------------------------------------
+
+# One-time: allow Chaos Mesh to target the app namespace (blast-radius guardrail)
+chaos-enable:
+    kubectl annotate namespace eurotransit chaos-mesh.org/inject=enabled --overwrite
+
+# Inject one experiment, e.g. `just chaos ce-2-pod-kill-inventory`
+chaos experiment:
+    kubectl apply -f docs/chaos-experiments/{{experiment}}.yaml
+    @echo "Injected {{experiment}} — observe dashboards, then 'just chaos-clean {{experiment}}'"
+
+# Remove the experiment object after observing (ends the window)
+chaos-clean experiment:
+    kubectl delete -f docs/chaos-experiments/{{experiment}}.yaml
+
+# List live chaos objects and their phase
+chaos-status:
+    kubectl get podchaos,networkchaos,iochaos,timechaos -A 2>/dev/null || true
+
+# Chaos Mesh dashboard (ClusterIP only — reachable exclusively via this port-forward)
+chaos-dashboard:
+    kubectl port-forward -n chaos-testing svc/chaos-dashboard 2333:2333
