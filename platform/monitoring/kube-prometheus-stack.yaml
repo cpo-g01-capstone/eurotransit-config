@@ -33,6 +33,15 @@ spec:
             # any environment where metric history must survive a Pod restart.
         grafana:
           defaultDashboardsEnabled: true
+          # Tempo datasource: lets Grafana answer "where did this order spend
+          # its time?" next to the RED/USE dashboards (ADR 0022). The uid is
+          # referenced by trace links; keep it stable.
+          additionalDataSources:
+            - name: Tempo
+              type: tempo
+              uid: tempo
+              access: proxy
+              url: http://tempo.monitoring.svc.cluster.local:3100
           # Local dev only: chart default admin credentials (admin / prom-operator).
           # Before any shared/cloud cluster, set grafana.admin.existingSecret to a
           # SealedSecret. Never commit a plaintext password to this repo.

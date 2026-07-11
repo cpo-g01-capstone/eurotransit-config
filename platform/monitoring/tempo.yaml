@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    # Wave 0 with the rest of the monitoring stack. Trace backend for the money
+    # path (ADR 0022): services push OTLP spans here; Grafana queries it via the
+    # datasource declared in kube-prometheus-stack.yaml.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  # platform project: its sourceRepos explicitly lists this chart repo
+  # (bootstrap/apps/projects.yaml) — an Application's repoURL is validated
+  # against its AppProject's sourceRepos, see agent-log case 14.
+  project: platform
+  source:
+    repoURL: "https://grafana.github.io/helm-charts"
+    chart: tempo
+    # Pinned per ADR 0004/0020 (no HEAD/latest for operators). Single-binary
+    # Tempo — right-sized for the 6 vCPU budget. Verify the pin resolves with
+    # `just platform-verify`; bump deliberately.
+    targetRevision: 1.10.1
+    helm:
+      values: |
+        tempo:
+          # No usage phone-home.
+          reportingEnabled: false
+          # 48h of traces: enough to hold a full chaos-experiment session and
+          # the demo window. Raise only with persistence (see below).
+          retention: 48h
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+        # Dev: ephemeral storage — traces do not survive a Pod restart. Same
+        # decision (and same fix) as Prometheus storage: tracked as D13, add a
+        # PVC before the demo cluster.
+        persistence:
+          enabled: false
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

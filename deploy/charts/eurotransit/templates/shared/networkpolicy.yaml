@@ -168,4 +168,30 @@ spec:
           port: {{ .Values.networkPolicy.dbPort }}
         - protocol: TCP
           port: {{ .Values.networkPolicy.kafkaPort }}
+---
+# Allow app pods to push OTLP trace spans to Tempo (monitoring namespace).
+# Without this rule the default-deny above would drop spans SILENTLY — the
+# apps would look healthy while every trace vanishes (ADR 0022).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eurotransit-allow-egress-tracing
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: eurotransit
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.otlpPort }}
 {{- end }}
