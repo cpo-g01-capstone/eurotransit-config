@@ -85,7 +85,13 @@ orders:
   replicaCount: 2
   resources:
     requests:
-      cpu: "150m"
+      # CPU rightsizing (2026-07-11, follow-up to #46): 150m -> 100m requests for
+      # orders/inventory/payments. Node CPU requests hit 95/89/92% and the Kafka
+      # broker-0 roll got stuck Pending (needs 250m on one node; no node had it).
+      # HPAs report 3-8% actual CPU, so 100m still leaves ample headroom; frees
+      # 300m across 6 pods. Limits stay 1000m. Revert to 150m if HPA flaps on
+      # startup bursts.
+      cpu: "100m"
       # PROPOSAL (memory rightsizing, 2026-07-11): 512Mi -> 384Mi requests and
       # 1Gi -> 768Mi limits for the three DB-backed services (orders/inventory/
       # payments). Measured RSS 215-260Mi; frees 128Mi of scheduling reservation
@@ -115,7 +121,8 @@ inventory:
   replicaCount: 2
   resources:
     requests:
-      cpu: "150m"
+      # See CPU rightsizing note under orders.resources (2026-07-11).
+      cpu: "100m"
       # See memory-rightsizing proposal under orders.resources (2026-07-11).
       memory: "384Mi"
     limits:
@@ -146,7 +153,8 @@ payments:
   replicaCount: 2
   resources:
     requests:
-      cpu: "150m"
+      # See CPU rightsizing note under orders.resources (2026-07-11).
+      cpu: "100m"
       # See memory-rightsizing proposal under orders.resources (2026-07-11).
       memory: "384Mi"
     limits:
