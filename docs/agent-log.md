@@ -23,6 +23,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 12 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
 | 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
+| 15 | 2026-07-12 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the D4 `order-failed` publish (took `--theirs` = its own stale commit) |
 
 ---
 
@@ -562,3 +563,38 @@ allowance).
 When an agent assigns an Application to a scoped AppProject, it must check the project's
 `sourceRepos` (and destinations) against the Application's actual source. "More scoped"
 projects fail closed: an external Helm repo needs an explicit, pinned entry.
+
+---
+
+## Case 15 — 2026-07-12 — Rebase conflict resolution silently reverted the D4 compensation publish (eurotransit-app)
+
+**What the AI produced:**
+While rebasing the catalog PR (#17) onto a main that had just received #16 (D4:
+seat-release compensation via `order-failed`), the agent hit a conflict on
+`KafkaErrorHandlingConfig.kt` — its own commit only renamed an ADR reference in a
+comment. It resolved with `git checkout --theirs <file>`, believing it was taking
+main's version.
+
+**Why it was wrong (subtly):**
+During a **rebase**, `--theirs` refers to the commit being replayed — the agent's own
+**stale, pre-#16** copy — not the new base. The resolution therefore compiled cleanly,
+passed CI, and silently deleted #16's behaviour: the recoverer stopped publishing
+`order-failed` on redelivery exhaustion, while Inventory's `OrderFailedConsumer`
+(also from #16) stayed deployed and listening. The D4 compensation loop was broken
+with zero test failures — orders would be marked FAILED but seats never released.
+
+**How it was caught:**
+By @marcodonatucci, reviewing main's behaviour after the merge: the just-merged D4
+feature no longer existed on main. Restored in #18.
+
+**How it was corrected:**
+#18 re-applies the `order-failed` publish in the recoverer (idempotent on the
+Inventory side, so replayed exhaustions are safe).
+
+**Lesson learned:**
+Two lessons. (1) Git semantics: in a rebase, ours/theirs INVERT with respect to a
+merge — `--theirs` is the branch's own commit. (2) Deeper: a conflict resolution is a
+**semantic** decision, not a textual one; after resolving, diff the resolved file
+against BOTH parents and ask "whose behaviour did I keep, and is any recently-merged
+feature missing?". "It compiles and CI is green" does not prove the merge preserved
+intent — CI has no test for a feature whose call site was just deleted.
