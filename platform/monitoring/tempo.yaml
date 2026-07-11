@@ -38,6 +38,18 @@ spec:
         # PVC (T8/D13): traces are chaos-experiment evidence and must survive a
         # Pod restart — same decision as the Prometheus storageSpec. 5Gi is
         # ample for 48h retention at demo traffic (100% sampling, low rps).
+        #
+        # RUNBOOK — toggling persistence on an ALREADY-DEPLOYED Tempo: this
+        # setting renders volumeClaimTemplates into the StatefulSet, one of the
+        # fields the API server forbids patching in place. Argo will report
+        # "Sync failed ... updates to statefulset spec ... are forbidden" while
+        # the old (emptyDir) StatefulSet keeps running Healthy — i.e. the PVC
+        # is NOT in effect. One-time fix, no Git change needed:
+        #   kubectl delete statefulset tempo -n monitoring
+        # Auto-sync recreates it from this manifest with the PVC attached
+        # (~30-60s span-ingest gap; emptyDir traces are lost, which is the
+        # very defect being fixed). Verify:
+        #   kubectl get pvc -n monitoring | grep tempo   # Bound, 5Gi
         persistence:
           enabled: true
           storageClassName: managed-csi
