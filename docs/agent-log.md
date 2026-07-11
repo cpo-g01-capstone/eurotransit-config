@@ -644,3 +644,49 @@ real write path. Send real traffic through the front door BEFORE declaring a
 milestone "built" — and when one component (notifications) does the same thing
 differently and its tests behave differently, treat the asymmetry as a signal, not
 a style difference.
+
+---
+
+## Case 18 — 2026-07-11 — Kafka JSON type headers made every cross-service event undeliverable (eurotransit-app)
+
+**What the AI produced:**
+The Kafka serialization config of orders, inventory, payments and catalog:
+`JsonSerializer` producers (which write the producer's OWN event class name into a
+`__TypeId__` header by default) paired with consumers that either honoured that
+header (orders/catalog, via the delegate `JsonDeserializer`) or used a naked
+`JsonDeserializer` with no `ErrorHandlingDeserializer` at all (inventory/payments).
+
+**Why it was wrong (subtly):**
+Each service defines its own copy of the event classes in its own package — so the
+header written by orders (`com.eurotransit.orders.event.OrderPlacedEvent`) is
+unloadable in inventory. Two failure modes, both invisible from the outside:
+inventory/payments crashed the consumer loop (`SerializationException`, container
+stuck at the same offset); orders/catalog deserialized to `null`, which our own
+poison-message guard dutifully ack'd and skipped — EVERY cross-service event was
+silently dropped. Unit tests and the notifications ITs passed: within one service
+(or one test JVM) the header class always loads. Combined with cases 17's layers,
+the async pipeline had never delivered a single real cross-service event.
+
+**How it was caught:**
+Following ONE real order through the gateway after app #20/#21 restored writes: it
+stuck in DRAFT; inventory's log showed the ClassNotFound loop on order-placed-1
+offset 0 within a minute of looking.
+
+**How it was corrected:**
+App PR #22 — a uniform contract, yml-only: producers set
+`spring.json.add.type.headers=false`; consumers set
+`spring.json.use.type.headers=false` and rely on the
+`spring.json.value.default.type` every @KafkaListener already declares;
+inventory/payments additionally get `ErrorHandlingDeserializer` wrapping. This is
+exactly what notifications' hand-built `KafkaConfig` had done all along
+(`setUseTypeHeaders(false)`), which is why it was the only service whose consumer
+ever worked.
+
+**Lesson learned:**
+Sharing a topic is sharing a CONTRACT, and a serializer default (type headers) is
+part of that contract even when no one wrote it down. Per-service event-class
+copies + default JsonSerializer headers are incompatible by construction; either
+share the schema or strip the headers — decide explicitly, in one place. And when
+one component (notifications) implements the same integration differently from the
+other four, that asymmetry is a finding to investigate, not a style footnote — it
+pointed at both case 17 and this one.
