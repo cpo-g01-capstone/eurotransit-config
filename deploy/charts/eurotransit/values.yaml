@@ -62,7 +62,7 @@ catalog:
     repository: eurotransit/catalog
     tag: "96e16a6"
     pullPolicy: IfNotPresent
-  replicaCount: 2
+  # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
       cpu: "100m"
@@ -118,7 +118,7 @@ inventory:
     repository: eurotransit/inventory
     tag: "f04d354"
     pullPolicy: IfNotPresent
-  replicaCount: 2
+  # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
       # See CPU rightsizing note under orders.resources (2026-07-11).
@@ -150,7 +150,7 @@ payments:
     repository: eurotransit/payments
     tag: "96e16a6"
     pullPolicy: IfNotPresent
-  replicaCount: 2
+  # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
       # See CPU rightsizing note under orders.resources (2026-07-11).

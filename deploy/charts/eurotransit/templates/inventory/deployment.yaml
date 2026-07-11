@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     {{- include "eurotransit.commonLabels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.inventory.replicaCount }}
+  # spec.replicas intentionally omitted: the inventory HPA owns the replica count.
+  # Pinning it here makes Argo CD selfHeal fight HPA scale-out (ADR 0023 / D11).
   selector:
     matchLabels:
       app.kubernetes.io/name: eurotransit-inventory
