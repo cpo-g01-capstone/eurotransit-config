@@ -601,3 +601,46 @@ When an agent adds an HPA to an existing Deployment, removing (or conditioning) 
 runtime-mutated field needs exactly one owner. "Renders, syncs, and shows Healthy" does not
 prove two controllers won't fight; latent conflicts must be hunted at review time by asking
 who owns each mutable field.
+
+---
+
+## Case 17 — 2026-07-11 — `repository.save()` with app-assigned @Id: the entire write path was dead (eurotransit-app)
+
+**What the AI produced:**
+The persistence scaffolding for orders, inventory and payments: entities with
+app-assigned identifiers (`Order` with a caller-generated UUID, `ProcessedEvent` /
+`IdempotencyRecord` keyed by natural strings, `Reservation` / `PaymentIntent` with
+`UUID.randomUUID()` defaults) persisted via `repository.save()`.
+
+**Why it was wrong (subtly):**
+Spring Data R2DBC decides INSERT-vs-UPDATE from the entity's state: a non-null @Id
+with no `Persistable.isNew()` / `@Version` means "existing row" → `save()` issues an
+UPDATE. Every new row therefore failed with `TransientDataAccessResourceException:
+Row with Id ... does not exist` — order creation, every consumer's dedup row, seat
+reservations, payment intents. Three services could not write AT ALL. Nothing looked
+wrong: reads worked, conditional-UPDATE transitions (custom @Query) worked, the
+catalog cache is in-memory, unit tests mock the repositories, CI was green — and the
+code had just survived a four-auditor adversarial review that read it for *logic*,
+not for framework persistence semantics. Notifications alone was immune, because its
+repository used an explicit `@Query INSERT` from day one.
+
+**How it was caught:**
+By the FIRST real `POST /orders` ever sent through the gateway — a wiring check
+during T6 demo preparation returned 500. Everything before that had exercised the
+system via SQL seeds, reads, or unit tests.
+
+**How it was corrected:**
+App PR #20: `R2dbcEntityTemplate.insert()` at all 9 creation sites — explicit insert
+semantics, no hand-written SQL, no entity surgery (Kotlin data class + `Persistable`
+clashes with the generated `getId()`; `@Version` would need migrations on four
+databases). Repositories remain for lookups and conditional transitions.
+
+**Lesson learned:**
+A green pipeline plus reviewed code proves the system *compiles and reasons well* —
+not that it *runs*. Unit tests that mock the persistence layer cannot catch a
+framework-semantics bug in the persistence layer itself; the only thing that could
+have caught this earlier was one integration test (or one k6 smoke run) driving the
+real write path. Send real traffic through the front door BEFORE declaring a
+milestone "built" — and when one component (notifications) does the same thing
+differently and its tests behave differently, treat the asymmetry as a signal, not
+a style difference.
