@@ -1,0 +1,33 @@
+# CE-4 — Kafka partition: isolate ONE broker from the rest of the namespace.
+#
+# Applied MANUALLY (`just chaos ce-4-kafka-partition`), never synced by Argo CD
+# (ADR 0017). Requires `just chaos-enable` once, and the 3-broker / RF 3 /
+# min.insync.replicas 2 topology from ADR 0020 — with a single broker this
+# experiment only demonstrates a client disconnect, not replication.
+#
+# mode: one picks ONE broker pod at random and cuts it off (direction: both)
+# from every pod in the eurotransit namespace: the other two brokers (KRaft
+# quorum 2/3 survives, ISR shrinks to 2 = min ISR, producers keep acking) and
+# all app clients. duration: 5m bounds the window — the fault self-expires
+# even if cleanup is forgotten.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: ce-4-kafka-partition
+  namespace: chaos-testing
+spec:
+  action: partition
+  mode: one
+  selector:
+    namespaces:
+      - eurotransit
+    labelSelectors:
+      strimzi.io/cluster: eurotransit-kafka
+      strimzi.io/name: eurotransit-kafka-kafka
+  direction: both
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - eurotransit
+  duration: "5m"
