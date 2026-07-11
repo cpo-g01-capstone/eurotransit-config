@@ -12,38 +12,41 @@
 # Default: every PR needs at least one review from any team member
 *                                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
 
-<!-- # Delivery owner
-deploy/charts/                                @vojtech-n
-platform/argocd/                              @vojtech-n
-platform/traefik/                             @vojtech-n
-platform/sealed-secrets/                      @vojtech-n
-platform/strimzi/                             @vojtech-n
-.claude/                                      @vojtech-n
-.agent/                                       @vojtech-n
-
-# Resilience owner
-platform/chaos-mesh/                          @giova95
-docs/chaos-experiments/                       @giova95
-deploy/charts/eurotransit/templates/shared/   @giova95
-
-# Domain & async owner
-deploy/charts/eurotransit/templates/orders/   @Lollegro
-deploy/charts/eurotransit/templates/notifications/ @Lollegro
-deploy/charts/eurotransit/templates/kafka-topics/  @Lollegro
-docs/design/                                  @Lollegro
-
-# Observability & verification owner
-platform/observability/                       @marcodonatucci
-deploy/charts/eurotransit/templates/catalog/  @marcodonatucci
-
-# Data & consistency owner
-platform/cloudnative-pg/                      @MauroC0l
-deploy/charts/eurotransit/templates/inventory/ @MauroC0l
-deploy/charts/eurotransit/templates/payments/  @MauroC0l
-docs/design/consistency.md                    @MauroC0l
-docs/design/idempotency.md                    @MauroC0l
-
-# Graded collective deliverables
-docs/capstone-dod.md                          @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
-docs/agent-log.md                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
-docs/postmortem.md                            @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l -->
+# Path-specific ownership disabled — a single review from any team member is
+# enough for every path. Re-enable by uncommenting the blocks below.
+#
+# # Delivery owner
+# deploy/charts/                                @vojtech-n
+# platform/argocd/                              @vojtech-n
+# platform/traefik/                             @vojtech-n
+# platform/sealed-secrets/                      @vojtech-n
+# platform/strimzi/                             @vojtech-n
+# .claude/                                      @vojtech-n
+# .agent/                                       @vojtech-n
+#
+# # Resilience owner
+# platform/chaos-mesh/                          @giova95
+# docs/chaos-experiments/                       @giova95
+# deploy/charts/eurotransit/templates/shared/   @giova95
+#
+# # Domain & async owner
+# deploy/charts/eurotransit/templates/orders/   @Lollegro
+# deploy/charts/eurotransit/templates/notifications/ @Lollegro
+# deploy/charts/eurotransit/templates/kafka-topics/  @Lollegro
+# docs/design/                                  @Lollegro
+#
+# # Observability & verification owner
+# platform/observability/                       @marcodonatucci
+# deploy/charts/eurotransit/templates/catalog/  @marcodonatucci
+#
+# # Data & consistency owner
+# platform/cloudnative-pg/                      @MauroC0l
+# deploy/charts/eurotransit/templates/inventory/ @MauroC0l
+# deploy/charts/eurotransit/templates/payments/  @MauroC0l
+# docs/design/consistency.md                    @MauroC0l
+# docs/design/idempotency.md                    @MauroC0l
+#
+# # Graded collective deliverables
+# docs/capstone-dod.md                          @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
+# docs/agent-log.md                             @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
+# docs/postmortem.md                            @vojtech-n @giova95 @Lollegro @marcodonatucci @MauroC0l
