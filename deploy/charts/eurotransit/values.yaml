@@ -60,7 +60,7 @@ probes:
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "f9ff7ac"
+    tag: "7ffb2b9"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -206,7 +206,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "96e16a6"
+    tag: "7ffb2b9"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
