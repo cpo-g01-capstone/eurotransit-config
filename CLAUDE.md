@@ -43,7 +43,7 @@ zero-downtime deployment.
 
 - **API gateway:** Traefik (from Lab03) — the single north-south entrypoint
 - **Async pipeline:** Kafka via the Strimzi operator
-- **Database:** PostgreSQL for Orders, managed by the CloudNativePG operator
+- **Database:** PostgreSQL, managed by the CloudNativePG operator, **one cluster per service that needs state**. Orders (`ordersdb`) and Notifications (`notificationsdb`, per app-repo ADR-002 — a durable dedup store) each own a cluster. Inventory pulls in R2DBC deps but its datasource config is not yet written app-side. Catalog and Payments are stateless.
 - **Events:** `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `notification-requested`
 - **Notifications** must be able to fail entirely without failing checkout (graceful degradation)
 - Internal services are **ClusterIP**; only Traefik gets a public LoadBalancer
@@ -478,8 +478,15 @@ load-baseline:
 | SealedSecret | `eurotransit-<name>` |
 | Argo CD Application | `eurotransit` |
 | Kafka topics | `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `notification-requested` |
-| CloudNativePG cluster | `eurotransit-orders-db` |
-| PostgreSQL services | `eurotransit-orders-db-rw` (primary), `eurotransit-orders-db-ro` (read-only) |
+| CloudNativePG cluster | `eurotransit-orders-db`, `eurotransit-notifications-db` (one per stateful service) |
+| PostgreSQL services | `eurotransit-<svc>-db-rw` (primary), `eurotransit-<svc>-db-ro` (read-only) |
+| DB app secret | `eurotransit-<svc>-db-app` (CloudNativePG-generated; keys `username`, `password`) |
+
+**DB env-var contract (must match the service's `application.yml`, not Spring defaults):**
+the services read R2DBC at runtime and a separate JDBC URL for Flyway migrations, under
+**service-prefixed** names — `ORDERS_DB_R2DBC_URL` / `ORDERS_DB_JDBC_URL` / `ORDERS_DB_USERNAME`
+/ `ORDERS_DB_PASSWORD` (and `NOTIFICATIONS_DB_*`). Emitting `SPRING_DATASOURCE_*` does **not**
+work — the app ignores it and falls back to `localhost:5432`. See agent-log Case 11.
 
 ---
 
