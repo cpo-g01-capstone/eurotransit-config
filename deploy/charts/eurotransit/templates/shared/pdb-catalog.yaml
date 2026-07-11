@@ -1,0 +1,17 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eurotransit-catalog
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-catalog
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  # Catalog runs >=2 replicas (HPA floor), so keeping one alive through voluntary
+  # disruptions is always satisfiable and never blocks a drain.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-catalog
+      app.kubernetes.io/instance: {{ .Release.Name }}

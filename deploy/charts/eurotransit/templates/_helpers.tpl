@@ -56,3 +56,29 @@ readinessProbe:
   periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
   failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 {{- end -}}
+
+{{- /*
+Topology spread for an app Deployment (ADR 0023 / D11): spread replicas across
+nodes and zones so "N replicas" actually means N failure domains — 3 pods on one
+node are still one outage from zero. SOFT constraints (ScheduleAnyway) on
+purpose: on the small budget cluster a hard DoNotSchedule could leave pods
+Pending during drains/rollouts; CE-3 measures whether soft spreading is enough.
+Usage: {{ include "eurotransit.topologySpread" (dict "name" "eurotransit-orders" "instance" .Release.Name) }}
+*/ -}}
+{{- define "eurotransit.topologySpread" -}}
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: {{ .name }}
+        app.kubernetes.io/instance: {{ .instance }}
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: {{ .name }}
+        app.kubernetes.io/instance: {{ .instance }}
+{{- end }}
