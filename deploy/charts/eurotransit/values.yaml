@@ -113,6 +113,13 @@ inventory:
     limits:
       cpu: "1000m"
       memory: "1Gi"
+  db:
+    # CloudNativePG-generated secret for cluster eurotransit-inventory-db (ADR-0020)
+    secretName: "eurotransit-inventory-db-app"
+    # Primary (read-write) service endpoint
+    host: "eurotransit-inventory-db-rw.eurotransit.svc.cluster.local"
+    port: "5432"
+    name: "inventorydb"
 # ------------------------------------------------------------------------------
 # Payments — strict idempotency, must not double-charge
 # ------------------------------------------------------------------------------
