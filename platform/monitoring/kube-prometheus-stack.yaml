@@ -29,8 +29,17 @@ spec:
             ruleSelectorNilUsesHelmValues: false
             probeSelectorNilUsesHelmValues: false
             retention: 7d
-            # Dev: metrics are ephemeral (emptyDir). Add a storageSpec (PVC) before
-            # any environment where metric history must survive a Pod restart.
+            # PVC (T8/D13): chaos-experiment evidence must survive Pod restarts —
+            # several experiments restart pods on the node Prometheus runs on.
+            # 10Gi fits the ADR 0001 sizing at 7d retention / current cardinality.
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: managed-csi
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
         grafana:
           defaultDashboardsEnabled: true
           # Tempo datasource: lets Grafana answer "where did this order spend
@@ -42,9 +51,15 @@ spec:
               uid: tempo
               access: proxy
               url: http://tempo.monitoring.svc.cluster.local:3100
-          # Local dev only: chart default admin credentials (admin / prom-operator).
-          # Before any shared/cloud cluster, set grafana.admin.existingSecret to a
-          # SealedSecret. Never commit a plaintext password to this repo.
+          # Admin credentials from a SealedSecret (T8/D13) — replaces the chart
+          # default admin/prom-operator. Sealed manifest:
+          # platform/monitoring/secrets/grafana-admin.sealed.yaml; plaintext is
+          # NOT in Git (ask the delivery owner, or reseal to rotate). Applies on
+          # pod start: Grafana's DB is ephemeral, so a restart picks it up.
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
           sidecar:
             dashboards:
               # Watch dashboard ConfigMaps in ALL namespaces, not just `monitoring`:
