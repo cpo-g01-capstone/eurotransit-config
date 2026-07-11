@@ -10,7 +10,7 @@ metadata:
     {{- include "eurotransit.commonLabels" . | nindent 4 }}
 spec:
   groups:
-    # Checkout SLI recording rules (D2, docs/design/slo-definitions.md).
+    # Checkout SLI recording rules (ratified SLOs, docs/design/slo-definitions.md).
     # Error ratio of the money-path entry (POST /orders): 5xx over total.
     # 429 (deliberate load shedding) is NOT in the numerator by design — it is
     # degradation, not failure, and never consumes error budget.
@@ -84,7 +84,7 @@ spec:
             summary: "Checkout error rate above 5%"
             description: "{{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}% of checkout requests are returning 5xx."
 
-        # Fires when p95 checkout latency exceeds the 500ms SLO (D2) for 3 minutes.
+        # Fires when p95 checkout latency exceeds the ratified 500ms SLO for 3 minutes.
         - alert: CheckoutHighP95Latency
           expr: |
             histogram_quantile(0.95,
@@ -104,7 +104,7 @@ spec:
         # Metric is the Micrometer/spring-kafka one scraped from the apps — the SAME
         # source the RED dashboard uses. The previous expr used kafka_consumergroup_lag,
         # which only exists with Strimzi's kafkaExporter (not deployed): the alert was
-        # structurally mute (BUG-2, final audit). Verify any new query against
+        # structurally mute (adversarial-audit fix, #52). Verify any new query against
         # Prometheus /api/v1/label/__name__/values before committing.
         - alert: KafkaConsumerLagHigh
           expr: |

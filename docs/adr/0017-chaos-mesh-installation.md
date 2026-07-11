@@ -51,9 +51,9 @@ questions had to be answered:
 ## Consequences
 
 - CE-2 (Pod kill on Inventory) is runnable now: manifest + report skeleton committed.
-- CE-1 (latency → Payments) stays **blocked on team decision D1** (sync call + circuit
+- CE-1 (latency → Payments) stays **blocked on the team's authorization-mode decision** (since taken: sync call + circuit
   breaker vs Kafka-only) — the injection target depends on it.
-- CE-4 (Kafka partition) and CE-5 (CNPG failover) stay **blocked on D8** (replicas: with 1
+- CE-4 (Kafka partition) and CE-5 (CNPG failover) stay **blocked on the HA-replica decision** (since taken, ADR 0021; with 1
   broker / 1 DB instance there is nothing to fail over to).
 - CE-3 (node disruption) needs no operator support beyond PDBs: `kubectl drain` on an AKS
   node is the injection; a manifest-less runbook will be added with its report.

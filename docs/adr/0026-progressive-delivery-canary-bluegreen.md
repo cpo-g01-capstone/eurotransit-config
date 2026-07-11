@@ -1,6 +1,6 @@
-# ADR 0026 — Progressive delivery: Orders canary + Catalog blue/green (D6/D7)
+# ADR 0026 — Progressive delivery: Orders canary + Catalog blue/green
 
-- **Status:** Accepted (team decisions D6 and D7 ratified 2026-07-11)
+- **Status:** Accepted (promotion gate and cleanup window ratified by the team, 2026-07-11)
 - **Date:** 2026-07-11
 - **Deciders:** whole team (thresholds and cleanup window are team-owned decisions
   per the agentic coding policy; the manifests implement them)
@@ -11,13 +11,13 @@
 
 The capstone requires BOTH progressive delivery patterns demonstrated on top of the
 GitOps loop: a canary (fraction of traffic, SLI-gated promotion) and a blue/green
-switch (instant cutover, fast rollback). Until T6:
+switch (instant cutover, fast rollback). Until this work:
 
 - a weighted `TraefikService` existed for Orders, **but the IngressRoute did not
   reference it** — `/api/orders` pointed straight at the Service, so adjusting the
   weights was dead config and a "canary" would have silently served 100% stable.
-  (Found during T6 implementation; same *present-but-not-wired* failure class as
-  the audit's BUG-1.)
+  (Found during implementation; same *present-but-not-wired* failure class as the
+  pod-label/NetworkPolicy audit finding fixed in #52.)
 - there was no canary Deployment/Service, no values plumbing, and no blue/green
   resources at all.
 
@@ -35,7 +35,7 @@ switch (instant cutover, fast rollback). Until T6:
 - The canary joins the same Kafka consumer group as stable ON PURPOSE: the
   candidate must prove the whole money path (HTTP entry + Kafka stages), not just
   the controller.
-- **D6 promotion gate (ratified):** canary error rate **< 1%** AND p95 **< 300 ms**
+- **Promotion gate (team-ratified):** canary error rate **< 1%** AND p95 **< 300 ms**
   sustained for **5 minutes**, measured on the canary's own metrics. Deliberately
   stricter than the checkout SLO (99.5% / 500 ms): a promotion gate vouches for a
   *novelty* and needs margin between "the candidate looks fine" and "we are
@@ -52,7 +52,7 @@ switch (instant cutover, fast rollback). Until T6:
   is exactly the failure class we hit with Tempo (see the #53 runbook), and
   (b) overlapping Deployment selectors are undefined behaviour. Two independent
   Deployments with distinct labels, one routing decision.
-- **D7 cleanup window (ratified):** after the switch, the old track keeps running
+- **Cleanup window (team-ratified):** after the switch, the old track keeps running
   for **5 clean minutes** (one full observation cycle on the dashboards) as the
   instant-rollback path; then it is removed (promote the tag to the blue track,
   disable green — one commit). If anything degrades within the window, rollback =
@@ -86,7 +86,7 @@ The four canonical strategies and where they land for EuroTransit:
   do for routine image bumps on non-entry services — but it cannot host a
   promotion decision.
 - **Canary:** bounded blast radius (10% of requests see the candidate), an
-  explicit SLI-gated promotion decision (D6), cheap abort. The right shape for
+  explicit SLI-gated promotion decision (the ratified gate), cheap abort. The right shape for
   the Orders money path, where correctness regressions (not crashes) are the
   real risk.
 - **Blue/green:** full parallel capacity, instant atomic cutover and instant

@@ -70,4 +70,4 @@ Isolating one broker will NOT break the async money path and will NOT lose or du
 
 *(Did the hypothesis hold? Record leadership-movement behaviour, any window where producers
 blocked, and whether idempotency absorbed redeliveries. Feed scheduling findings — e.g. two
-brokers on one node — into D11.)*
+brokers on one node — into ADR 0023.)*

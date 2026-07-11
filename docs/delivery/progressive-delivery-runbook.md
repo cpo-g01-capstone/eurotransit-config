@@ -1,6 +1,6 @@
 # Progressive delivery runbook — Orders canary & Catalog blue/green
 
-*Companion to ADR 0026 (D6/D7). Every step is a Git commit on this repo — Argo CD
+*Companion to ADR 0026. Every step is a Git commit on this repo — Argo CD
 does the applying. Keep the RED dashboard and the burn-rate alerts open throughout;
 drive steady traffic with `just load-baseline` (or the k6 E2E script) so the SLIs
 have signal.*
@@ -9,7 +9,7 @@ have signal.*
 
 ## A. Canary rollout on Orders
 
-**Gate (D6):** canary error rate < 1% AND p95 < 300 ms, sustained 5 minutes,
+**Gate (team-ratified, ADR 0026):** canary error rate < 1% AND p95 < 300 ms, sustained 5 minutes,
 measured on the canary's own metrics (dedicated ServiceMonitor). No burn-rate
 alert may fire during the window.
 
@@ -66,7 +66,7 @@ Traffic is 100% stable within one reconcile. Record WHY in the rollout notes
 
 ## B. Blue/green switch on Catalog
 
-**Window (D7):** after the switch, the old track stays up for 5 clean minutes
+**Window (team-ratified, ADR 0026):** after the switch, the old track stays up for 5 clean minutes
 (instant rollback path), then is cleaned up.
 
 ### 1. Stand up green
@@ -98,7 +98,7 @@ kubectl get ingressroute eurotransit -n eurotransit -o yaml | grep -B1 -A2 catal
 `git revert` the switch commit → `activeTrack: "blue"` → instant cutback. Blue
 never stopped running; zero recovery time beyond the reconcile.
 
-### 3b. Cleanup (5 clean minutes — D7)
+### 3b. Cleanup (5 clean minutes — the ratified window, ADR 0026)
 One commit that makes green's version the new blue and tears green down:
 ```yaml
 catalog:

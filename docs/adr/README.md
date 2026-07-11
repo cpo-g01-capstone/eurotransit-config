@@ -33,11 +33,11 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0015](0015-argocd-github-webhook.md) | Argo CD GitHub webhook via a patch-mode SealedSecret | Proposed | 2026-07-11 |
 | [0016](0016-config-repo-branch-protection-ci-bypass.md) | Config-repo Branch Protection with a CI-app Bypass Actor | Proposed | 2026-07-10 |
 | [0017](0017-chaos-mesh-installation.md) | Chaos Mesh installation and experiment execution model | Proposed | 2026-07-11 |
-| [0018](0018-sync-payment-authorization-circuit-breaker.md) | Synchronous payment authorization with a circuit breaker (D1 = option A) | Accepted | 2026-07-11 |
+| [0018](0018-sync-payment-authorization-circuit-breaker.md) | Synchronous payment authorization with a circuit breaker | Accepted | 2026-07-11 |
 | [0019](0019-single-approval-review-policy.md) | Single-approval review policy (CODEOWNERS flattened) | Accepted | 2026-07-11 |
 | [0020](0020-inventory-dedicated-database.md) | Inventory dedicated database | Proposed | 2026-07-11 |
-| [0021](0021-ha-replicas-and-rto-rpo.md) | HA replicas for stateful services and declared RTO/RPO (D8, D9) | Proposed | 2026-07-11 |
-| [0022](0022-distributed-tracing-tempo-otlp.md) | Distributed tracing: Tempo + OpenTelemetry over OTLP (D10) | Proposed | 2026-07-11 |
-| [0023](0023-hpa-topology-spread-pdb-completion.md) | HPA for contended services, topology spread, PDB completion (D11) | Proposed | 2026-07-11 |
+| [0021](0021-ha-replicas-and-rto-rpo.md) | HA replicas for stateful services and declared RTO/RPO | Proposed | 2026-07-11 |
+| [0022](0022-distributed-tracing-tempo-otlp.md) | Distributed tracing: Tempo + OpenTelemetry over OTLP | Proposed | 2026-07-11 |
+| [0023](0023-hpa-topology-spread-pdb-completion.md) | HPA for contended services, topology spread, PDB completion | Proposed | 2026-07-11 |
 | [0024](0024-notifications-dedicated-database.md) | Dedicated CloudNativePG cluster for Notifications | Proposed | 2026-07-11 |
 | [0025](0025-hpa-owned-replica-count.md) | HPA-managed Deployments omit `spec.replicas` (HPA owns the replica count) | Proposed | 2026-07-11 |

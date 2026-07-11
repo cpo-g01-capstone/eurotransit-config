@@ -10,7 +10,7 @@
 
 ## Context
 
-ADR 0023 (D11) added HPAs for inventory and payments (catalog already had one), but the
+ADR 0023 added HPAs for inventory and payments (catalog already had one), but the
 Deployment templates kept `replicas: {{ .Values.<svc>.replicaCount }}`. That leaves two
 controllers claiming the same field: the HPA scales `spec.replicas` at runtime, while Argo CD
 — with `selfHeal: true` and no `ignoreDifferences` on the `eurotransit` Application — enforces
@@ -33,7 +33,7 @@ For every Deployment that has an HPA (catalog, inventory, payments):
 1. **Omit `spec.replicas` from the Deployment template.** The HPA is the sole owner of the
    replica count at runtime.
 2. **Remove `replicaCount` from that service's `values.yaml` entry.** The availability
-   baseline is expressed once, as `hpa.minReplicas` (2 for all three, per D8/ADR 0021).
+   baseline is expressed once, as `hpa.minReplicas` (2 for all three, per ADR 0021).
 
 Services without an HPA (orders, notifications) keep `replicaCount` and the rendered
 `spec.replicas`.
@@ -47,7 +47,7 @@ Services without an HPA (orders, notifications) keep `replicaCount` and the rend
 - **Disable `selfHeal` for the app.** Rejected outright — violates the GitOps invariant
   (constraint 2 in the delivery-owner charter).
 - **Keep the pin and accept the fight.** Rejected: it silently caps every HPA at
-  `minReplicas`, defeating D11.
+  `minReplicas`, defeating the scale-out decision (ADR 0023).
 
 ## Consequences
 
@@ -75,7 +75,7 @@ Drafted with agent assistance (the fix and this ADR). Before ratification the te
 
 ## References
 
-- ADR 0023 — HPA for contended services, topology spread, PDB completion (D11)
-- ADR 0021 — HA replicas and RTO/RPO (D8/D9) — source of the 2-replica baseline
+- ADR 0023 — HPA for contended services, topology spread, PDB completion
+- ADR 0021 — HA replicas and RTO/RPO — source of the 2-replica baseline
 - Argo CD docs: *Leaving room for the HorizontalPodAutoscaler* (auto-sync + HPA guidance)
 - `docs/agent-log.md` Case 16

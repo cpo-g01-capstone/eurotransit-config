@@ -35,7 +35,7 @@ spec:
                   endpoint: 0.0.0.0:4317
                 http:
                   endpoint: 0.0.0.0:4318
-        # PVC (T8/D13): traces are chaos-experiment evidence and must survive a
+        # PVC: traces are chaos-experiment evidence and must survive a
         # Pod restart — same decision as the Prometheus storageSpec. 5Gi is
         # ample for 48h retention at demo traffic (100% sampling, low rps).
         #

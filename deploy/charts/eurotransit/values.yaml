@@ -74,10 +74,10 @@ catalog:
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
-  # Blue/green track (T6 / ADR 0026). The switch happens at the IngressRoute:
+  # Blue/green track (ADR 0026). The switch happens at the IngressRoute:
   # /api/catalog points at the service of the ACTIVE track. Rollback = revert
   # the activeTrack commit (Traefik cutover is instant, the old track keeps
-  # running). D7: delete the old track after 5 clean minutes post-switch.
+  # running). Ratified window (ADR 0026): delete the old track after 5 clean minutes post-switch.
   blueGreen:
     # Deploys the green Deployment+Service alongside blue. Off outside demos —
     # a second track costs a full pod on the 6 vCPU budget.
@@ -123,9 +123,9 @@ orders:
     host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "ordersdb"
-  # Canary track (T6 / ADR 0026). /api/orders always routes through the
+  # Canary track (ADR 0026). /api/orders always routes through the
   # weighted TraefikService; with the canary disabled the stable track gets
-  # 100%. Promotion gate (D6, stricter than the SLO on purpose): error rate
+  # 100%. Promotion gate (team-ratified, ADR 0026 — stricter than the SLO on purpose): error rate
   # < 1% AND p95 < 300ms sustained for 5 minutes on the canary — then promote
   # (bump orders.image.tag to the canary tag, disable the canary) or abort
   # (weight back to 0, disable).
@@ -155,9 +155,9 @@ inventory:
     limits:
       cpu: "1000m"
       memory: "768Mi"
-  # HPA (ADR 0023 / D11): the contended money-path service. CPU is a proxy signal
+  # HPA (ADR 0023): the contended money-path service. CPU is a proxy signal
   # (the truer one would be consumer lag via prometheus-adapter — future work);
-  # maxReplicas capped to fit the 6 vCPU budget alongside the D8 HA replicas.
+  # maxReplicas capped to fit the 6 vCPU budget alongside the HA replicas (ADR 0021).
   hpa:
     minReplicas: 2
     maxReplicas: 4
@@ -187,7 +187,7 @@ payments:
     limits:
       cpu: "1000m"
       memory: "768Mi"
-  # HPA (ADR 0023 / D11): sized like inventory; the sync authorize call (ADR 0018)
+  # HPA (ADR 0023): sized like inventory; the sync authorize call (ADR 0018)
   # makes Payments latency directly user-visible, so headroom matters.
   hpa:
     minReplicas: 2
