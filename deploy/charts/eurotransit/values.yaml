@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "96e16a6"
+    tag: "543bace"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -103,7 +103,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "96e16a6"
+    tag: "543bace"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
