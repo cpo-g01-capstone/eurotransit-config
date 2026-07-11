@@ -23,6 +23,7 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 12 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
 | 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
+| 15 | 2026-07-12 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the D4 `order-failed` publish (took `--theirs` = its own stale commit) |
 
 ---
 
