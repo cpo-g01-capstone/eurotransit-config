@@ -1,0 +1,27 @@
+# CE-2 — Pod kill on Inventory mid-reservation (one-shot).
+#
+# Applied MANUALLY during the experiment window (`just chaos ce-2-pod-kill-inventory`),
+# never synced by Argo CD (ADR 0017). Requires the target namespace to be enabled
+# once: `just chaos-enable` (annotates `eurotransit` with chaos-mesh.org/inject=enabled).
+#
+# Experiment protocol, steady state, hypothesis and verification queries:
+#   docs/chaos-experiments/ce-2-pod-kill-inventory.md        (report, fill during run)
+#   docs/chaos-experiments/ce-2-pod-kill-inventory-pretest.md (manual dry-run, EM-29)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: ce-2-pod-kill-inventory
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  # Kill exactly ONE inventory pod (the scientific method injects one failure).
+  mode: one
+  selector:
+    namespaces:
+      - eurotransit
+    labelSelectors:
+      app.kubernetes.io/name: eurotransit-inventory
+  # Hard kill: no grace period. We are simulating a crash mid-reservation, not a
+  # graceful shutdown — SIGTERM drain is a DIFFERENT property (already covered by
+  # the EM-21/EM-27 shutdown chain). gracePeriod 0 sends SIGKILL semantics.
+  gracePeriod: 0

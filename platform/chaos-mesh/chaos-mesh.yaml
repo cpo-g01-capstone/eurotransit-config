@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaos-mesh
+  namespace: argocd
+  annotations:
+    # Wave 0: operator install, like the other platform components. Chaos
+    # EXPERIMENTS are deliberately NOT managed by Argo CD (see ADR 0017): a
+    # self-healed PodChaos would be re-applied forever. Experiments live in
+    # docs/chaos-experiments/ and are applied manually via `just chaos <name>`.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: "https://charts.chaos-mesh.org"
+    chart: chaos-mesh
+    # Pinned per ADR 0017 (same policy as ADR 0004: no HEAD/latest for operators).
+    # 2.7.x is the current stable line; bump deliberately, never implicitly.
+    targetRevision: 2.7.2
+    helm:
+      parameters:
+        # AKS nodes run containerd — the daemon must attach to the containerd
+        # socket to inject pod/network faults.
+        - name: chaosDaemon.runtime
+          value: containerd
+        - name: chaosDaemon.socketPath
+          value: /run/containerd/containerd.sock
+        # GUARDRAIL (blast radius, ADR 0017): only namespaces annotated with
+        # `chaos-mesh.org/inject=enabled` can be targeted by experiments.
+        # We annotate ONLY `eurotransit` (see `just chaos-enable`), so a wrong
+        # selector can never kill platform pods (Argo CD, Prometheus, Strimzi...).
+        - name: controllerManager.enableFilterNamespace
+          value: "true"
+        # Dashboard is useful for the live demo. securityMode=false skips the
+        # in-dashboard token login; acceptable ONLY because the dashboard is
+        # ClusterIP and reachable exclusively via `just chaos-dashboard`
+        # (kubectl port-forward) — it is never exposed through Traefik.
+        # Trade-off recorded in ADR 0017.
+        - name: dashboard.securityMode
+          value: "false"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: chaos-testing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Chaos Mesh ships large CRDs (Schedule, Workflow, ...) that exceed the
+      # client-side apply annotation limit — same reason as Strimzi/CNPG.
+      - ServerSideApply=true
