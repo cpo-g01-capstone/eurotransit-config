@@ -690,3 +690,45 @@ share the schema or strip the headers — decide explicitly, in one place. And w
 one component (notifications) implements the same integration differently from the
 other four, that asymmetry is a finding to investigate, not a style footnote — it
 pointed at both case 17 and this one.
+
+---
+
+## Case 19 — 2026-07-11 — Two silent event-contract faults: frozen catalog cache and DLT'd notifications (eurotransit-app)
+
+**What the AI produced:**
+Catalog's cache-feeding listener (target type declared only in
+`@KafkaListener(properties=...)`, direct-payload parameter) and notifications'
+`OrderConfirmedEvent` with a REQUIRED `customerContact` field that no producer in the
+system has ever sent.
+
+**Why it was wrong (subtly):**
+Both faults produced offsets that kept committing while nothing happened. Catalog:
+the listener-level `spring.json.value.default.type` never reached the delegate
+`JsonDeserializer` in production — every value deserialized to `null`, the payload
+resolver rejected it, the error handler recovered, and the advisory cache froze at
+its seed values while looking perfectly healthy. Notifications: orders publishes
+`{orderId, timestamp}`; Jackson rejected every real payload for the missing required
+field and routed it to the DLT — while the integration tests, which construct the
+event class directly, stayed green.
+
+**How it was caught:**
+The FIRST live confirmed checkout (post cases 17/18): catalog still showed 100 seats
+with 3 reserved in the inventory DB; the notifications log showed `Recovering to
+DLT... valueType=null`. The catalog diagnosis was pinned by a test fed with bytes
+captured verbatim from the topic: with the type in the consumer config they
+deserialize; without it, exactly the null we saw.
+
+**How it was corrected:**
+App PR #23 — catalog's target type moved to `application.yml` (the tested path),
+listener switched to the codebase-standard `ConsumerRecord<String, T?>` signature,
+cache updates now log at INFO; notifications' `customerContact` defaults to a demo
+contact until a customer identity exists on the producer side.
+
+**Lesson learned:**
+Closing the 17→18→19 trilogy: every fault in this chain was INVISIBLE from the
+outside — green CI, committed offsets, healthy probes — and each fix peeled the next
+fault into view. Cross-service event contracts need a single authoritative
+definition (or contract tests against captured real payloads); "aligned by
+convention" copies drift in fields, requiredness and config. And an advisory cache
+that can fail silently must at least LOG when it applies an update — observability
+of the happy path is what turns "frozen" into "obviously frozen".
