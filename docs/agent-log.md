@@ -3,7 +3,7 @@
 Records cases where agent-produced artifacts were incorrect, unsafe, or subtly wrong.
 **Minimum three entries required before the live presentation. This file is graded.**
 
-All five team members must approve changes to this file (see CODEOWNERS).
+Reviewed like any PR (single approval — ADR 0019); substantive changes should still be discussed by the whole team.
 
 Custodian: @marcodonatucci (Observability & Verification).
 
@@ -19,6 +19,9 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 8 | 2026-07-01 | Platform / eurotransit-config | k3d pinned to k8s 1.28.2 but CNPG chart 0.29.0 requires `kubeVersion >=1.29` — incompatible |
 | 9 | 2026-07-01 | Delivery / Justfile | `install-cnpg` waited only for the CRD, not the controller webhook — `deploy-postgres` raced and failed |
 | 10 | 2026-07-01 | Platform / eurotransit-config | ClusterIssuer `sync-wave` assumed to gate on a CRD installed by a *different* Argo app — `SyncFailed` |
+| 11 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
+| 11 | 2026-07-08 | Async / eurotransit-config context docs | Notifications consumed-topics inconsistency (`order-confirmed` vs `notification-requested`) |
+| 12 | 2026-07-08 | Async / eurotransit-app notifications | AI-designed `suspend` @KafkaListener silently swallowed handler exceptions (no retry/DLT) |
 
 ---
 
@@ -369,3 +372,157 @@ later if determinism is preferred over eventual consistency.
 Applications. When a resource depends on a CRD that a *different* app installs, don't rely
 on wave ordering alone — use `SkipDryRunOnMissingResource=true` (+ retry), or make the
 dependency explicit with a separate, later-ordered Application.
+
+---
+
+## Case 11 — 2026-07-11 — DB env var names in the chart didn't match the app's contract (eurotransit-config)
+
+**What the AI produced:**
+`deploy/charts/eurotransit/templates/orders/deployment.yaml` wired the database connection
+using Spring's conventional relaxed-binding names:
+
+```yaml
+- name: SPRING_DATASOURCE_URL
+  value: "jdbc:postgresql://eurotransit-orders-db-rw...:5432/ordersdb"
+- name: SPRING_DATASOURCE_USERNAME   # secretKeyRef → eurotransit-orders-db-app
+- name: SPRING_DATASOURCE_PASSWORD
+```
+
+The manifest *looked* correct in isolation — a valid JDBC URL to the CloudNativePG `-rw`
+service, credentials pulled from the operator secret via `secretKeyRef`, no plaintext.
+
+**Why it was wrong:**
+`orders-service/src/main/resources/application.yml` does **not** read `spring.datasource.*`.
+It uses **R2DBC** at runtime and a **separate JDBC URL for Flyway** (Flyway is JDBC-only),
+both behind **service-prefixed** placeholders with `localhost` defaults:
+
+```yaml
+spring.r2dbc.url:  ${ORDERS_DB_R2DBC_URL:r2dbc:postgresql://localhost:5432/ordersdb}
+spring.flyway.url: ${ORDERS_DB_JDBC_URL:jdbc:postgresql://localhost:5432/ordersdb}
+```
+
+Because the chart set `SPRING_DATASOURCE_*` and the app never reads those keys, the injected
+values were silently ignored and the app fell back to its `localhost:5432` default. Flyway
+then failed with `Connection to localhost:5432 refused` and the pod crashlooped — while the
+Deployment, Service, and secret all *appeared* healthy and correctly wired. Argo CD showed
+`Synced` (the manifests matched Git) but `Degraded` (pods never went Ready), which is easy to
+misread as a cluster problem rather than a config-contract mismatch. The same root cause
+affects Notifications; Inventory has the reactive deps but no datasource config written yet.
+
+**How it was caught:**
+Investigating three crashlooping services (orders, inventory, notifications) on the AKS
+cluster. Pod logs showed `localhost:5432` despite the pod env clearly containing the correct
+`SPRING_DATASOURCE_URL`. Cross-referencing the app repo's `application.yml` revealed the env
+var names the code actually binds — `ORDERS_DB_*`, not `SPRING_DATASOURCE_*`.
+
+**How it was corrected:**
+Renamed the env block in `orders/deployment.yaml` to the app's contract —
+`ORDERS_DB_R2DBC_URL`, `ORDERS_DB_JDBC_URL`, `ORDERS_DB_USERNAME`, `ORDERS_DB_PASSWORD` —
+with the R2DBC and JDBC URLs both built from `.Values.orders.db.{host,port,name}` and
+credentials still via `secretKeyRef` on `eurotransit-orders-db-app`. Documented the DB
+env-var contract in `CLAUDE.md` (Architecture constraints + naming table) and
+`docs/agents/vojtech.md` so future chart edits don't reintroduce `SPRING_DATASOURCE_*`.
+
+**Lesson learned:**
+A manifest that is internally valid can still be wrong — the env var **names** are an API
+contract owned by the application, not by Spring convention. When wiring config into a
+service, verify the keys against the consuming code's `application.yml`, not against what the
+framework *usually* calls them. `Synced + Degraded` with a `localhost` fallback in the logs
+is the signature of injected config the app never reads.
+## Case 11 — 2026-07-08 — Notifications consumed-topics inconsistency (eurotransit-config context docs)
+
+> **Draft — pending team approval.** This entry was drafted by the agent while
+> implementing the Notifications consumer. Per CODEOWNERS all five members must approve
+> before it merges to `main`.
+
+**What the AI produced:**
+Two agent-generated context docs disagree on which topics the Notifications service consumes:
+- `.agent/context/money-path.md` (step 7): Notifications consumes **`order-confirmed`** only.
+- `.agent/context/kafka-topics.md`: lists Notifications as consumer of **both**
+  `order-confirmed` **and** `notification-requested` (the latter with producer `Orders`).
+
+No service actually produces `notification-requested` — no Orders code emits it, and the
+money path never references it.
+
+**Why it was wrong:**
+Subtly wrong, not a compile failure. Taken literally, an implementer wiring Notifications
+from `kafka-topics.md` would add a **second `@KafkaListener` on a topic that has no
+producer** — a listener that never fires — or the team would create a `KafkaTopic` CR
+(`notification-requested`) that is **orphaned**: declared infrastructure, never written,
+never read. It also misleads the reader into thinking Orders must perform a dual-write
+(`order-confirmed` **and** `notification-requested`) after confirmation, which — without a
+transactional outbox — is itself a consistency hazard.
+
+**How it was caught:**
+Cross-checking `kafka-topics.md` against `money-path.md` while designing the Notifications
+consumer (ADR-001, eurotransit-app), before writing the listener.
+
+**How it was corrected:**
+Resolved by **ADR-001** (eurotransit-app `docs/adr/`): Notifications consumes
+`order-confirmed` only, consistent with the money path and with the team's
+consistency-over-availability preference. **Follow-up required in this repo:** remove
+`notification-requested` from `.agent/context/kafka-topics.md` and from any `KafkaTopic`
+CRs, **or** annotate it explicitly as "reserved, not yet wired". Team decision + PR.
+
+**Lesson learned:**
+Event topology must be reconciled across `money-path.md` and `kafka-topics.md` in the same
+change. A topic row with a producer/consumer that no code implements is a latent trap —
+grep for every topic name across both repos and confirm a real producer *and* consumer
+exist before declaring the CR.
+
+---
+
+## Case 12 — 2026-07-08 — `suspend` @KafkaListener silently swallowed exceptions (eurotransit-app)
+
+> **Draft — pending team approval** (CODEOWNERS). Caught while implementing the Notifications
+> consumer (ADR-001..004).
+
+**What the AI produced:**
+The AI-authored design (ADR-004 / the notifications spec) and the first implementation used a
+Kotlin `suspend` @KafkaListener:
+
+```kotlin
+@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
+suspend fun onOrderConfirmed(event: OrderConfirmedEvent) { service.handle(event) }
+```
+
+It compiled, and the **happy path passed** — messages were consumed and marked `SENT`.
+
+**Why it was wrong (subtly):**
+With this Spring Kafka version, a `suspend` @KafkaListener **does not propagate handler
+exceptions to the container's `DefaultErrorHandler`**. When the send failed, the exception was
+swallowed: **no bounded retry, no publish to `order-confirmed.DLT`, and the offset was still
+committed** (`AckMode.RECORD`) — the failed notification was silently lost. The integration test
+proved it: the recoverer ran **0** times and only **1** delivery attempt occurred. This defeats
+the entire resilience design (ADR-003): "no lost notifications, poison messages parked in the
+DLT". A green happy-path test hid a broken failure path — exactly the kind of gap the money path
+must not have.
+
+**How it was caught:**
+The DLT integration test (`OrderConfirmedDltIT`) asserted that an always-failing send lands in
+`order-confirmed.DLT` and the row becomes `FAILED`. It timed out; debug logging showed the
+recoverer never fired and there were no retries.
+
+**How it was corrected:**
+Switched to a non-`suspend` handler that bridges to the suspending service with `runBlocking`,
+taking the raw `ConsumerRecord` (Spring Kafka's typed-payload conversion returned `KafkaNull` for
+an already-deserialized value on a non-suspend method):
+
+```kotlin
+@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
+fun onOrderConfirmed(record: ConsumerRecord<String, OrderConfirmedEvent?>) {
+    val event = record.value() ?: return
+    runBlocking { service.handle(event) }
+}
+```
+
+The exception now surfaces synchronously → `DefaultErrorHandler` retries → DLT + `FAILED`.
+**Team decision required:** this uses `runBlocking`, which `CLAUDE.md` bans "outside bootstrap".
+The consumer thread is a dedicated blocking poll loop (not a reactive context), so blocking here
+is arguably correct, but the team must ratify the exception to the rule (or choose an alternative
+bridge) and update ADR-004 / the spec accordingly.
+
+**Lesson learned:**
+A passing happy-path test is not evidence the failure path works — for money-path handlers,
+always test the failure/DLT/redelivery paths explicitly. Framework "it compiles and consumes"
+does not imply "errors are handled"; verify exception propagation end-to-end.

@@ -1,6 +1,6 @@
 # Capstone Definition of Done
 
-All five team members must approve changes to this file.
+Reviewed like any PR (single approval — ADR 0019); changes to the DoD should still be discussed by the whole team.
 
 ## Pillar A — Distributed design and async execution
 - [ ] Service decomposition documented with explicit sync/async boundaries and justification

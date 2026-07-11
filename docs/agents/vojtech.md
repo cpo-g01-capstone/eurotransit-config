@@ -209,6 +209,19 @@ kubectl get application -n argocd eurotransit -w
 | Strimzi namespace | `strimzi-system` |
 | Kafka cluster CR name | `eurotransit-kafka` |
 | Kafka bootstrap (internal) | `eurotransit-kafka-kafka-bootstrap.eurotransit.svc.cluster.local:9092` |
-| CloudNativePG cluster | `eurotransit-orders-db` |
-| DB read-write service | `eurotransit-orders-db-rw.eurotransit.svc.cluster.local:5432` |
-| DB app secret | `eurotransit-orders-db-app` (keys: `username`, `password`) |
+| CloudNativePG cluster | `eurotransit-orders-db`, `eurotransit-notifications-db` (one per stateful service) |
+| DB read-write service | `eurotransit-<svc>-db-rw.eurotransit.svc.cluster.local:5432` |
+| DB app secret | `eurotransit-<svc>-db-app` (keys: `username`, `password`) |
+
+### DB env-var contract (deployment templates)
+The Spring services read **service-prefixed** env vars, not `SPRING_DATASOURCE_*`. Runtime is
+R2DBC; Flyway migrations need a separate JDBC URL (Flyway is JDBC-only). Emit all four, URLs
+built from `.Values.<svc>.db.{host,port,name}`, creds via `secretKeyRef` on `<svc>-db-app`:
+```yaml
+- name: ORDERS_DB_R2DBC_URL   # r2dbc:postgresql://<host>:<port>/<name>
+- name: ORDERS_DB_JDBC_URL    # jdbc:postgresql://<host>:<port>/<name>  (Flyway)
+- name: ORDERS_DB_USERNAME    # secretKeyRef key: username
+- name: ORDERS_DB_PASSWORD    # secretKeyRef key: password
+```
+Notifications uses the `NOTIFICATIONS_DB_*` equivalents. Using `SPRING_DATASOURCE_*` silently
+fails — the app ignores it and defaults to `localhost:5432`. See agent-log Case 11.

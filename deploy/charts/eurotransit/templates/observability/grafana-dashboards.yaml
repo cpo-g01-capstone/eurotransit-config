@@ -1,0 +1,25 @@
+{{- /*
+Grafana dashboards, GitOps-delivered: one ConfigMap per JSON file under
+dashboards/. The kube-prometheus-stack Grafana sidecar watches ConfigMaps
+labelled `grafana_dashboard` across ALL namespaces (see
+platform/monitoring/kube-prometheus-stack.yaml) and hot-loads them — no
+manual Grafana import, no clicking: the dashboards ARE desired state.
+
+JSON lives in plain files (NOT under templates/) so Grafana legend syntax
+like {{`{{job}}`}} is never interpreted by Helm.
+*/ -}}
+{{- if .Values.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eurotransit-dashboard-{{ base $path | trimSuffix ".json" }}
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: eurotransit
+data:
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

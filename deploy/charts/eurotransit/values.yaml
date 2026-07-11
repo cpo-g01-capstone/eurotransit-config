@@ -60,7 +60,7 @@ probes:
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "0223c46"
+    tag: "e6d51b4"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "0223c46"
+    tag: "e6d51b4"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -103,7 +103,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "0223c46"
+    tag: "e6d51b4"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -119,7 +119,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "0223c46"
+    tag: "e6d51b4"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -135,7 +135,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "0223c46"
+    tag: "e6d51b4"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
@@ -184,3 +184,11 @@ networkPolicy:
   kafkaPort: 9092 # Strimzi Kafka bootstrap (in-namespace)
   ingressNamespace: "traefik" # namespace Traefik runs in (north-south source)
   monitoringNamespace: "monitoring" # namespace Prometheus scrapes from
+# ------------------------------------------------------------------------------
+# Grafana dashboards (RED money-path + USE infrastructure), shipped as
+# ConfigMaps and hot-loaded by the kube-prometheus-stack Grafana sidecar.
+# JSON sources live in dashboards/*.json (outside templates/, so Grafana's
+# {{job}} legend syntax never meets the Helm renderer).
+# ------------------------------------------------------------------------------
+dashboards:
+  enabled: true
