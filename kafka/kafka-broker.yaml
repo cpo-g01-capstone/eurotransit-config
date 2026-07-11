@@ -6,9 +6,9 @@ metadata:
   labels:
     strimzi.io/cluster: eurotransit-kafka
 spec:
-  # 3 dual-role (KRaft controller+broker) nodes — team decision D8 (ADR 0020):
+  # 3 dual-role (KRaft controller+broker) nodes — team decision D8 (ADR 0021):
   # real replication quorum for CE-4, accepting the CPU cost on the ADR 0005
-  # budget. Resources are deliberately lean; see the capacity note in ADR 0020.
+  # budget. Resources are deliberately lean; see the capacity note in ADR 0021.
   replicas: 3
   roles:
     - controller
@@ -38,7 +38,7 @@ spec:
     # 3.7.0 is no longer shipped by the 1.1.0 operator. CR is already KRaft, so no
     # ZooKeeper migration. [app team] confirm kafka-clients >= 3.1 against a 4.2 broker.
     version: 4.2.0
-    # Keep broker JVM heap bounded so 3 brokers fit the B2s_v2 nodes (ADR 0020).
+    # Keep broker JVM heap bounded so 3 brokers fit the B2s_v2 nodes (ADR 0021).
     jvmOptions:
       -Xms: 512m
       -Xmx: 512m
@@ -49,7 +49,7 @@ spec:
         tls: false
     config:
       auto.create.topics.enable: "false"
-      # 3-broker HA defaults (ADR 0020, D8): survive one broker loss (CE-4)
+      # 3-broker HA defaults (ADR 0021, D8): survive one broker loss (CE-4)
       # without losing acked writes — RF 3, writes need 2 in-sync replicas.
       offsets.topic.replication.factor: 3
       transaction.state.log.replication.factor: 3

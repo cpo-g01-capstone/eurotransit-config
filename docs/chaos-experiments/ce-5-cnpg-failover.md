@@ -2,10 +2,10 @@
 
 *Capstone chaos experiment #5. No Chaos Mesh CR needed: the injection is killing the current
 primary pod of `eurotransit-orders-db` and observing the operator promote the standby.
-Prerequisites: the ADR 0020 topology reconciled (`instances: 2`, synchronous replication) and the
+Prerequisites: the ADR 0021 topology reconciled (`instances: 2`, synchronous replication) and the
 `kubectl cnpg` plugin installed (`brew install kubectl-cnpg` or krew).*
 
-## Declared objectives (D9 — stated BEFORE the run, ADR 0020)
+## Declared objectives (D9 — stated BEFORE the run, ADR 0021)
 
 - **RTO = 60 s**: from primary kill to checkout writes succeeding again.
 - **RPO = 0** (single-failure scenario): synchronous replication acks a commit only once the

@@ -2,7 +2,7 @@
 #
 # Applied MANUALLY (`just chaos ce-4-kafka-partition`), never synced by Argo CD
 # (ADR 0017). Requires `just chaos-enable` once, and the 3-broker / RF 3 /
-# min.insync.replicas 2 topology from ADR 0020 — with a single broker this
+# min.insync.replicas 2 topology from ADR 0021 — with a single broker this
 # experiment only demonstrates a client disconnect, not replication.
 #
 # mode: one picks ONE broker pod at random and cuts it off (direction: both)

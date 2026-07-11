@@ -2,7 +2,7 @@
 
 *Capstone chaos experiment #4. Injection: Chaos Mesh `NetworkChaos` (`ce-4-kafka-partition.yaml`)
 cuts one of the three brokers off from the whole `eurotransit` namespace for 5 minutes.
-Prerequisite: the ADR 0020 topology (3 dual-role brokers, topics at RF 3, `min.insync.replicas: 2`)
+Prerequisite: the ADR 0021 topology (3 dual-role brokers, topics at RF 3, `min.insync.replicas: 2`)
 is reconciled and the one-time topic recreation has been done — check all five KafkaTopics are
 `Ready` at RF 3 before starting.*
 

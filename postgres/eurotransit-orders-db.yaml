@@ -10,12 +10,12 @@ metadata:
   name: eurotransit-orders-db
   namespace: eurotransit
 spec:
-  # 2 instances = primary + 1 standby (ADR 0020, D8): enough for the CE-5
+  # 2 instances = primary + 1 standby (ADR 0021, D8): enough for the CE-5
   # failover experiment while respecting the ADR 0005 CPU budget (a third
   # instance would add another 250m request on an already CPU-bound cluster).
   instances: 2
   primaryUpdateStrategy: unsupervised
-  # Synchronous replication (ADR 0020, D9): backs the declared RPO = 0 for the
+  # Synchronous replication (ADR 0021, D9): backs the declared RPO = 0 for the
   # single-primary-loss scenario (CE-5) — a commit is acked only after the
   # standby has it. dataDurability: preferred degrades to async if the standby
   # is unavailable, so writes never block with only one standby (the RPO = 0

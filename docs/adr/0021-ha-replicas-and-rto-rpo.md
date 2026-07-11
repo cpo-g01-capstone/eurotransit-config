@@ -1,4 +1,4 @@
-# ADR 0020 — HA replicas for stateful services and declared RTO/RPO (D8, D9)
+# ADR 0021 — HA replicas for stateful services and declared RTO/RPO (D8, D9)
 
 - **Status:** Proposed (drafted for team ratification via this PR)
 - **Date:** 2026-07-11
