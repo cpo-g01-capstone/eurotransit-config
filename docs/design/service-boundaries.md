@@ -31,13 +31,13 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 
 ## Money path trace (checkout)
 
-Order state machine (from the Orders schema): `DRAFT → RESERVED → PAID → CONFIRMED` (or `FAILED`).
+Order state machine (from the Orders schema): `DRAFT → RESERVED → CONFIRMED` (or `FAILED`). (`PAID` removed post-D1: authorize is synchronous, ADR 0018.)
 
 1. `client → gateway (Traefik) → POST /orders`.
 2. Orders generates an `orderId` (UUID), writes the order as `DRAFT`, publishes `order-placed`,
    returns quickly to the client. *(Decoupling → reduces cost/scaling pressure, not latency.)*
 3. Reservation stage → Inventory reserves seats atomically → order `RESERVED`, `inventory-reserved`.
-4. Payment stage → Payments authorizes (idempotent) → order `PAID`, `payment-authorized`.
+4. Payment step → Orders calls Payments authorize synchronously (idempotent, breaker — ADR 0018) → `payment-authorized`.
 5. Confirmation → `order-confirmed`, order `CONFIRMED`, `notification-requested`.
 6. Notifications sends the confirmation. If it is down, the order stays `CONFIRMED` → **checkout still succeeds**.
 
