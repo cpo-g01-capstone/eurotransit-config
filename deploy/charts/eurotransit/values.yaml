@@ -74,6 +74,19 @@ catalog:
     minReplicas: 2
     maxReplicas: 5
     targetCPUUtilizationPercentage: 70
+  # Blue/green track (T6 / ADR 0026). The switch happens at the IngressRoute:
+  # /api/catalog points at the service of the ACTIVE track. Rollback = revert
+  # the activeTrack commit (Traefik cutover is instant, the old track keeps
+  # running). D7: delete the old track after 5 clean minutes post-switch.
+  blueGreen:
+    # Deploys the green Deployment+Service alongside blue. Off outside demos —
+    # a second track costs a full pod on the 6 vCPU budget.
+    enabled: false
+    # Which track the IngressRoute serves: "blue" (the regular Deployment) or
+    # "green" (the candidate). Change THIS value to switch traffic.
+    activeTrack: "blue"
+    # Image tag for the green candidate (a specific immutable SHA).
+    tag: ""
 # ------------------------------------------------------------------------------
 # Orders — synchronous entry point, publishes to Kafka, owns the DB
 # ------------------------------------------------------------------------------
@@ -110,6 +123,20 @@ orders:
     host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "ordersdb"
+  # Canary track (T6 / ADR 0026). /api/orders always routes through the
+  # weighted TraefikService; with the canary disabled the stable track gets
+  # 100%. Promotion gate (D6, stricter than the SLO on purpose): error rate
+  # < 1% AND p95 < 300ms sustained for 5 minutes on the canary — then promote
+  # (bump orders.image.tag to the canary tag, disable the canary) or abort
+  # (weight back to 0, disable).
+  canary:
+    # Deploys the canary Deployment+Service and adds it to the weighted
+    # TraefikService. Off outside rollouts (a pod of budget, like blueGreen).
+    enabled: false
+    # Fraction of /api/orders traffic sent to the canary (0-100).
+    weight: 10
+    # Image tag of the canary candidate (a specific immutable SHA).
+    tag: ""
 # ------------------------------------------------------------------------------
 # Inventory — contended resource, must never oversell
 # ------------------------------------------------------------------------------

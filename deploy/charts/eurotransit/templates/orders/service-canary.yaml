@@ -1,0 +1,49 @@
+{{- if .Values.orders.canary.enabled }}
+# Canary-track Service (T6 / ADR 0026): the second arm of the weighted
+# TraefikService in traefik-services.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: eurotransit-orders-canary
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-orders-canary
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/track: canary
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: eurotransit-orders-canary
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# Scrape the canary separately: the D6 gate compares the canary's OWN error
+# rate and p95 against the thresholds, not the blended aggregate.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: eurotransit-orders-canary
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-orders-canary
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: kube-prometheus-stack
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-orders-canary
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+{{- end }}

@@ -1,0 +1,84 @@
+{{- if .Values.orders.canary.enabled }}
+# Canary track for Orders (T6 / ADR 0026). Rendered only during a rollout —
+# a second money-path pod is real budget on 6 vCPU.
+#
+# Kept deliberately in LOCKSTEP with deployment.yaml: same env contract, same
+# probes, same resources — the ONLY intended differences are the name/track
+# labels, replicas: 1, and the image tag (orders.canary.tag). If you change
+# deployment.yaml, mirror the change here (drift between tracks would make the
+# canary comparison meaningless — see ADR 0026 for why we accepted the
+# duplication over a shared template).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eurotransit-orders-canary
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-orders-canary
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/track: canary
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  # One pod: enough for a weighted SLI comparison at demo traffic, cheap to abort.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-orders-canary
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eurotransit-orders-canary
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/track: canary
+        # NetworkPolicy selector — same coverage as the stable track (the
+        # policies select part-of; without it the canary pod would run
+        # UNSEGMENTED, the exact failure mode of audit BUG-1).
+        app.kubernetes.io/part-of: eurotransit
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: orders
+          image: {{ include "eurotransit.imageRef" (list .Values.global.imageRegistry (dict "repository" .Values.orders.image.repository "tag" .Values.orders.canary.tag)) }}
+          imagePullPolicy: {{ .Values.orders.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
+            - name: SERVER_PORT
+              value: "8080"
+            - name: ORDERS_DB_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.orders.db.host }}:{{ .Values.orders.db.port }}/{{ .Values.orders.db.name }}"
+            - name: ORDERS_DB_JDBC_URL
+              value: "jdbc:postgresql://{{ .Values.orders.db.host }}:{{ .Values.orders.db.port }}/{{ .Values.orders.db.name }}"
+            - name: ORDERS_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.orders.db.secretName }}
+                  key: username
+            - name: ORDERS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.orders.db.secretName }}
+                  key: password
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrapServers | quote }}
+            # Same group as stable ON PURPOSE: canary pods join the consumer
+            # group and take partitions — the canary must prove the WHOLE
+            # money path (HTTP + Kafka stages), not just the sync entry point.
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "orders-group"
+            - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+              value: {{ .Values.lifecycle.shutdownTimeout | quote }}
+          {{- include "eurotransit.preStop" . | nindent 10 }}
+          {{- include "eurotransit.probes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.orders.resources | nindent 12 }}
+{{- end }}
