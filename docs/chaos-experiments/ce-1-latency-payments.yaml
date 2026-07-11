@@ -1,0 +1,29 @@
+# CE-1 — Latency injection into Payments (bounded window).
+#
+# Applied MANUALLY (`just chaos ce-1-latency-payments`), never synced by Argo CD
+# (ADR 0017). Requires `just chaos-enable` once, and the Orders→Payments
+# synchronous call with circuit breaker (ADR 0018) deployed — otherwise there is
+# no breaker to observe and the experiment is meaningless.
+#
+# The injected delay (3s ± 500ms) deliberately exceeds the 2s call timeout from
+# ADR 0018, so every authorize attempt in the window is a slow-call/timeout and
+# the breaker MUST open. duration: 5m bounds the window — the fault self-expires
+# even if cleanup is forgotten.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: ce-1-latency-payments
+  namespace: chaos-testing
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - eurotransit
+    labelSelectors:
+      app.kubernetes.io/name: eurotransit-payments
+  direction: to
+  delay:
+    latency: "3s"
+    jitter: "500ms"
+  duration: "5m"
