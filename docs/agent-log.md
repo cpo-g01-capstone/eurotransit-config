@@ -732,3 +732,42 @@ definition (or contract tests against captured real payloads); "aligned by
 convention" copies drift in fields, requiredness and config. And an advisory cache
 that can fail silently must at least LOG when it applies an update — observability
 of the happy path is what turns "frozen" into "obviously frozen".
+
+---
+
+## Case 20 — 2026-07-11 — p95 was unmeasurable: no histogram buckets behind every latency panel and alert (eurotransit-app)
+
+**What the AI produced:**
+The observability stack's latency layer: RED dashboard p95 panels, the
+`CheckoutHighP95Latency` PrometheusRule and the T6 canary-gate PromQL — all built on
+`histogram_quantile(0.95, ... http_server_requests_seconds_bucket ...)` — while the
+services' configuration never enabled `percentiles-histogram`, so Micrometer
+published `http_server_requests_seconds` as a plain summary (count/sum/max) with NO
+`_bucket` series at all.
+
+**Why it was wrong (subtly):**
+Everything rendered and deployed green: the dashboards showed empty p95 panels
+(indistinguishable from "no traffic yet", which was also true), the alert loaded but
+could never fire, and the gate query was simply `no data`. The queries and the
+exposition format each looked correct in isolation; they had never been run against
+each other with real traffic.
+
+**How it was caught:**
+During the LIVE T6 canary gate: error-rate and split queries returned data, the p95
+query returned nothing — with traffic demonstrably flowing. One targeted probe
+(`http_server_requests_seconds_bucket` → 0 series) pinned it. The gate was assessed
+from server-side max (32ms) + k6 client-side p95 (<120ms), both far inside the
+300ms threshold.
+
+**How it was corrected:**
+App PR #24: `management.metrics.distribution.percentiles-histogram.http.server.requests=true`
+on all five services, with SLO-aligned bucket boundaries (300ms = D6 gate,
+500ms = D2 p95 SLO).
+
+**Lesson learned:**
+Repeats BUG-2's lesson one layer deeper: it is not enough for a query's METRIC NAME
+to exist — the metric's TYPE must support the function applied to it. Every
+`histogram_quantile` needs `_bucket` series; verify by running the exact
+dashboard/alert query against live exposition (`/api/v1/query`, not just
+`/label/__name__/values`) before trusting a panel. A latency SLO you have never seen
+move under traffic is a claim, not a measurement.
