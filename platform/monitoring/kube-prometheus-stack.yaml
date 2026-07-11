@@ -54,6 +54,27 @@ spec:
                       storage: 10Gi
         grafana:
           defaultDashboardsEnabled: true
+          # GitHub SSO (mirrors the Argo CD EM-39 decision): login restricted to
+          # the cpo-g01-capstone org; every org member gets Admin — all five
+          # teammates operate the dashboards. Client ID/secret come from the
+          # SealedSecret grafana-github-oauth via envFromSecret below (Grafana's
+          # GF_AUTH_GITHUB_* env vars override grafana.ini). The local admin
+          # login stays as break-glass (same policy as Argo CD).
+          # OAuth App callback: https://grafana.eurotransit.vojtechn.dev/login/github
+          envFromSecret: grafana-github-oauth
+          grafana.ini:
+            server:
+              # Required for the OAuth redirect to carry the public hostname
+              # instead of the in-cluster Service address.
+              root_url: https://grafana.eurotransit.vojtechn.dev
+            auth.github:
+              enabled: true
+              allow_sign_up: true
+              scopes: user:email,read:org
+              allowed_organizations: cpo-g01-capstone
+              # JMESPath literal: every allowed login maps to Admin (team
+              # decision, same as Argo CD's policy.default: role:admin).
+              role_attribute_path: "'Admin'"
           # Tempo datasource: lets Grafana answer "where did this order spend
           # its time?" next to the RED/USE dashboards (ADR 0022). The uid is
           # referenced by trace links; keep it stable.

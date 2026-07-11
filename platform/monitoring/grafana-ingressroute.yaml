@@ -1,0 +1,48 @@
+# North-south routing for the Grafana UI at grafana.eurotransit.vojtechn.dev.
+# Two routers (same split as Argo CD, platform/argocd/ingressroute.yaml): a
+# web-entrypoint router that 301/308-redirects to HTTPS, and a websecure router
+# serving the cert-manager cert (secret grafana-tls) and forwarding to the
+# kube-prometheus-stack Grafana Service over plain HTTP (Traefik terminates TLS
+# at the edge; Grafana itself listens on HTTP).
+#
+# Wave 1 + SkipDryRunOnMissingResource: the Traefik IngressRoute CRD is installed
+# by a separate wave-0 Application.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-redirect
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`grafana.eurotransit.vojtechn.dev`)
+      kind: Rule
+      middlewares:
+        - name: grafana-redirect-https
+      services:
+        - name: kube-prometheus-stack-grafana
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`grafana.eurotransit.vojtechn.dev`)
+      kind: Rule
+      services:
+        - name: kube-prometheus-stack-grafana
+          port: 80
+  tls:
+    secretName: grafana-tls
