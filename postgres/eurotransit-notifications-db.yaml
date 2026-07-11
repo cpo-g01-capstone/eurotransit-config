@@ -1,0 +1,35 @@
+# CloudNativePG cluster for the Notifications service (ADR-002, app repo).
+#
+# Notifications is NOT stateless: it keeps a durable dedup store (`sent_notifications`)
+# so an at-least-once `order-confirmed` redelivery never sends a duplicate confirmation.
+# See eurotransit-app docs/adr/ADR-002-notifications-dedup-store.md.
+#
+# Operator: deployed by platform/cloudnative-pg.yaml into cnpg-system.
+# Application secret (auto-generated): eurotransit-notifications-db-app
+#   keys: username, password, dbname, host, port, uri, jdbc-uri
+# Read/write endpoint: eurotransit-notifications-db-rw.eurotransit.svc:5432
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: eurotransit-notifications-db
+  namespace: eurotransit
+spec:
+  # 1 instance for dev. Bump to 3 before CE-5 (failover) / production HA.
+  instances: 1
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: notificationsdb
+      owner: app
+      encoding: UTF8
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  monitoring:
+    enablePodMonitor: true
