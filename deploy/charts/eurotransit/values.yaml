@@ -132,13 +132,11 @@ orders:
   canary:
     # Deploys the canary Deployment+Service and adds it to the weighted
     # TraefikService. Off outside rollouts (a pod of budget, like blueGreen).
-    enabled: true
+    enabled: false
     # Fraction of /api/orders traffic sent to the canary (0-100).
     weight: 10
     # Image tag of the canary candidate (a specific immutable SHA).
-    # First run (T6 demo): same SHA as stable — proves the full mechanics
-    # (track deploy, 90/10 split, canary-scoped SLIs, D6 gate) at zero risk.
-    tag: "f9ff7ac"
+    tag: ""
 # ------------------------------------------------------------------------------
 # Inventory — contended resource, must never oversell
 # ------------------------------------------------------------------------------
