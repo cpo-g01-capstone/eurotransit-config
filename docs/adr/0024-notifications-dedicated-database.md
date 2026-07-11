@@ -1,4 +1,4 @@
-# ADR 0016 — Dedicated CloudNativePG cluster for Notifications
+# ADR 0024 — Dedicated CloudNativePG cluster for Notifications
 
 - **Status:** Proposed
 - **Date:** 2026-07-11
