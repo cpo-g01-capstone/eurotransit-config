@@ -47,20 +47,33 @@ spec:
     - web
     {{- end }}
   routes:
+    # Blue/green switch point (T6 / ADR 0026): the route serves the ACTIVE
+    # track's Service. Switching = one commit changing catalog.blueGreen
+    # .activeTrack; the inactive track keeps running for instant rollback (D7:
+    # delete it after 5 clean minutes).
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/catalog`)
       kind: Rule
       middlewares:
         - name: eurotransit-strip-api
       services:
+        {{- if and .Values.catalog.blueGreen.enabled (eq .Values.catalog.blueGreen.activeTrack "green") }}
+        - name: eurotransit-catalog-green
+          port: 80
+        {{- else }}
         - name: eurotransit-catalog
           port: 80
+        {{- end }}
+    # Canary entry point (T6 / ADR 0026): always via the weighted
+    # TraefikService — with the canary disabled it collapses to stable 100%.
+    # Before T6 this pointed straight at the Service, which made the weighted
+    # TraefikService dead config (weights had no effect).
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/orders`)
       kind: Rule
       middlewares:
         - name: eurotransit-strip-api
       services:
-        - name: eurotransit-orders
-          port: 80
+        - name: eurotransit-orders-weighted
+          kind: TraefikService
     - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/api/inventory`)
       kind: Rule
       middlewares:

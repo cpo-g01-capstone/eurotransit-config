@@ -1,0 +1,115 @@
+{{- if .Values.catalog.blueGreen.enabled }}
+# Green track for Catalog (T6 / ADR 0026): the CANDIDATE version, deployed
+# alongside the regular Deployment (the "blue" track) during a blue/green
+# rollout. Traffic reaches it only when the IngressRoute is switched
+# (catalog.blueGreen.activeTrack: "green").
+#
+# Kept in LOCKSTEP with deployment.yaml: only name/track labels, replicas and
+# the image tag differ (see the same note on orders/deployment-canary.yaml).
+#
+# Distinct name label + own selector ON PURPOSE: overlapping Deployment
+# selectors are undefined behaviour in Kubernetes, and the blue Deployment's
+# selector is immutable anyway — the switch therefore happens at the INGRESS,
+# not in the Service selector.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eurotransit-catalog-green
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-catalog-green
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/track: green
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  # Pinned to the blue baseline (the catalog HPA targets ONLY the blue
+  # Deployment; the green track is a short-lived candidate).
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-catalog-green
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eurotransit-catalog-green
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/track: green
+        # NetworkPolicy selector — same coverage as blue (audit BUG-1: a pod
+        # without part-of runs unsegmented).
+        app.kubernetes.io/part-of: eurotransit
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: catalog
+          image: {{ include "eurotransit.imageRef" (list .Values.global.imageRegistry (dict "repository" .Values.catalog.image.repository "tag" .Values.catalog.blueGreen.tag)) }}
+          imagePullPolicy: {{ .Values.catalog.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
+            - name: SERVER_PORT
+              value: "8080"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrapServers | quote }}
+            - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+              value: {{ .Values.lifecycle.shutdownTimeout | quote }}
+          {{- include "eurotransit.preStop" . | nindent 10 }}
+          {{- include "eurotransit.probes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.catalog.resources | nindent 12 }}
+---
+# Green-track Service: the IngressRoute's target when activeTrack is "green".
+apiVersion: v1
+kind: Service
+metadata:
+  name: eurotransit-catalog-green
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-catalog-green
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/track: green
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: eurotransit-catalog-green
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# Scrape the green track: validation before the switch happens on its OWN
+# error rate / p95 / restart panels, not on blended metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: eurotransit-catalog-green
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-catalog-green
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: kube-prometheus-stack
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-catalog-green
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+{{- end }}
