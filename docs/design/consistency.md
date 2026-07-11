@@ -91,7 +91,7 @@ Double-reservation is prevented at two levels:
 
 ### Transaction boundaries
 
-Per [consistency-owner.md](file:///c:/Users/Windows/Desktop/CPO/Project/eurotransit-config/.agent/agents/consistency-owner.md#L41):
+Per [consistency-owner.md](../../.agent/agents/consistency-owner.md):
 transactions are kept small. The Kafka consumer wraps the reservation + dedup record
 insert in a single transaction. The downstream Kafka publish (`inventory-reserved`)
 happens **outside** the transaction — at-least-once delivery is safe because the
