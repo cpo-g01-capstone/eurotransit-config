@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     {{- include "eurotransit.commonLabels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.payments.replicaCount }}
+  # spec.replicas intentionally omitted: the payments HPA owns the replica count.
+  # Pinning it here makes Argo CD selfHeal fight HPA scale-out (ADR 0023 / D11).
   selector:
     matchLabels:
       app.kubernetes.io/name: eurotransit-payments
@@ -18,6 +19,11 @@ spec:
       labels:
         app.kubernetes.io/name: eurotransit-payments
         app.kubernetes.io/instance: {{ .Release.Name }}
+        # Grants the pod the NetworkPolicy selector (BUG-1, final audit):
+        # the policies select part-of, which commonLabels puts on the
+        # Deployment but NOT on the pod template — without this line every
+        # policy silently matched zero pods.
+        app.kubernetes.io/part-of: eurotransit
     spec:
       terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
       {{- include "eurotransit.topologySpread" (dict "name" "eurotransit-payments" "instance" .Release.Name) | nindent 6 }}

@@ -566,35 +566,38 @@ projects fail closed: an external Helm repo needs an explicit, pinned entry.
 
 ---
 
-## Case 15 — 2026-07-12 — Rebase conflict resolution silently reverted the D4 compensation publish (eurotransit-app)
+## Case 16 — 2026-07-11 — HPA added while the Deployment kept a pinned `spec.replicas` (eurotransit-config)
 
 **What the AI produced:**
-While rebasing the catalog PR (#17) onto a main that had just received #16 (D4:
-seat-release compensation via `order-failed`), the agent hit a conflict on
-`KafkaErrorHandlingConfig.kt` — its own commit only renamed an ADR reference in a
-comment. It resolved with `git checkout --theirs <file>`, believing it was taking
-main's version.
+PR #42 (ADR 0023 / D11) added HPAs for inventory and payments (catalog's already existed),
+targeting Deployments whose templates render `replicas: {{ .Values.<svc>.replicaCount }}`.
+The pin was left in place alongside the new HPAs.
 
-**Why it was wrong (subtly):**
-During a **rebase**, `--theirs` refers to the commit being replayed — the agent's own
-**stale, pre-#16** copy — not the new base. The resolution therefore compiled cleanly,
-passed CI, and silently deleted #16's behaviour: the recoverer stopped publishing
-`order-failed` on redelivery exhaustion, while Inventory's `OrderFailedConsumer`
-(also from #16) stayed deployed and listening. The D4 compensation loop was broken
-with zero test failures — orders would be marked FAILED but seats never released.
+**Why it was wrong:**
+Two controllers now owned `spec.replicas`: the HPA scales it at runtime, while Argo CD —
+`selfHeal: true`, no `ignoreDifferences` — enforces the manifest's `replicas: 2`. Any HPA
+scale-out above `minReplicas` becomes "drift" that Argo CD immediately reverts, so the HPAs
+were silently capped at 2, defeating the point of D11. The bug was latent: measured CPU sat
+at 3–8% of requests, so no HPA ever scaled above min and everything looked Synced/Healthy.
+It would have first fired during a k6 load test or chaos run — exactly when the capacity
+was needed and the failure would be hardest to attribute.
 
 **How it was caught:**
-By @marcodonatucci, reviewing main's behaviour after the merge: the just-merged D4
-feature no longer existed on main. Restored in #18.
+Not by CI (`helm lint`, kubeconform and Argo CD all accept the manifests — they are
+individually valid; the conflict is between controllers, not in any single resource). Found
+on 2026-07-11 during the review of what `replicaCount` was for, while diagnosing the stuck
+Kafka broker-0 roll (node CPU-request saturation), before any load ever triggered it.
 
 **How it was corrected:**
-#18 re-applies the `order-failed` publish in the recoverer (idempotent on the
-Inventory side, so replayed exhaustions are safe).
+`spec.replicas` removed from the three HPA-managed Deployment templates and `replicaCount`
+removed from their `values.yaml` entries; the availability baseline is now expressed once as
+`hpa.minReplicas: 2`. Orders and notifications (no HPA) keep `replicaCount`. Decision and
+the one-time re-apply caveat (transient dip to 1 replica until the HPA reconciles) recorded
+in ADR 0025.
 
 **Lesson learned:**
-Two lessons. (1) Git semantics: in a rebase, ours/theirs INVERT with respect to a
-merge — `--theirs` is the branch's own commit. (2) Deeper: a conflict resolution is a
-**semantic** decision, not a textual one; after resolving, diff the resolved file
-against BOTH parents and ask "whose behaviour did I keep, and is any recently-merged
-feature missing?". "It compiles and CI is green" does not prove the merge preserved
-intent — CI has no test for a feature whose call site was just deleted.
+When an agent adds an HPA to an existing Deployment, removing (or conditioning) the
+`replicas:` pin is part of the same change — and in a GitOps setup with `selfHeal`, every
+runtime-mutated field needs exactly one owner. "Renders, syncs, and shows Healthy" does not
+prove two controllers won't fight; latent conflicts must be hunted at review time by asking
+who owns each mutable field.
