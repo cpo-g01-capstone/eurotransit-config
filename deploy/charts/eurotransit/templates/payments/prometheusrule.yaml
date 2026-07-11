@@ -1,0 +1,60 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: eurotransit-payments
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-payments
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: kube-prometheus-stack
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  groups:
+    - name: eurotransit.payments.slos
+      interval: 30s
+      rules:
+        # Fires when the Payments scrape target goes down for 1 minute. Payments
+        # down = no authorization = the money path is dead past reservation.
+        - alert: PaymentsServiceDown
+          expr: |
+            absent(up{job="eurotransit-payments", namespace="{{ .Release.Namespace }}"} == 1)
+          for: 1m
+          labels:
+            severity: critical
+            team: eurotransit
+          annotations:
+            summary: "Payments service scrape target is down"
+            description: "No healthy Payments pods have been scraped for over 1 minute."
+
+        # Warning, not page — the user-visible symptom pages via the checkout
+        # burn-rate alerts. With the ADR 0018 breaker, sustained Payments errors
+        # also show up as the breaker opening (resilience4j_circuitbreaker_state).
+        - alert: PaymentsHighErrorRate
+          expr: |
+            100 * sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-payments", status=~"5..", uri!~"/actuator.*"}[2m]))
+              / sum(rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", job="eurotransit-payments", uri!~"/actuator.*"}[2m]))
+            > 5
+          for: 2m
+          labels:
+            severity: warning
+            team: eurotransit
+          annotations:
+            summary: "Payments error rate above 5%"
+            description: "{{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}% of Payments requests are returning 5xx."
+
+        # Slow authorization eats into the 500ms checkout latency SLO and will
+        # trip the Orders->Payments breaker timeouts (ADR 0018) well before that.
+        - alert: PaymentsHighP95Latency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (
+                rate(http_server_requests_seconds_bucket{namespace="{{ .Release.Namespace }}", job="eurotransit-payments", uri!~"/actuator.*"}[5m])
+              )
+            ) > 0.5
+          for: 3m
+          labels:
+            severity: warning
+            team: eurotransit
+          annotations:
+            summary: "Payments p95 latency above 500ms"
+            description: "Payments p95 latency is {{ "{{" }} $value | printf \"%.2f\" {{ "}}" }}s — the checkout latency SLO is at risk."
