@@ -85,7 +85,7 @@ orders:
   replicaCount: 2
   resources:
     requests:
-      cpu: "200m"
+      cpu: "150m"
       memory: "512Mi"
     limits:
       cpu: "1000m"
@@ -108,7 +108,7 @@ inventory:
   replicaCount: 2
   resources:
     requests:
-      cpu: "200m"
+      cpu: "150m"
       memory: "512Mi"
     limits:
       cpu: "1000m"
@@ -131,7 +131,7 @@ payments:
   replicaCount: 2
   resources:
     requests:
-      cpu: "200m"
+      cpu: "150m"
       memory: "512Mi"
     limits:
       cpu: "1000m"
