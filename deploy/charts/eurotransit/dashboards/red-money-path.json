@@ -1,0 +1,95 @@
+{
+  "__comment": "EuroTransit RED dashboard — one row per RED signal across the five services, plus a checkout (money-path) row and the Kafka pipeline lag. RED = Rate, Errors, Duration, measured from the caller-visible HTTP metrics (Micrometer http_server_requests). Answers: is the money path healthy right now, and if not, which service?",
+  "title": "EuroTransit — RED (money path)",
+  "uid": "eurotransit-red",
+  "tags": ["eurotransit", "red", "slo"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Rate — requests/s per service",
+      "description": "R of RED. sum(rate) of http_server_requests per service, actuator excluded.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [{
+        "expr": "sum by (job) (rate(http_server_requests_seconds_count{namespace=\"eurotransit\", uri!~\"/actuator.*\"}[2m]))",
+        "legendFormat": "{{job}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Errors — % 5xx per service",
+      "description": "E of RED. Symptom signal: user-visible failures, not CPU.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "min": 0 }, "overrides": [] },
+      "targets": [{
+        "expr": "100 * sum by (job) (rate(http_server_requests_seconds_count{namespace=\"eurotransit\", status=~\"5..\", uri!~\"/actuator.*\"}[2m])) / sum by (job) (rate(http_server_requests_seconds_count{namespace=\"eurotransit\", uri!~\"/actuator.*\"}[2m]))",
+        "legendFormat": "{{job}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Duration — p95 per service",
+      "description": "D of RED. Watch the tail: p95 is what users feel. Catches 'slow death' (timing failures that raise no error).",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum by (job, le) (rate(http_server_requests_seconds_bucket{namespace=\"eurotransit\", uri!~\"/actuator.*\"}[5m])))",
+        "legendFormat": "{{job}} p95", "refId": "A"
+      }]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Kafka pipeline — consumer records lag",
+      "description": "The async half of the money path. Rising lag = a consumer cannot keep up (or is down): backpressure signal. Should spike and drain during chaos CE-2, and stay ~0 in steady state.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [{
+        "expr": "sum by (job) (kafka_consumer_fetch_manager_records_lag{namespace=\"eurotransit\"})",
+        "legendFormat": "{{job}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Checkout success rate (1h)",
+      "description": "SLI for the success-rate SLO (POST /orders, non-5xx). Target proposed in docs/design/slo-definitions.md: >= 99.5%. Note: 429 (load shedding) counts as success by design.",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.5 } ] } }, "overrides": [] },
+      "targets": [{
+        "expr": "100 * (1 - (sum(rate(http_server_requests_seconds_count{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\", status=~\"5..\"}[1h])) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\"}[1h])))",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Checkout p95 (5m)",
+      "description": "SLI for the latency SLO. Target proposed: < 500 ms (matches the CheckoutHighP95Latency alert threshold).",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "yellow", "value": 0.35 }, { "color": "red", "value": 0.5 } ] } }, "overrides": [] },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\"}[5m])))",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Checkout rate — POST /orders",
+      "description": "Money-path entry traffic. During a canary, compare stable vs canary track here before promoting.",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\"}[2m]))",
+          "legendFormat": "POST /orders", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\", status=\"429\"}[2m]))",
+          "legendFormat": "429 shed (controlled refusal)", "refId": "B" }
+      ]
+    }
+  ]
+}

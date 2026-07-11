@@ -36,6 +36,14 @@ spec:
           # Local dev only: chart default admin credentials (admin / prom-operator).
           # Before any shared/cloud cluster, set grafana.admin.existingSecret to a
           # SealedSecret. Never commit a plaintext password to this repo.
+          sidecar:
+            dashboards:
+              # Watch dashboard ConfigMaps in ALL namespaces, not just `monitoring`:
+              # the EuroTransit RED/USE dashboards ship from the app chart in the
+              # `eurotransit` namespace (the eurotransit AppProject is namespace-
+              # locked, so the app chart cannot create ConfigMaps here). Same
+              # rationale as the *SelectorNilUsesHelmValues flags above.
+              searchNamespace: ALL
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
