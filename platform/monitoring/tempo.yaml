@@ -35,11 +35,13 @@ spec:
                   endpoint: 0.0.0.0:4317
                 http:
                   endpoint: 0.0.0.0:4318
-        # Dev: ephemeral storage — traces do not survive a Pod restart. Same
-        # decision (and same fix) as Prometheus storage: tracked as D13, add a
-        # PVC before the demo cluster.
+        # PVC (T8/D13): traces are chaos-experiment evidence and must survive a
+        # Pod restart — same decision as the Prometheus storageSpec. 5Gi is
+        # ample for 48h retention at demo traffic (100% sampling, low rps).
         persistence:
-          enabled: false
+          enabled: true
+          storageClassName: managed-csi
+          size: 5Gi
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
