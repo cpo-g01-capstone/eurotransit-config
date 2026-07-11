@@ -80,7 +80,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "5ec06ae"
+    tag: "806dd2c"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
