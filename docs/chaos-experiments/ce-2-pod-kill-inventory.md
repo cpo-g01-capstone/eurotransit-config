@@ -67,17 +67,51 @@ See `docs/design/consistency.md` and `docs/design/idempotency.md`.
 - **FAIL**: any oversell, duplicate reservation, double charge, or an order stuck in a
   non-terminal state.
 
-## Results (fill during the run)
+## Results
 
-| Date | Operator | Load (orders fired / concurrency) | Kill at | Pod recovery time | Lag drain time | I1 | I2 | I3 | Double charge? | Converged? | Outcome |
-|------|----------|-----------------------------------|---------|-------------------|----------------|----|----|----|----------------|------------|---------|
-|      |          |                                   |         |                   |                |    |    |    |                |            |         |
+Full execution record (both runs, verification queries, the timestamp-boundary note):
+[`ce-2-pod-kill-inventory-runs.md`](ce-2-pod-kill-inventory-runs.md).
 
-**Observations (dashboards/screenshots):**
+| Date | Operator | Load / conc. | Route cap | Kill at (UTC) | Seats free at kill | Pod recovery | Lag drain | I1 | I2 | I3 | Double charge | Converged | Outcome |
+|------|----------|--------------|-----------|---------------|--------------------|--------------|-----------|----|----|----|---------------|-----------|---------|
+| 2026-07-12 | @giova95 | 2124 / 12 VUs | 100 | 16:45:39 | 0 (backlog drain) | new pod Ready ~30 s | → 0 | ✅ | ✅ | ✅ | none | ✅ | **PASS** |
+| 2026-07-12 | @giova95 | 2152 / 12 VUs | 500 | 16:51:39 | **272 (in flight)** | new pod Ready fast | → 0 | ✅ | ✅ | ✅ | none | ✅ | **PASS (authoritative)** |
 
-*(link Grafana panels / screenshots here)*
+**Observations:**
+
+- **Injection confirmed**: `Killing` event on the target pod; a **replacement** pod
+  scheduled (pod-kill replaces, it does not restart in place — `restartCount` stays 0 by
+  design). Run 2 caught the consumer mid-reservation: `available` fell **500 → 272 → 219
+  across the crash**.
+- **No oversell**: exactly **100/100** (run 1) and **500/500** (run 2) seats reserved,
+  `available` never negative — through SIGKILL + at-least-once `order-placed` redelivery.
+- **No duplicate reservation** (I3 = 0), **no lost/stuck order** (every cohort order
+  terminal; the 500 reservations join to **500 CONFIRMED** orders — 0 orphan, 0
+  non-confirmed), **no double charge** (0 orders with > 1 payment intent).
+- **Containment on the sync path**: during the kill, checkout **success 100 %, 0 × 5xx,
+  p95 22.2 ms, Payments breaker CLOSED** — killing the async inventory consumer consumed
+  **no checkout error budget**. Kafka consumer lag spiked on the kill and drained to 0
+  after the replacement pod joined.
+
+**Dashboard captures** (native Grafana; renders in CEST = UTC+2, so the run-2 window shows
+as ~18:51–18:57):
+
+- RED money-path — [run 2](ce-2-images/ce2-run2-red-money-path.png) (success 100 %, 0 5xx,
+  breaker CLOSED, lag spike→drain) and [run 1](ce-2-images/ce2-run1-red-money-path.png).
+- USE infrastructure — [run 2](ce-2-images/ce2-run2-use-infrastructure.png): the inventory
+  pod replaced (ready-replicas dip and recover), CPU/network of the kill+reschedule.
 
 ## Conclusion
 
-*(Did the hypothesis hold? What did we change if it did not? What did we learn about the
-error-budget impact of a single pod crash?)*
+> **Draft — pending team ratification (ADR 0019).**
+
+The hypothesis held on every point, verified under a **mid-reservation** SIGKILL (run 2,
+272 seats free at the kill): no oversell (500/500, `available` never negative), no
+duplicate reservation, no lost order, no double charge. The invariants are not luck — they
+follow from the design: the reservation is an **atomic conditional `UPDATE`** under a
+row-level lock (CP — one winner per seat) and every consumer is **idempotent**
+(`processed_events` dedup committed in the *same transaction* as the reservation, plus
+`UNIQUE(order_id, route_id)`), so the at-least-once redelivery of `order-placed` after the
+crash re-runs as a safe no-op on work already done. Error-budget impact of a single crash:
+**zero** at the synchronous entry (100 % success, 0 × 5xx) — the failure was absorbed by
+the async pipeline's redelivery, exactly where the design puts it. No tuning indicated.
