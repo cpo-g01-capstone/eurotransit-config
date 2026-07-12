@@ -50,3 +50,8 @@ Three gaps remained in the chart's Kubernetes-level resilience:
 - The USE dashboard's "ready vs desired" and throttling panels are the observation
   points for both mechanisms.
 - Follow-up (out of scope): prometheus-adapter for lag-based scaling of Inventory.
+- Addendum (2026-07-12, CE-5 finding): the spread decision now also covers the **orders-db
+  CNPG cluster** — CE-5's pre-run check caught primary and standby on the same node (CNPG
+  default anti-affinity is `preferred`, which loses on a small pool).
+  `postgres/eurotransit-orders-db.yaml` enforces `podAntiAffinityType: required` on
+  `kubernetes.io/hostname`; CE-3's runbook lists this as a prerequisite.

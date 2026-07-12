@@ -13,9 +13,22 @@ Draining one node that hosts critical-path pods will NOT make the money path una
 2. checkout keeps succeeding during the whole drain (possibly with a bounded latency blip);
 3. once the node is uncordoned, the cluster rebalances and steady state returns.
 
-⚠️ **Known weakness to observe honestly:** we have no topology-spread/anti-affinity yet
-(ADR 0023). If both replicas of a service happen to sit on the drained node, the PDB
-will stall the drain (good: no outage) but that *finding* motivates the spread constraints (ADR 0023) — record it.
+## Prerequisites (blockers — verify BEFORE draining)
+
+1. **App-pod topology spread** is in place since ADR 0023 (#42) — the original "no spread yet"
+   weakness of this runbook is resolved; still verify with `kubectl get pods -n eurotransit -o wide`
+   that no service has both replicas on the target node.
+2. **`eurotransit-orders-db` pod anti-affinity is `required`** (CE-5 review follow-up 3): the CE-5
+   pre-run check found primary AND standby on the SAME node — with CNPG's default `preferred`
+   anti-affinity, draining that node is an unhypothesized DOUBLE DB failure, not this experiment.
+   Verify two different nodes before injecting:
+   ```bash
+   kubectl get pods -n eurotransit -l cnpg.io/cluster=eurotransit-orders-db \
+     -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName
+   ```
+   Expected behaviour during the drain with `required` spread on a small pool: the evicted DB
+   instance may sit **Pending until the drain ends** — that is the correct, hypothesis-consistent
+   outcome (PDB + spread holding), **not a failure**; record it as such.
 
 ## Steady state
 
