@@ -106,7 +106,7 @@ fun onOrderConfirmed(record: ConsumerRecord<String, OrderConfirmedEvent?>) {
 
 The exception now surfaces synchronously → `DefaultErrorHandler` retries → DLT + `FAILED`.
 The `runBlocking` exception to the `CLAUDE.md` rule was ratified by the team on 2026-07-11
-(decision D5, app PR #16): the consumer thread is a dedicated blocking poll loop, not a
+(team-ratified, app PR #16): the consumer thread is a dedicated blocking poll loop, not a
 reactive context, so blocking there is correct.
 
 **Lesson learned:**
@@ -211,7 +211,7 @@ projects fail closed: an external Helm repo needs an explicit, pinned entry.
 ## Case 15 — 2026-07-08 — Rebase conflict resolution silently reverted the `order-failed` compensation publish (eurotransit-app)
 
 **What the AI produced:**
-While rebasing the catalog AP-cache branch (app PR #17) — created before PR #16 (the D4
+While rebasing the catalog AP-cache branch (app PR #17) — created before PR #16 (the
 seat-release compensation) merged — the agent resolved the conflict on
 `orders-service/.../config/KafkaErrorHandlingConfig.kt` by taking `--theirs`, i.e. its own
 stale pre-#16 copy of the file.
@@ -219,7 +219,7 @@ stale pre-#16 copy of the file.
 **Why it was wrong (subtly):**
 The #16 version's recoverer publishes `order-failed` when payment redeliveries are
 exhausted; the stale copy only marked the order FAILED and logged. The result compiled,
-CI stayed green, and #17 merged — but on `main` the D4 compensation was **silently dead**:
+CI stayed green, and #17 merged — but on `main` the seat-release compensation was **silently dead**:
 Inventory's `OrderFailedConsumer` (also from #16) kept listening on a topic Orders no
 longer published on exhaustion, so a failed order would keep its seats RESERVED forever.
 No test failed, because the compensation path had no end-to-end test yet.
