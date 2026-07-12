@@ -43,6 +43,19 @@ IPs.** Final manifest shape: delay on the **payments pods' egress toward the ord
 pods** (the authorize responses) — the mechanics run 1 already proved effective, now
 scoped so kubelet probe responses are untouched.
 
+## Dashboard capture (run 2)
+
+Native Grafana, run-2 window *(CEST = UTC+2; the injection was applied 15:39–15:44 CEST)*
+— [`ce1-run2-red-money-path.png`](ce-1-images/ce1-run2-red-money-path.png):
+
+![CE-1 run 2 — breaker CLOSED for the whole injection window](ce-1-images/ce1-run2-red-money-path.png)
+
+The value of this capture is what is **absent**: the breaker state-timeline stays
+**CLOSED for the entire injection window** (no OPEN band at all), checkout p95 flat,
+5xx `No data`. This is the dashboard proof of the finding — the source-side tc filter
+was bypassed by the Service VIP, so the fault never reached the application path and
+there was nothing for the breaker to react to.
+
 ## k6 record
 
 Aborted by the operator at 7 m 19 s once the bypass was diagnosed; covers steady

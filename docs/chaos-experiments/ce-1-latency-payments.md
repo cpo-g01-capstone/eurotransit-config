@@ -161,10 +161,10 @@ appears necessary: the ~30–40 s open→half-open cadence probed often enough t
 recovery quickly without letting meaningful traffic through during the fault.
 
 The two aborted attempts that preceded this run produced their own findings —
-the probe-timeout cascade ([run 1](ce-1-latency-payments-run-1.md)) and the
-Service-VIP bypass of source-side tc filters
-([run 2](ce-1-latency-payments-run-2.md)) — both candidate material for
-`docs/agent-log.md`.
+the probe-timeout cascade ([run 1](ce-1-latency-payments-run-1.md) — the restart/HPA
+cascade is visible on that run's USE dashboard capture) and the Service-VIP bypass of
+source-side tc filters ([run 2](ce-1-latency-payments-run-2.md) — its RED capture shows
+the breaker never leaving CLOSED) — both candidate material for `docs/agent-log.md`.
 
 **Follow-up closed (run 4):** run 3's 3-exhausted-vs-2-FAILED discrepancy turned out to
 be a real defect (the recoverer compensated an order that had reached CONFIRMED —

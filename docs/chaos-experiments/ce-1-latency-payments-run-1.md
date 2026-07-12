@@ -80,6 +80,21 @@ fault. Our own liveness probes are local-only per the probe rules — the cascad
 from the platform's probe timeout vs the injected delay, not from a probe checking a
 downstream.)*
 
+## Dashboard captures (run 1)
+
+Native Grafana. *(Grafana renders in CEST = UTC+2; T0 ≈ 15:16:50 CEST.)*
+
+- **RED money-path** — [`ce1-run1-red-money-path.png`](ce-1-images/ce1-run1-red-money-path.png):
+  the breaker state-timeline shows CLOSED → OPEN at ~15:17 and back to **CLOSED already
+  at ~15:18:49** — the visual signature of this run's finding: the breaker closed
+  ~3 min before the window was due to expire because the fault self-destructed (contrast
+  the run-3/run-4 panels, where OPEN persists the full 5 min). Checkout success 100 %,
+  p95 21.7 ms — bounded fast-fail while it lasted.
+- **USE infrastructure** — [`ce1-run1-use-infrastructure.png`](ce-1-images/ce1-run1-use-infrastructure.png):
+  **this is the finding**. The payments CPU-utilization and throttling panels spike, and
+  **"Ready replicas per deployment" shows payments stepping 2 → 4** — the probe-kill →
+  restart-churn → HPA-scale cascade, on a dashboard. No other run has this shape.
+
 ## Convergence / integrity checks (after recovery)
 
 - **No stuck orders**: every order from the run reached a terminal state
