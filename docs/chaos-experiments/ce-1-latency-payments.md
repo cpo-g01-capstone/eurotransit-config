@@ -122,12 +122,25 @@ run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
   record for the SLO; the client-side view is kept here for honesty and should be
   re-baselined from a less noisy vantage point before the demo.
 
-*(Evidence panels — breaker state timeline, checkout/catalog p95, fast-fail counter —
-in [`ce-1-images/`](ce-1-images/): [run 3](ce-1-images/ce1-run3-red-money-path.png),
-[run 4 incl. the case-24 guard firing](ce-1-images/ce1-run4-red-money-path.png).
-Rendered from the recorded Prometheus series with the same queries as the Grafana RED
-money-path dashboard — the Grafana image renderer is not installed; the data is the
-monitoring stack's own, on its PVC.)*
+### Dashboard captures (run 3, the authoritative run)
+
+Native Grafana, `EuroTransit — RED (money path)` dashboard, run-3 window.
+*(Grafana renders timestamps in CEST = UTC+2: the breaker OPEN band starts at ~15:59
+on the panel = 13:59 UTC = T0+23 s. All other times in this doc are UTC.)*
+
+- **RED money-path** — [`ce1-run3-red-money-path.png`](ce-1-images/ce1-run3-red-money-path.png):
+  the **breaker state-timeline** (bottom panel) shows both orders pods CLOSED → OPEN at
+  ~15:59, cycling OPEN↔HALF_OPEN through the window, back to CLOSED after expiry; **Errors
+  % 5xx = No data** (zero server errors), **Checkout success (1h) 100 %**, **Checkout p95
+  22.0 ms**, and the payments `rate` dipping while orders/catalog hold — containment,
+  visible.
+- **USE infrastructure** — [`ce1-run3-use-infrastructure.png`](ce-1-images/ce1-run3-use-infrastructure.png):
+  payments CPU/restarts flat, ready-replicas steady (no probe-kill cascade — the scoped
+  manifest working, contrast with run 1).
+
+*(Rendered live from the cluster's Grafana against the monitoring stack's own Prometheus,
+which is on a PVC; run-4 captures — including the case-24 guard — are in
+[`ce-1-latency-payments-run-4.md`](ce-1-latency-payments-run-4.md).)*
 
 ## Conclusion
 

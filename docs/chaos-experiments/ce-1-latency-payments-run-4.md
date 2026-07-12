@@ -67,15 +67,35 @@ fast-fail (checkout p95 never left ~27–33 ms), catalog flat — containment he
    variance attribution. *(Gateway-side p95 could not be captured: Traefik metrics are
    not currently scraped by Prometheus — noted as a small observability follow-up.)*
 
-## Evidence panels
+## Dashboard captures
 
-![CE-1 run 4 — breaker lifecycle, bounded checkout p95, flat catalog, fast-fails, and the
-case-24 guard stepping 0 → 1](ce-1-images/ce1-run4-red-money-path.png)
+Native Grafana, run-4 window. *(Grafana renders in CEST = UTC+2: the breaker OPEN band
+starts ~17:48 on the panel = 15:48 UTC = T0+~30 s; all prose times here are UTC.)*
 
-*(Rendered from the recorded Prometheus series, same queries as the Grafana RED
-money-path dashboard; the pre-T0 spike in checkout p95 is the rate-window warm-up at
-load start, as on every run. Run 3's equivalent panel is
-[`ce1-run3-red-money-path.png`](ce-1-images/ce1-run3-red-money-path.png).)*
+**RED money-path** — [`ce1-run4-red-money-path.png`](ce-1-images/ce1-run4-red-money-path.png):
+
+![CE-1 run 4 — RED money path](ce-1-images/ce1-run4-red-money-path.png)
+
+The breaker state-timeline (bottom) shows both orders pods CLOSED → OPEN → HALF_OPEN
+cycling → CLOSED after expiry; **Errors % 5xx flat at 0**, **Checkout success (1h)
+100 %**, **Checkout p95 (5m) 25.7 ms**, Kafka consumer lag ≈ 0. The payments `rate` line
+collapses during the fault while orders/catalog hold — containment.
+
+**Case-24 guard firing** — [`ce1-run4-case24-guard-explore.png`](ce-1-images/ce1-run4-case24-guard-explore.png):
+
+![orders_compensation_declined_total 0 → 1](ce-1-images/ce1-run4-case24-guard-explore.png)
+
+Grafana Explore on `sum(orders_compensation_declined_total)` over the run-4 window: the
+counter steps **0 → 1 at ~17:49:30 CEST** — the exact moment the guard declined to
+compensate the one order that had reached CONFIRMED. This is the fix working, on a
+dashboard, under the same fault that exposed the bug.
+
+**USE infrastructure** — [`ce1-run4-use-infrastructure.png`](ce-1-images/ce1-run4-use-infrastructure.png):
+payments CPU/restarts flat, ready-replicas steady (no cascade).
+
+*(All captured live from the cluster's Grafana against its own Prometheus on the PVC.
+The pre-T0 blip in the checkout p95 panel is the rate-window warm-up at load start, seen
+on every run.)*
 
 ## Outcome
 
