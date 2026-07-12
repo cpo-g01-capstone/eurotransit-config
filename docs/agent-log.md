@@ -7,26 +7,16 @@ Reviewed like any PR (single approval — ADR 0019); substantive changes should 
 
 Custodian: @marcodonatucci (Observability & Verification).
 
-## How to read this log
+Twenty cases were recorded during the project; by team decision (2026-07-12) this file
+keeps the **eight with the most durable lessons**. Original case numbers are preserved —
+code comments, ADRs and PRs cite them. The full record, including the retired setup-era
+entries, is in Git history: `git show 53fe549:docs/agent-log.md`.
 
-Twenty cases were recorded during the project. This file keeps the **nine with durable,
-distinct lessons in full** (cases 12–20); the eleven early setup-era cases (1–11) are
-summarized in the retired table below and remain in full in Git history
-(`git show 53fe5496656d52b0731ff3bc9f207577159ae743:docs/agent-log.md`).
-Original case numbers are preserved everywhere — code comments, ADRs and PRs cite them.
-
-If you read only a few:
-
-- **Cases 17–20 (one story):** the first real order through the gateway peeled off four
-  invisible fault layers that had the write path dead — green CI, passing unit tests and a
-  four-auditor review had all missed them. The strongest evidence in this repo that
-  *proving* beats *declaring*.
-- **Case 15:** a rebase conflict resolution silently deleted a just-merged feature —
-  `--theirs` in a rebase is your own commit. Caught by behavioural review, not by CI.
-- **Case 12:** a `suspend` @KafkaListener swallowed every handler exception — caught by a
-  failing DLT integration test, and the root of the team-ratified bridge pattern (app ADR 0004).
-- **Case 14:** the least-privilege AppProject rejecting an agent-added chart repo — the one
-  time a guardrail fired *against* the agent, exactly as designed.
+Suggested starting points: **cases 17–20** (one story: the first real order through the
+gateway peeled off four invisible fault layers that had the write path dead — green CI,
+passing tests and a four-auditor review had all missed them), then **15** (a rebase
+conflict resolution that silently deleted a just-merged feature) and **12** (the
+exception-swallowing `suspend` listener that became the team-ratified bridge pattern).
 
 | # | Date | Area | Summary |
 |---|------|------|---------|
@@ -34,30 +24,10 @@ If you read only a few:
 | 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
 | 15 | 2026-07-08 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the `order-failed` compensation publish (took `--theirs` = its own stale commit) |
-| 16 | 2026-07-11 | GitOps / eurotransit-config | HPA added while the Deployment kept a pinned `spec.replicas` — selfHeal silently capped every scale-out |
 | 17 | 2026-07-11 | Persistence / eurotransit-app | `repository.save()` with app-assigned @Id mapped to UPDATE — the entire write path was dead |
 | 18 | 2026-07-11 | Async / eurotransit-app | Kafka JSON type headers made every cross-service event undeliverable |
 | 19 | 2026-07-11 | Async / eurotransit-app | Two silent event-contract faults: frozen catalog cache and DLT'd notifications |
 | 20 | 2026-07-11 | Observability / eurotransit-app | No histogram buckets behind every latency panel, alert, and canary gate — p95 was unmeasurable |
-
-### Retired cases (1–11, setup era — full text in Git history)
-
-Early scaffolding/platform mistakes, each caught and fixed the same day. Kept as one-liners
-so existing references still resolve; numbers were never reused.
-
-| # | Date | Summary (and the one-line lesson) |
-|---|------|-----------------------------------|
-| 1 | 2026-06-20 | Wrong `paths-filter` globs for service modules — *test the filter with a real diff, not by reading it* |
-| 2 | 2026-06-19 | Placeholder `TODO-TEAM` repo URL left in Argo CD Applications — *grep for placeholders before merge* |
-| 3 | 2026-06-20 | ACR documented but GHCR implemented in the workflow — *docs and CI drift unless one generates the other* |
-| 4 | 2026-06-20 | `helm-dry-run` claimed cluster-free but always contacts the API server — *verify tool claims by running them disconnected* |
-| 5 | 2026-07-01 | Sealed Secrets controller deployed to `kube-system`, contradicting the documented sealing namespace — *the sealing side and the controller side must quote the same namespace* |
-| 6 | 2026-07-01 | Strimzi installed with no `watchNamespaces` — would never reconcile the Kafka CR — *an operator that starts is not an operator that watches* |
-| 7 | 2026-07-01 | Sealed Secrets `repoURL` pointed at `bitnami-labs.github.io` (404) — *resolve chart repos before committing them* |
-| 8 | 2026-07-01 | k3d pinned to k8s 1.28.2 vs CNPG chart requiring ≥1.29 — *pin compatibility pairs, not versions in isolation* |
-| 9 | 2026-07-01 | `install-cnpg` waited for the CRD but not the admission webhook — *"CRD established" ≠ "controller ready"* |
-| 10 | 2026-07-01 | `sync-wave` assumed to gate on a CRD owned by a different Argo app — *waves order resources within one app only* |
-| 11 | 2026-07-08 | Notifications consumed-topics inconsistency (`order-confirmed` vs `notification-requested`) across context docs — *one producer/consumer table, everything else links to it* |
 
 ---
 
@@ -240,44 +210,6 @@ discards the other side's working code — green CI cannot notice a feature that
 vanished. After any agent-resolved rebase, diff the conflicted files against BOTH
 parents; and treat "a PR touches a file outside its feature area" as a mandatory review
 trigger.
-
----
-
-## Case 16 — 2026-07-11 — HPA added while the Deployment kept a pinned `spec.replicas` (eurotransit-config)
-
-**What the AI produced:**
-PR #42 (ADR 0023) added HPAs for inventory and payments (catalog's already existed),
-targeting Deployments whose templates render `replicas: {{ .Values.<svc>.replicaCount }}`.
-The pin was left in place alongside the new HPAs.
-
-**Why it was wrong:**
-Two controllers now owned `spec.replicas`: the HPA scales it at runtime, while Argo CD —
-`selfHeal: true`, no `ignoreDifferences` — enforces the manifest's `replicas: 2`. Any HPA
-scale-out above `minReplicas` becomes "drift" that Argo CD immediately reverts, so the HPAs
-were silently capped at 2, defeating the point of the scale-out decision (ADR 0023). The bug was latent: measured CPU sat
-at 3–8% of requests, so no HPA ever scaled above min and everything looked Synced/Healthy.
-It would have first fired during a k6 load test or chaos run — exactly when the capacity
-was needed and the failure would be hardest to attribute.
-
-**How it was caught:**
-Not by CI (`helm lint`, kubeconform and Argo CD all accept the manifests — they are
-individually valid; the conflict is between controllers, not in any single resource). Found
-on 2026-07-11 during the review of what `replicaCount` was for, while diagnosing the stuck
-Kafka broker-0 roll (node CPU-request saturation), before any load ever triggered it.
-
-**How it was corrected:**
-`spec.replicas` removed from the three HPA-managed Deployment templates and `replicaCount`
-removed from their `values.yaml` entries; the availability baseline is now expressed once as
-`hpa.minReplicas: 2`. Orders and notifications (no HPA) keep `replicaCount`. Decision and
-the one-time re-apply caveat (transient dip to 1 replica until the HPA reconciles) recorded
-in ADR 0025.
-
-**Lesson learned:**
-When an agent adds an HPA to an existing Deployment, removing (or conditioning) the
-`replicas:` pin is part of the same change — and in a GitOps setup with `selfHeal`, every
-runtime-mutated field needs exactly one owner. "Renders, syncs, and shows Healthy" does not
-prove two controllers won't fight; latent conflicts must be hunted at review time by asking
-who owns each mutable field.
 
 ---
 

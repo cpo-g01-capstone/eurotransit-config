@@ -102,7 +102,7 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 
 ### Opening a PR that adds a Kafka topic
 1. Add the `KafkaTopic` CR in `kafka/kafka-topics.yaml` (reconciled by the `kafka` Argo CD Application, `apps/kafka.yaml`)
-2. Update the producer/consumer table in `.agent/context/kafka-topics.md` — and reconcile `money-path.md` in the same PR (agent-log Case 11)
+2. Update the producer/consumer table in `.agent/context/kafka-topics.md` — and reconcile `money-path.md` in the same PR (the doc-drift class recorded in the agent log; see app ADR-001)
 3. Confirm with the async/domain owner that consumer group IDs and offsets are correct
 
 ### Progressive delivery changes

@@ -76,7 +76,7 @@ ordering (see Alternatives). Low priority — the retry already converges in pra
     bump — new duplication and a new drift failure mode (the CRD copy silently lagging the
     operator version).
   - **Doesn't fully solve ordering.** Some operators need the *controller* running, not just
-    the CRD registered — e.g. the CNPG `Cluster` admission webhook (agent-log case 9). CRD-first
+    the CRD registered — e.g. the CNPG `Cluster` admission webhook (a retired setup-era agent-log entry; full text in Git history). CRD-first
     would still race the webhook, so it adds complexity without closing the gap.
   - **Validation is already recovered** by the `kubeconform` control (decision 3), so the main
     benefit of CRD-first (keeping downstream dry-run) is largely redundant here.
