@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eurotransit-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: eurotransit-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
