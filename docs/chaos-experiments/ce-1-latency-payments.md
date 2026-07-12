@@ -75,6 +75,7 @@ Injecting 3 s (±500 ms) of network delay toward every Payments pod for 5 minute
 | Date | Operator | Load (checkout + catalog rps) | Breaker opened at | Fallbacks served | Catalog impact | Recovery (half-open→closed) | Double charges | Outcome |
 |------|----------|-------------------------------|-------------------|------------------|----------------|------------------------------|----------------|---------|
 | 2026-07-12 | @vojtech-n | 2.0 + 2.4 rps (k6 baseline.js, 3 VUs, 15 m) | 15:59:33 (~23 s after T0 15:59:10) | 84 (not-permitted counter 35→119) | **none** — p95 1 ms and rate flat for the whole window | fault expired 16:04:10 → both breakers CLOSED 16:04:30 (~20 s) | **0** | **PASS** |
+| 2026-07-12 | @giova95 | 2.2 + 2.7 rps (same harness, 15 m) | ≤ T0+36 s (T0 15:47:39) | 63+ not-permitted | **none** — p95 0.95 ms flat | expired 15:52:39 → CLOSED ≤ 95 s | **0** | **PASS — verification re-run, case-24 finding CLOSED** ([run 4](ce-1-latency-payments-run-4.md)) |
 
 **Observations (Prometheus samples @15 s + DB verification; run 3, the authoritative
 run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
@@ -147,3 +148,10 @@ the probe-timeout cascade ([run 1](ce-1-latency-payments-run-1.md)) and the
 Service-VIP bypass of source-side tc filters
 ([run 2](ce-1-latency-payments-run-2.md)) — both candidate material for
 `docs/agent-log.md`.
+
+**Follow-up closed (run 4):** run 3's 3-exhausted-vs-2-FAILED discrepancy turned out to
+be a real defect (the recoverer compensated an order that had reached CONFIRMED —
+agent-log case 24). Fixed in app #28 (compensation guard + counter) and **proven fixed
+under the same fault**: the race reproduced on the first verification run and the guard
+blocked it — the confirmed order kept its seats. Full record:
+[`ce-1-latency-payments-run-4.md`](ce-1-latency-payments-run-4.md).
