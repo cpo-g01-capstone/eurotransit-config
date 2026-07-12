@@ -9,6 +9,15 @@
 # ADR 0018, so every authorize attempt in the window is a slow-call/timeout and
 # the breaker MUST open. duration: 5m bounds the window — the fault self-expires
 # even if cleanup is forgotten.
+#
+# Scope (revised after run 1, 2026-07-12): the delay is installed on the ORDERS
+# pods and applies only to their egress toward the PAYMENTS pods (`target:`).
+# The first run selected the payments pods with no target, which delayed ALL
+# their egress — including liveness/readiness probe responses. With the probes'
+# timeoutSeconds=1 the kubelet killed the containers (3 restarts each), the
+# restart churn drove the payments HPA 2→4, and the fault self-destructed at
+# ~2.5 min. Scoping to the orders→payments path keeps kubelet probes (and every
+# other flow) untouched, so the fault holds the full window.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
@@ -21,8 +30,15 @@ spec:
     namespaces:
       - eurotransit
     labelSelectors:
-      app.kubernetes.io/name: eurotransit-payments
+      app.kubernetes.io/name: eurotransit-orders
   direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - eurotransit
+      labelSelectors:
+        app.kubernetes.io/name: eurotransit-payments
   delay:
     latency: "3s"
     jitter: "500ms"
