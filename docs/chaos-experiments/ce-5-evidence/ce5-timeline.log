@@ -1,0 +1,13 @@
+1783865849488 14:17:29.3N RUN-START steady-state window 90s under load
+1783865940268 14:19:00.3N PRE-KILL primary=eurotransit-orders-db-1 ready=2
+1783865941974 14:19:01.3N T0-KILL deleting eurotransit-orders-db-1
+pod "eurotransit-orders-db-1" deleted from eurotransit namespace
+1783865942284 14:19:02.3N T0-KILL-ISSUED
+1783865943235 14:19:03.3N TRANSITION primary=eurotransit-orders-db-1 ready=1 phase=Failing over
+1783866126766 14:22:06.3N TRANSITION primary=eurotransit-orders-db-2 ready=1 phase=Waiting for the instances to become active
+1783866126777 14:22:06.3N PRIMARY-FLIPPED to eurotransit-orders-db-2
+1783866198492 14:23:18.3N TRANSITION primary=eurotransit-orders-db-2 ready=2 phase=Cluster in healthy state
+1783866198501 14:23:18.3N RECOVERED 2/2 with primary=eurotransit-orders-db-2
+1783866198510 14:23:18.3N POST-RECOVERY window 60s under load
+1783866258533 14:24:18.3N RUN-END harness stopped
+1783866260903 14:24:20.3N DONE

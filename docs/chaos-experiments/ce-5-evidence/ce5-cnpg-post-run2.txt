@@ -1,0 +1,26 @@
+Cluster Summary
+Name                     eurotransit/eurotransit-orders-db
+System ID:               7660081711967498259
+PostgreSQL Image:        ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+Primary instance:        eurotransit-orders-db-1
+Primary promotion time:  2026-07-12 14:29:56 +0000 UTC (1m36s)
+Status:                  Cluster in healthy state 
+Instances:               2
+Ready instances:         2
+Size:                    634M
+Current Write LSN:       0/456F7F68 (Timeline: 3 - WAL File: 000000030000000000000045)
+
+Continuous Backup not configured
+
+Streaming Replication status
+Replication Slots Enabled
+Name                     Sent LSN    Write LSN   Flush LSN   Replay LSN  Write Lag        Flush Lag        Replay Lag       State      Sync State  Sync Priority  Replication Slot
+----                     --------    ---------   ---------   ----------  ---------        ---------        ----------       -----      ----------  -------------  ----------------
+eurotransit-orders-db-2  0/456F7F68  0/456F7F68  0/456F7F68  0/456F7F68  00:00:00.000744  00:00:00.002366  00:00:00.002388  streaming  quorum      1              active
+
+Instances status
+Name                     Current LSN  Replication role  Status  QoS        Manager Version  Node
+----                     -----------  ----------------  ------  ---        ---------------  ----
+eurotransit-orders-db-1  0/456F7F68   Primary           OK      Burstable  1.30.0           aks-sysb2s-33819783-vmss00000q
+eurotransit-orders-db-2  0/456F7F68   Standby (sync)    OK      Burstable  1.30.0           aks-sysb2s-33819783-vmss00000p
+
