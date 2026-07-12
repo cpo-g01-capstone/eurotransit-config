@@ -93,7 +93,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "db96ac6"
+    tag: "70d3bfd"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
