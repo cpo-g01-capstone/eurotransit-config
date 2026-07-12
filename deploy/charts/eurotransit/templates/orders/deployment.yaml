@@ -25,7 +25,7 @@ spec:
         app.kubernetes.io/part-of: eurotransit
     spec:
       terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
-      {{- include "eurotransit.topologySpread" (dict "name" "eurotransit-orders" "instance" .Release.Name) | nindent 6 }}
+      {{- include "eurotransit.topologySpread" (dict "name" "eurotransit-orders" "instance" .Release.Name "hard" true) | nindent 6 }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}

@@ -58,18 +58,33 @@ readinessProbe:
 {{- end -}}
 
 {{- /*
-Topology spread for an app Deployment (ADR 0023 / D11): spread replicas across
-nodes and zones so "N replicas" actually means N failure domains — 3 pods on one
-node are still one outage from zero. SOFT constraints (ScheduleAnyway) on
-purpose: on the small budget cluster a hard DoNotSchedule could leave pods
-Pending during drains/rollouts; CE-3 measures whether soft spreading is enough.
-Usage: {{ include "eurotransit.topologySpread" (dict "name" "eurotransit-orders" "instance" .Release.Name) }}
+Topology spread for an app Deployment (ADR 0023): spread replicas across nodes
+and zones so "N replicas" actually means N failure domains — 2 pods on one node
+are still one outage from zero.
+
+The per-node (hostname) constraint hardness is a PARAMETER:
+  - hard=true  -> DoNotSchedule: replicas MUST land on different nodes. Used for
+    the critical money-path services (orders/inventory/payments) after CE-3's
+    prerequisite check found the soft version had co-located both `orders`
+    replicas on one node — soft spreading proved not enough, exactly the
+    question the original comment left to CE-3 to answer.
+  - hard=false -> ScheduleAnyway (soft). Kept for catalog (read-only AP cache)
+    and notifications (graceful-degradation, 1 replica): a hard rule would risk
+    Pending for no availability gain on those.
+
+The ZONE constraint stays SOFT deliberately: this cluster is single-zone (all
+nodes in zone "0"), so a hard zone rule with maxSkew 1 would be permanently
+unsatisfiable for any 2-replica service — Pending forever. Left as
+ScheduleAnyway so it becomes a real constraint if a multi-zone pool is ever
+added, without breaking the single-zone present.
+
+Usage: {{ include "eurotransit.topologySpread" (dict "name" "eurotransit-orders" "instance" .Release.Name "hard" true) }}
 */ -}}
 {{- define "eurotransit.topologySpread" -}}
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: {{ if .hard }}DoNotSchedule{{ else }}ScheduleAnyway{{ end }}
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: {{ .name }}
