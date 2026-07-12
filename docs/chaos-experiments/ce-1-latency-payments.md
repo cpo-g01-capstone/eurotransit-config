@@ -4,10 +4,11 @@
 [`ce-1-latency-payments.yaml`](ce-1-latency-payments.yaml). Depends on **ADR 0018**
 (synchronous Orders→Payments authorize + Resilience4j breaker).*
 
-> ⛔ **Prerequisite not yet deployed:** the circuit breaker implementation in
-> `orders-service` (app-repo work item from ADR 0018, blocked on the convergence decision — since resolved, app ADR 0005).
-> Do not run this experiment before it lands — without a breaker the injection just
-> produces timeouts and proves nothing.
+> ✅ **Prerequisites deployed (2026-07-11):** the Resilience4j breaker + bulkhead landed in
+> `orders-service` (app PR #13, ADR 0018) and is live; the breaker-state panel is on the
+> Grafana money-path dashboard (config PR #67). Steady-state baselines are available from
+> the 2026-07-11 k6 run (`docs/delivery/2026-07-11-progressive-delivery-demo-results.md`).
+> The experiment is ready to run.
 
 ## Hypothesis
 

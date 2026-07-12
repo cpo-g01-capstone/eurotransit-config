@@ -101,8 +101,8 @@ Cross-cutting awareness (not primary owner, but must understand end-to-end):
 - If you change the `yq` path to `values.yaml`, verify it matches the actual YAML key path
 
 ### Opening a PR that adds a Kafka topic
-1. Add the `KafkaTopic` CR in `deploy/charts/eurotransit/templates/kafka-topics/`
-2. Add the topic name to the table in `docs/design/kafka-topics.md`
+1. Add the `KafkaTopic` CR in `kafka/kafka-topics.yaml` (reconciled by the `kafka` Argo CD Application, `apps/kafka.yaml`)
+2. Update the producer/consumer table in `.agent/context/kafka-topics.md` — and reconcile `money-path.md` in the same PR (agent-log Case 11)
 3. Confirm with the async/domain owner that consumer group IDs and offsets are correct
 
 ### Progressive delivery changes

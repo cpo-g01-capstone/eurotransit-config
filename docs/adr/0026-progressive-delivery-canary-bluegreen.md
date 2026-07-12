@@ -37,7 +37,7 @@ switch (instant cutover, fast rollback). Until this work:
   the controller.
 - **Promotion gate (team-ratified):** canary error rate **< 1%** AND p95 **< 300 ms**
   sustained for **5 minutes**, measured on the canary's own metrics. Deliberately
-  stricter than the checkout SLO (99.5% / 500 ms): a promotion gate vouches for a
+  stricter than the ratified checkout SLO (99% / 500 ms, `docs/design/slo-definitions.md`): a promotion gate vouches for a
   *novelty* and needs margin between "the candidate looks fine" and "we are
   violating the contract". Alert-free burn rate during the window is an implicit
   extra condition.
@@ -75,7 +75,7 @@ The four canonical strategies and where they land for EuroTransit:
 
 - **All-at-once (recreate):** kill old, start new — a window where NOTHING serves.
   On the money path that is a self-inflicted outage per deploy; the checkout SLO
-  (99.5%) would burn its monthly error budget in a handful of deploys. Acceptable
+  (99%) would burn its monthly error budget in a handful of deploys. Acceptable
   only where a gap is invisible (we effectively accept it for the demo-scoped
   green track teardown, which serves no traffic by then).
 - **Rolling update:** no downtime, but during the roll BOTH versions serve 100% of

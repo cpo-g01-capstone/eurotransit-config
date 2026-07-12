@@ -43,8 +43,8 @@ zero-downtime deployment.
 
 - **API gateway:** Traefik (from Lab03) — the single north-south entrypoint
 - **Async pipeline:** Kafka via the Strimzi operator
-- **Database:** PostgreSQL, managed by the CloudNativePG operator, **one cluster per service that needs state**. Orders (`ordersdb`) and Notifications (`notificationsdb`, per app-repo ADR-002 — a durable dedup store) each own a cluster. Inventory pulls in R2DBC deps but its datasource config is not yet written app-side. Catalog and Payments are stateless.
-- **Events:** `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `order-failed` (seat-release compensation), `notification-requested`; DLT: `order-confirmed.DLT`
+- **Database:** PostgreSQL, managed by the CloudNativePG operator, **one cluster per service that needs state**: Orders (`ordersdb`), Inventory (`inventorydb`, ADR 0020), Payments (`paymentsdb`), Notifications (`notificationsdb`, per app-repo ADR-002 — a durable dedup store). Manifests in `postgres/`. Catalog is stateless (event-fed in-memory cache, app ADR 0006).
+- **Events:** `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `order-failed` (seat-release compensation); DLT: `order-confirmed.DLT`. (`notification-requested` is a reserved, unwired topic — agent-log Case 11.)
 - **Notifications** must be able to fail entirely without failing checkout (graceful degradation)
 - Internal services are **ClusterIP**; only Traefik gets a public LoadBalancer
 - Secrets in Git only as **SealedSecrets** (never plaintext)
@@ -398,11 +398,11 @@ This is the project's formal agentic coding policy, as required by the capstone 
 ### Blast radius of this agent
 
 This agent (Claude) can:
-- Open pull requests against the **configuration repository** if given a `CONFIG_REPO_PAT`
+- Open pull requests against the **configuration repository** (branch push rights via the operator's credentials; `main` is protected)
 - Generate manifests that Argo CD will reconcile into the cluster
 
-Threat model (required by capstone spec, section "Agentic coding policy"):
-- **Credentials held:** `CONFIG_REPO_PAT` with write access to configuration-repo; no direct cluster credentials
+Threat model (required by capstone spec, section "Agentic coding policy" — canonical copy in `docs/ai-threat-model.md`):
+- **Credentials held:** none of its own. Cross-repo CI write-back uses a **short-lived GitHub App installation token** (Contents: write on `eurotransit-config` only, minted per run — ADR 0007), never a PAT and never `GITHUB_TOKEN`; the agent itself holds no direct cluster credentials
 - **Review gate:** All agent-generated PRs require at least one human approval before merge
 - **Policy-as-code:** `helm lint` and `helm template | kubeval` run in CI on every configuration-repo PR
 - **Worst case:** Agent proposes a bad manifest → Argo CD applies it → service degrades → team reverts the config-repo commit → Argo CD self-heals → documented in `agent-log.md`
@@ -478,7 +478,7 @@ load-baseline:
 | SealedSecret | `eurotransit-<name>` |
 | Argo CD Application | `eurotransit` |
 | Kafka topics | `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `order-failed`, `notification-requested`, `order-confirmed.DLT` |
-| CloudNativePG cluster | `eurotransit-orders-db`, `eurotransit-notifications-db` (one per stateful service) |
+| CloudNativePG cluster | `eurotransit-orders-db`, `eurotransit-inventory-db`, `eurotransit-payments-db`, `eurotransit-notifications-db` (one per stateful service) |
 | PostgreSQL services | `eurotransit-<svc>-db-rw` (primary), `eurotransit-<svc>-db-ro` (read-only) |
 | DB app secret | `eurotransit-<svc>-db-app` (CloudNativePG-generated; keys `username`, `password`) |
 
@@ -486,7 +486,7 @@ load-baseline:
 the services read R2DBC at runtime and a separate JDBC URL for Flyway migrations, under
 **service-prefixed** names — `ORDERS_DB_R2DBC_URL` / `ORDERS_DB_JDBC_URL` / `ORDERS_DB_USERNAME`
 / `ORDERS_DB_PASSWORD` (and `NOTIFICATIONS_DB_*`). Emitting `SPRING_DATASOURCE_*` does **not**
-work — the app ignores it and falls back to `localhost:5432`. See agent-log Case 11.
+work — the app ignores it and falls back to `localhost:5432`. See agent-log Case 13.
 
 ---
 
