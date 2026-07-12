@@ -122,8 +122,12 @@ run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
   record for the SLO; the client-side view is kept here for honesty and should be
   re-baselined from a less noisy vantage point before the demo.
 
-*(Grafana screenshots of the RED money-path dashboard incl. the breaker state
-timeline: `ce-1-images/`.)*
+*(Evidence panels — breaker state timeline, checkout/catalog p95, fast-fail counter —
+in [`ce-1-images/`](ce-1-images/): [run 3](ce-1-images/ce1-run3-red-money-path.png),
+[run 4 incl. the case-24 guard firing](ce-1-images/ce1-run4-red-money-path.png).
+Rendered from the recorded Prometheus series with the same queries as the Grafana RED
+money-path dashboard — the Grafana image renderer is not installed; the data is the
+monitoring stack's own, on its PVC.)*
 
 ## Conclusion
 

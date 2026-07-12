@@ -67,6 +67,16 @@ fast-fail (checkout p95 never left ~27–33 ms), catalog flat — containment he
    variance attribution. *(Gateway-side p95 could not be captured: Traefik metrics are
    not currently scraped by Prometheus — noted as a small observability follow-up.)*
 
+## Evidence panels
+
+![CE-1 run 4 — breaker lifecycle, bounded checkout p95, flat catalog, fast-fails, and the
+case-24 guard stepping 0 → 1](ce-1-images/ce1-run4-red-money-path.png)
+
+*(Rendered from the recorded Prometheus series, same queries as the Grafana RED
+money-path dashboard; the pre-T0 spike in checkout p95 is the rate-window warm-up at
+load start, as on every run. Run 3's equivalent panel is
+[`ce1-run3-red-money-path.png`](ce-1-images/ce1-run3-red-money-path.png).)*
+
 ## Outcome
 
 | Date | Operator | Load | Breaker opened | Fallbacks | Catalog impact | Recovery | Exhausted / FAILED / guarded | Double charges | Outcome |
