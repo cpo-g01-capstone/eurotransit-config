@@ -224,6 +224,29 @@ notifications:
     port: "5432"
     name: "notificationsdb"
 # ------------------------------------------------------------------------------
+# Frontend — static SPA (nginx). No state, no Kafka, no DB; not on the money
+# path. nginx serves the bundle on 8080 (chart-wide appPort) with the security
+# headers baked into the image (app-repo frontend/deploy/nginx.conf).
+# ------------------------------------------------------------------------------
+frontend:
+  image:
+    repository: eurotransit/frontend
+    # Initial tag = bootstrap image pushed from the same source as app-repo
+    # PR #29 (documented there). From the first frontend/** merge onwards this
+    # field is CI-owned like every other service tag.
+    tag: "d85d15e"
+    pullPolicy: IfNotPresent
+  # Static content: fixed replica count (no HPA — nothing meaningful to scale
+  # on); the PDB keeps one replica through voluntary disruptions.
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+# ------------------------------------------------------------------------------
 # Kafka (Strimzi cluster in the same namespace)
 # ------------------------------------------------------------------------------
 kafka:

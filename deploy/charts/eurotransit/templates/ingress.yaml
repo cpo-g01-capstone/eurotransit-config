@@ -88,6 +88,15 @@ spec:
       services:
         - name: eurotransit-payments
           port: 80
+    # Frontend SPA: catch-all `/`. Traefik's default priority is rule length,
+    # so every longer /api/* rule above always wins — this route only receives
+    # traffic no API rule matched. No strip middleware: nginx serves the SPA
+    # at / and falls back to index.html for client-side routes.
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: eurotransit-frontend
+          port: 80
   {{- if .Values.ingress.tls }}
   tls:
     secretName: {{ .Values.ingress.tlsSecretName }}

@@ -1,0 +1,17 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eurotransit-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: eurotransit-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "eurotransit.commonLabels" . | nindent 4 }}
+spec:
+  # Frontend runs 2 fixed replicas, so keeping one alive through voluntary
+  # disruptions is always satisfiable and never blocks a drain.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eurotransit-frontend
+      app.kubernetes.io/instance: {{ .Release.Name }}
