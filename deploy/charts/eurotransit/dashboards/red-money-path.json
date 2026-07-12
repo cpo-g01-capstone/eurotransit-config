@@ -90,6 +90,25 @@
         { "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"eurotransit\", job=\"eurotransit-orders\", uri=\"/orders\", method=\"POST\", status=\"429\"}[2m]))",
           "legendFormat": "429 shed (controlled refusal)", "refId": "B" }
       ]
+    },
+    {
+      "id": 8, "type": "state-timeline", "title": "Payments circuit breaker — state (per orders pod)",
+      "description": "Resilience4j breaker 'payments' on the Orders -> Payments authorize call (ADR 0018). CLOSED = normal; OPEN = fast-fail, fallback engaged (order parked RESERVED, payment queued for retry); HALF_OPEN = probing recovery. Primary evidence for CE-1 (latency injection): expect CLOSED -> OPEN during the window, HALF_OPEN -> CLOSED after expiry. Per orders pod — each replica holds its own breaker, so they can flip at different times.",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {
+        "min": 0, "max": 2,
+        "custom": { "fillOpacity": 70, "lineWidth": 0 },
+        "mappings": [{ "type": "value", "options": {
+          "0": { "text": "CLOSED", "color": "green", "index": 0 },
+          "1": { "text": "OPEN", "color": "red", "index": 1 },
+          "2": { "text": "HALF_OPEN", "color": "yellow", "index": 2 }
+        } }]
+      }, "overrides": [] },
+      "targets": [{
+        "expr": "max by (pod) (resilience4j_circuitbreaker_state{namespace=\"eurotransit\", name=\"payments\", state=\"open\"}) + 2 * max by (pod) (resilience4j_circuitbreaker_state{namespace=\"eurotransit\", name=\"payments\", state=\"half_open\"})",
+        "legendFormat": "{{pod}}", "refId": "A"
+      }]
     }
   ]
 }
