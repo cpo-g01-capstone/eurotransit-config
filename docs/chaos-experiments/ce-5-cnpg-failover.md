@@ -49,13 +49,19 @@ availability is restored within 60 s:
    ```
 2. Start continuous checkout load (curl/k6) that **logs each acked order ID with a timestamp** —
    this log is the RPO evidence.
-3. Inject — delete the current primary pod (with a watch on promotion in a second terminal):
+3. Inject — **force-delete** the current primary pod (with a watch on promotion in a second terminal):
    ```bash
    PRIMARY=$(kubectl get cluster eurotransit-orders-db -n eurotransit -o jsonpath='{.status.currentPrimary}')
    date -u +%T.%3N              # T0 — injection timestamp
-   kubectl delete pod "$PRIMARY" -n eurotransit --wait=false
+   kubectl delete pod "$PRIMARY" -n eurotransit --grace-period=0 --force --wait=false
    kubectl cnpg status eurotransit-orders-db -n eurotransit --verbose   # repeat / watch
    ```
+   > ⚠️ **`--grace-period=0 --force` is load-bearing** (Run 1 finding): a plain graceful delete
+   > sends SIGTERM and CNPG enters *smart shutdown* (`smartShutdownTimeout: 180 s`) — established
+   > connections (the Orders R2DBC pool!) keep writing through the "deleted" primary for up to
+   > 3 minutes, so you measure a controlled switchover, not a crash. SIGKILL is also what a Chaos
+   > Mesh `pod-kill` delivers. And take RTO from the **ack log**, not from
+   > `status.currentPrimary` — the status field lags the data plane by seconds.
 4. Measure **RTO**: T1 = timestamp of the first acked checkout after T0 (from the load log).
    RTO = T1 − T0. Also note when `status.currentPrimary` flipped.
 5. Verify **RPO = 0**: after promotion, for every order ID the load harness logged as acked
@@ -83,14 +89,32 @@ availability is restored within 60 s:
 - **FAIL**: any acked order missing after promotion; write outage > 60 s; cluster stuck with a
   single instance; manual surgery required to converge.
 
-## Results (fill during the run)
+## Results
+
+Full execution record: [`ce-5-cnpg-failover-run-1.md`](ce-5-cnpg-failover-run-1.md).
 
 | Date | Operator | Primary killed | T0 (kill) | Primary flipped at | T1 (first acked write) | RTO | Acked orders checked | Missing | Budget consumed | Outcome |
 |------|----------|----------------|-----------|--------------------|------------------------|-----|----------------------|---------|-----------------|---------|
-|      |          |                |           |                    |                        |     |                      |         |                 |         |
+| 2026-07-12 | @marcodonatucci (+Claude) | `-db-1`, **graceful delete** (method bug) | 14:19:01Z | T0+184.8 s (status) | outage only T0+182.7→185.8 s (3.17 s) | n/a — wrong scenario, see run doc | 2 635 | **0** | 3 × 5xx | **FINDING** → method corrected |
+| 2026-07-12 | @marcodonatucci (+Claude) | `-db-2`, **SIGKILL** | 14:29:35Z | T0+21.4 s (status; data plane ≈ +17 s) | **T0+17.3 s** | **17.3 s** | 916 | **0** | 25 bad req ≈ 0.07 % time-budget | **PASS** |
 
 ## Conclusion
 
-*(Did the failover meet the declared RTO/RPO? If RTO was blown by application reconnect rather
-than DB promotion, split the two in the finding — the fix differs. Record actual sync-replication
-write-latency overhead observed vs the k6 baseline.)*
+> **Draft — pending team ratification (ADR 0019 / agentic policy: conclusions are team-owned).**
+
+- **Hypothesis held (Run 2):** RTO 17.3 s ≤ 60 s, RPO = 0 (0/916 acked lost; all later CONFIRMED),
+  killed pod rejoined as standby at +52.9 s, zero manual intervention, and every error in the gap
+  was a clean sub-second 5xx — no hangs, no thread exhaustion (breaker/bulkhead never involved:
+  this is the *DB* path failing fast). Orders pods: 0 restarts, no readiness flap — the R2DBC pool
+  recovered on its own; the RTO is promotion-dominated, not app-reconnect-dominated, so no app-side
+  fix is indicated.
+- **RTO split (as the template asks):** detection+promotion ≈ 17 s, app reconnect ≈ 0 s (first
+  post-promotion request succeeded), status-field lag ≈ 4 s (excluded — cosmetic).
+- **The Run 1 finding is the operational lesson:** graceful deletes exercise the *maintenance*
+  path (3.17 s blip after a 180 s smart-shutdown window — excellent for planned node drains,
+  directly relevant to CE-3), while only SIGKILL exercises *failure*. Our runbooks now say which
+  is which.
+- **Sync-replication overhead:** none observable at this traffic — checkout p95 during steady
+  state matched the pre-CE-5 baseline (~300 ms client-side p95 vs ~240 ms p50; same harness pre/post).
+- **Follow-ups fed elsewhere:** DB pod anti-affinity observation (primary+standby on one node) →
+  ADR 0023 / CE-3; catalog AP-cache reseed divergence → known ADR 0006 property, no action.

@@ -50,7 +50,7 @@ steady-state baselines captured 2026-07-11. **Execution pending** — results ta
 - [ ] Pod kill → Inventory mid-reservation: idempotency prevents oversell/double-charge — `ce-2` + manual pre-test + k6 contention driver ready
 - [ ] Node/AZ disruption: PDBs and topology spread keep critical path available — `ce-3` ready
 - [ ] Kafka partition: async pipeline recovers, nothing lost or duplicated — `ce-4` ready
-- [ ] CloudNativePG primary failover: observed impact on checkout, recovery within stated RTO — `ce-5` ready (RTO/RPO declared, ADR 0021)
+- [x] CloudNativePG primary failover: observed impact on checkout, recovery within stated RTO — **run 2026-07-12, PASS: RTO 17.3 s ≤ 60 s, RPO 0/916** (`ce-5-cnpg-failover-run-1.md`; conclusion pending team ratification)
 - [ ] Each experiment has: hypothesis, steady-state definition, observations, conclusion, changes made — hypothesis + steady state done for all five; observations/conclusions after the runs
 
 ## Agentic coding

@@ -28,6 +28,7 @@ exception-swallowing `suspend` listener that became the team-ratified bridge pat
 | 18 | 2026-07-11 | Async / eurotransit-app | Kafka JSON type headers made every cross-service event undeliverable |
 | 19 | 2026-07-11 | Async / eurotransit-app | Two silent event-contract faults: frozen catalog cache and DLT'd notifications |
 | 20 | 2026-07-11 | Observability / eurotransit-app | No histogram buckets behind every latency panel, alert, and canary gate — p95 was unmeasurable |
+| 21 | 2026-07-12 | Chaos / eurotransit-config | CE-5 runbook injected with a graceful `kubectl delete pod` — measures CNPG smart shutdown (a switchover), not a primary crash |
 
 ---
 
@@ -380,3 +381,42 @@ to exist — the metric's TYPE must support the function applied to it. Every
 dashboard/alert query against live exposition (`/api/v1/query`, not just
 `/label/__name__/values`) before trusting a panel. A latency SLO you have never seen
 move under traffic is a claim, not a measurement.
+
+---
+
+## Case 21 — 2026-07-12 — CE-5's injection was a switchover, not a crash (eurotransit-config)
+
+**What the AI produced:**
+The CE-5 runbook (drafted with the T5 batch, PR #37) prescribed the injection as a plain
+`kubectl delete pod "$PRIMARY" --wait=false`, and suggested watching `status.currentPrimary`
+for the promotion timestamp.
+
+**Why it was wrong (subtly):**
+`kubectl delete pod` is **graceful**: SIGTERM → the CNPG instance manager enters *smart
+shutdown* (`spec.smartShutdownTimeout`, our default **180 s**), during which established
+connections keep working — and Orders' R2DBC pool held established connections. In Run 1 the
+"killed" primary **kept serving checkout writes for 3 minutes** while the cluster phase said
+"Failing over"; the only outage was a 3.17 s blip when the smart window expired. The runbook
+was therefore measuring the *maintenance/switchover* path while claiming to test *failure* —
+and an operator trusting `status.currentPrimary` (which lagged the data plane by ~4 s, and in
+Run 1 flipped only at T0+185 s) would have concluded "failover takes 3 minutes, RTO blown"
+when in fact **checkout availability never materially degraded at all**.
+
+**How it was caught:**
+Running it (CE-5 Run 1, 2026-07-12): the ack harness showed writes flowing continuously
+through a pod that had been "deleted" 2 minutes earlier — steady state never broke, so the
+recovery measurement was meaningless. `spec.smartShutdownTimeout: 180` matched the observed
+delay exactly.
+
+**How it was corrected:**
+Method updated to `--grace-period=0 --force` (SIGKILL — also what Chaos Mesh `pod-kill`
+delivers), and the runbook now instructs taking RTO from the **ack log**, never from the CR
+status field. Run 2 with SIGKILL measured the real thing: 16.65 s write outage, RPO = 0.
+Both runs recorded in `ce-5-cnpg-failover-run-1.md`.
+
+**Lesson learned:**
+An injection must reproduce the failure mode in the hypothesis — a graceful delete is a
+*controlled shutdown*, categorically different from a crash. Before trusting any recovery
+measurement, verify the steady state actually BROKE (a chaos run where nothing degrades is a
+scoping bug until proven otherwise, cf. Case CE-1/Run-1). And operator status fields are
+control-plane views: time recovery from the data plane (the requests), not the CRD.
