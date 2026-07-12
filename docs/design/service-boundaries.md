@@ -2,9 +2,8 @@
 
 *Owner: @Lollegro*
 
-> **DRAFT — starter contributed by @giova95 to save time.** Not final: the owner reviews,
-> corrects, and takes ownership. Ratified consistency decisions live in `consistency.md` (EM-24).
-> Delete this banner once adopted.
+> Adopted by the owner; ratified consistency decisions live in `consistency.md` (EM-24).
+> Event topology below matches the code on `main` (2026-07-12 doc-alignment pass).
 
 ## Guiding rule (sync vs async)
 
@@ -18,10 +17,10 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 | Service | Sync boundaries | Async boundaries (Kafka) | Consistency requirement |
 |---------|-----------------|--------------------------|-------------------------|
 | **Catalog** | `GET /catalog`, `GET /catalog/{id}` | consumes `inventory-reserved` for cached availability (best-effort) | Tolerant of staleness — **AP / EL** |
-| **Orders** | `POST /orders` (entry, returns fast); orchestrates the pipeline | produces `order-placed`; consumes `payment-authorized` → `order-confirmed`, `notification-requested` | Strong on its own state (owns `eurotransit-orders-db`). A **failure domain**. |
-| **Inventory** | reservation decision (contended resource) | produces `inventory-reserved`; consumes compensation to release seats | **CP / EC** — see `consistency.md` |
-| **Payments** | authorize (decision now) | produces `payment-authorized` | **Strict idempotency** — see `idempotency.md` |
-| **Notifications** | — (no public API) | consumes `notification-requested` | **None** — may fail entirely (graceful degradation) |
+| **Orders** | `POST /orders` (entry, returns fast); orchestrates the pipeline; calls Payments authorize sync (ADR 0018) | produces `order-placed`, `order-confirmed`, `order-failed` (compensation trigger); consumes `inventory-reserved`, `payment-authorized`, `order-failed` (marks order FAILED) | Strong on its own state (owns `eurotransit-orders-db`). A **failure domain**. |
+| **Inventory** | reservation decision (contended resource) | produces `inventory-reserved`, `order-failed` (sold-out); consumes `order-placed`, `order-failed` (releases reserved seats) | **CP / EC** — see `consistency.md` |
+| **Payments** | authorize (decision now, sync HTTP from Orders — ADR 0018) | produces `payment-authorized` | **Strict idempotency** — see `idempotency.md` |
+| **Notifications** | — (no public API) | consumes `order-confirmed` only (app ADR-001; `notification-requested` is reserved, not wired — agent-log Case 11); poison messages → `order-confirmed.DLT` | **None** — may fail entirely (graceful degradation) |
 
 > ✅ **RESOLVED (team vote, 2026-07-11 — see ADR 0018).** The **payment authorization is a
 > synchronous HTTP call** `Orders → Payments` (idempotent, wrapped in a Resilience4j circuit
@@ -38,8 +37,11 @@ Order state machine (from the Orders schema): `DRAFT → RESERVED → CONFIRMED`
    returns quickly to the client. *(Decoupling → reduces cost/scaling pressure, not latency.)*
 3. Reservation stage → Inventory reserves seats atomically → order `RESERVED`, `inventory-reserved`.
 4. Payment step → Orders calls Payments authorize synchronously (idempotent, breaker — ADR 0018) → `payment-authorized`.
-5. Confirmation → `order-confirmed`, order `CONFIRMED`, `notification-requested`.
-6. Notifications sends the confirmation. If it is down, the order stays `CONFIRMED` → **checkout still succeeds**.
+5. Confirmation → `order-confirmed`, order `CONFIRMED`.
+6. Notifications consumes `order-confirmed` (ADR-001) and sends the confirmation. If it is down,
+   the order stays `CONFIRMED` → **checkout still succeeds**.
+7. Compensation path: payment retries exhausted or sold-out → `order-failed` → Inventory releases
+   the reserved seats, Orders marks the order `FAILED` (decision D4, 2026-07-11).
 
 Every step is idempotent (Kafka is at-least-once; remote calls are retried). See `idempotency.md`.
 
@@ -55,4 +57,5 @@ Every step is idempotent (Kafka is at-least-once; remote calls are retried). See
 
 ## Open items for the owner
 - [x] Sync vs Kafka boundary — RESOLVED by team vote / ADR 0018 (payment authorize sync; reservation stays Kafka-driven).
-- [ ] Confirm Catalog's availability-refresh strategy (event-driven vs timer).
+- [x] Confirm Catalog's availability-refresh strategy — RESOLVED: event-driven, an event-fed
+      AP in-memory cache consuming `inventory-reserved` (app ADR 0006, implemented in app PR #17).

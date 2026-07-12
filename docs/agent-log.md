@@ -24,6 +24,11 @@ Custodian: @marcodonatucci (Observability & Verification).
 | 13 | 2026-07-11 | Delivery / eurotransit-config | Orders chart injected `SPRING_DATASOURCE_*`, but the app reads `ORDERS_DB_*` — env ignored, app fell back to `localhost:5432` and crashlooped |
 | 14 | 2026-07-11 | GitOps / eurotransit-config | chaos-mesh Application under `project: platform` sourced an external chart repo not in the AppProject's `sourceRepos` — Argo `InvalidSpecError` |
 | 15 | 2026-07-08 | Async / eurotransit-app orders | Agent's rebase conflict resolution silently reverted the `order-failed` compensation publish (took `--theirs` = its own stale commit) |
+| 16 | 2026-07-11 | GitOps / eurotransit-config | HPA added while the Deployment kept a pinned `spec.replicas` — selfHeal silently capped every scale-out |
+| 17 | 2026-07-11 | Persistence / eurotransit-app | `repository.save()` with app-assigned @Id mapped to UPDATE — the entire write path was dead |
+| 18 | 2026-07-11 | Async / eurotransit-app | Kafka JSON type headers made every cross-service event undeliverable |
+| 19 | 2026-07-11 | Async / eurotransit-app | Two silent event-contract faults: frozen catalog cache and DLT'd notifications |
+| 20 | 2026-07-11 | Observability / eurotransit-app | No histogram buckets behind every latency panel, alert, and canary gate — p95 was unmeasurable |
 
 ---
 
@@ -377,6 +382,101 @@ dependency explicit with a separate, later-ordered Application.
 
 ---
 
+## Case 11 — 2026-07-08 — Notifications consumed-topics inconsistency (eurotransit-config context docs)
+
+**What the AI produced:**
+Two agent-generated context docs disagree on which topics the Notifications service consumes:
+- `.agent/context/money-path.md` (step 7): Notifications consumes **`order-confirmed`** only.
+- `.agent/context/kafka-topics.md`: lists Notifications as consumer of **both**
+  `order-confirmed` **and** `notification-requested` (the latter with producer `Orders`).
+
+No service actually produces `notification-requested` — no Orders code emits it, and the
+money path never references it.
+
+**Why it was wrong:**
+Subtly wrong, not a compile failure. Taken literally, an implementer wiring Notifications
+from `kafka-topics.md` would add a **second `@KafkaListener` on a topic that has no
+producer** — a listener that never fires — or the team would create a `KafkaTopic` CR
+(`notification-requested`) that is **orphaned**: declared infrastructure, never written,
+never read. It also misleads the reader into thinking Orders must perform a dual-write
+(`order-confirmed` **and** `notification-requested`) after confirmation, which — without a
+transactional outbox — is itself a consistency hazard.
+
+**How it was caught:**
+Cross-checking `kafka-topics.md` against `money-path.md` while designing the Notifications
+consumer (ADR-001, eurotransit-app), before writing the listener.
+
+**How it was corrected:**
+Resolved by **ADR-001** (eurotransit-app `docs/adr/`): Notifications consumes
+`order-confirmed` only, consistent with the money path and with the team's
+consistency-over-availability preference. Follow-up closed on 2026-07-12:
+`notification-requested` removed from the consumer/producer columns of
+`.agent/context/kafka-topics.md` and annotated as "reserved, not wired" on its
+`KafkaTopic` CR in `kafka/kafka-topics.yaml`.
+
+**Lesson learned:**
+Event topology must be reconciled across `money-path.md` and `kafka-topics.md` in the same
+change. A topic row with a producer/consumer that no code implements is a latent trap —
+grep for every topic name across both repos and confirm a real producer *and* consumer
+exist before declaring the CR.
+
+---
+
+## Case 12 — 2026-07-08 — `suspend` @KafkaListener silently swallowed exceptions (eurotransit-app)
+
+> Caught while implementing the Notifications consumer (ADR-001..004).
+
+**What the AI produced:**
+The AI-authored design (ADR-004 / the notifications spec) and the first implementation used a
+Kotlin `suspend` @KafkaListener:
+
+```kotlin
+@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
+suspend fun onOrderConfirmed(event: OrderConfirmedEvent) { service.handle(event) }
+```
+
+It compiled, and the **happy path passed** — messages were consumed and marked `SENT`.
+
+**Why it was wrong (subtly):**
+With this Spring Kafka version, a `suspend` @KafkaListener **does not propagate handler
+exceptions to the container's `DefaultErrorHandler`**. When the send failed, the exception was
+swallowed: **no bounded retry, no publish to `order-confirmed.DLT`, and the offset was still
+committed** (`AckMode.RECORD`) — the failed notification was silently lost. The integration test
+proved it: the recoverer ran **0** times and only **1** delivery attempt occurred. This defeats
+the entire resilience design (ADR-003): "no lost notifications, poison messages parked in the
+DLT". A green happy-path test hid a broken failure path — exactly the kind of gap the money path
+must not have.
+
+**How it was caught:**
+The DLT integration test (`OrderConfirmedDltIT`) asserted that an always-failing send lands in
+`order-confirmed.DLT` and the row becomes `FAILED`. It timed out; debug logging showed the
+recoverer never fired and there were no retries.
+
+**How it was corrected:**
+Switched to a non-`suspend` handler that bridges to the suspending service with `runBlocking`,
+taking the raw `ConsumerRecord` (Spring Kafka's typed-payload conversion returned `KafkaNull` for
+an already-deserialized value on a non-suspend method):
+
+```kotlin
+@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
+fun onOrderConfirmed(record: ConsumerRecord<String, OrderConfirmedEvent?>) {
+    val event = record.value() ?: return
+    runBlocking { service.handle(event) }
+}
+```
+
+The exception now surfaces synchronously → `DefaultErrorHandler` retries → DLT + `FAILED`.
+The `runBlocking` exception to the `CLAUDE.md` rule was ratified by the team on 2026-07-11
+(decision D5, app PR #16): the consumer thread is a dedicated blocking poll loop, not a
+reactive context, so blocking there is correct.
+
+**Lesson learned:**
+A passing happy-path test is not evidence the failure path works — for money-path handlers,
+always test the failure/DLT/redelivery paths explicitly. Framework "it compiles and consumes"
+does not imply "errors are handled"; verify exception propagation end-to-end.
+
+---
+
 ## Case 13 — 2026-07-11 — DB env var names in the chart didn't match the app's contract (eurotransit-config)
 
 **What the AI produced:**
@@ -431,103 +531,6 @@ contract owned by the application, not by Spring convention. When wiring config 
 service, verify the keys against the consuming code's `application.yml`, not against what the
 framework *usually* calls them. `Synced + Degraded` with a `localhost` fallback in the logs
 is the signature of injected config the app never reads.
-## Case 11 — 2026-07-08 — Notifications consumed-topics inconsistency (eurotransit-config context docs)
-
-> **Draft — pending team approval.** This entry was drafted by the agent while
-> implementing the Notifications consumer. Per CODEOWNERS all five members must approve
-> before it merges to `main`.
-
-**What the AI produced:**
-Two agent-generated context docs disagree on which topics the Notifications service consumes:
-- `.agent/context/money-path.md` (step 7): Notifications consumes **`order-confirmed`** only.
-- `.agent/context/kafka-topics.md`: lists Notifications as consumer of **both**
-  `order-confirmed` **and** `notification-requested` (the latter with producer `Orders`).
-
-No service actually produces `notification-requested` — no Orders code emits it, and the
-money path never references it.
-
-**Why it was wrong:**
-Subtly wrong, not a compile failure. Taken literally, an implementer wiring Notifications
-from `kafka-topics.md` would add a **second `@KafkaListener` on a topic that has no
-producer** — a listener that never fires — or the team would create a `KafkaTopic` CR
-(`notification-requested`) that is **orphaned**: declared infrastructure, never written,
-never read. It also misleads the reader into thinking Orders must perform a dual-write
-(`order-confirmed` **and** `notification-requested`) after confirmation, which — without a
-transactional outbox — is itself a consistency hazard.
-
-**How it was caught:**
-Cross-checking `kafka-topics.md` against `money-path.md` while designing the Notifications
-consumer (ADR-001, eurotransit-app), before writing the listener.
-
-**How it was corrected:**
-Resolved by **ADR-001** (eurotransit-app `docs/adr/`): Notifications consumes
-`order-confirmed` only, consistent with the money path and with the team's
-consistency-over-availability preference. **Follow-up required in this repo:** remove
-`notification-requested` from `.agent/context/kafka-topics.md` and from any `KafkaTopic`
-CRs, **or** annotate it explicitly as "reserved, not yet wired". Team decision + PR.
-
-**Lesson learned:**
-Event topology must be reconciled across `money-path.md` and `kafka-topics.md` in the same
-change. A topic row with a producer/consumer that no code implements is a latent trap —
-grep for every topic name across both repos and confirm a real producer *and* consumer
-exist before declaring the CR.
-
----
-
-## Case 12 — 2026-07-08 — `suspend` @KafkaListener silently swallowed exceptions (eurotransit-app)
-
-> **Draft — pending team approval** (CODEOWNERS). Caught while implementing the Notifications
-> consumer (ADR-001..004).
-
-**What the AI produced:**
-The AI-authored design (ADR-004 / the notifications spec) and the first implementation used a
-Kotlin `suspend` @KafkaListener:
-
-```kotlin
-@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
-suspend fun onOrderConfirmed(event: OrderConfirmedEvent) { service.handle(event) }
-```
-
-It compiled, and the **happy path passed** — messages were consumed and marked `SENT`.
-
-**Why it was wrong (subtly):**
-With this Spring Kafka version, a `suspend` @KafkaListener **does not propagate handler
-exceptions to the container's `DefaultErrorHandler`**. When the send failed, the exception was
-swallowed: **no bounded retry, no publish to `order-confirmed.DLT`, and the offset was still
-committed** (`AckMode.RECORD`) — the failed notification was silently lost. The integration test
-proved it: the recoverer ran **0** times and only **1** delivery attempt occurred. This defeats
-the entire resilience design (ADR-003): "no lost notifications, poison messages parked in the
-DLT". A green happy-path test hid a broken failure path — exactly the kind of gap the money path
-must not have.
-
-**How it was caught:**
-The DLT integration test (`OrderConfirmedDltIT`) asserted that an always-failing send lands in
-`order-confirmed.DLT` and the row becomes `FAILED`. It timed out; debug logging showed the
-recoverer never fired and there were no retries.
-
-**How it was corrected:**
-Switched to a non-`suspend` handler that bridges to the suspending service with `runBlocking`,
-taking the raw `ConsumerRecord` (Spring Kafka's typed-payload conversion returned `KafkaNull` for
-an already-deserialized value on a non-suspend method):
-
-```kotlin
-@KafkaListener(topics = ["order-confirmed"], containerFactory = "kafkaListenerContainerFactory")
-fun onOrderConfirmed(record: ConsumerRecord<String, OrderConfirmedEvent?>) {
-    val event = record.value() ?: return
-    runBlocking { service.handle(event) }
-}
-```
-
-The exception now surfaces synchronously → `DefaultErrorHandler` retries → DLT + `FAILED`.
-**Team decision required:** this uses `runBlocking`, which `CLAUDE.md` bans "outside bootstrap".
-The consumer thread is a dedicated blocking poll loop (not a reactive context), so blocking here
-is arguably correct, but the team must ratify the exception to the rule (or choose an alternative
-bridge) and update ADR-004 / the spec accordingly.
-
-**Lesson learned:**
-A passing happy-path test is not evidence the failure path works — for money-path handlers,
-always test the failure/DLT/redelivery paths explicitly. Framework "it compiles and consumes"
-does not imply "errors are handled"; verify exception propagation end-to-end.
 
 ---
 
@@ -563,6 +566,41 @@ allowance).
 When an agent assigns an Application to a scoped AppProject, it must check the project's
 `sourceRepos` (and destinations) against the Application's actual source. "More scoped"
 projects fail closed: an external Helm repo needs an explicit, pinned entry.
+
+---
+
+## Case 15 — 2026-07-08 — Rebase conflict resolution silently reverted the D4 compensation publish (eurotransit-app)
+
+**What the AI produced:**
+While rebasing the catalog AP-cache branch (app PR #17) — created before PR #16 (the D4
+seat-release compensation) merged — the agent resolved the conflict on
+`orders-service/.../config/KafkaErrorHandlingConfig.kt` by taking `--theirs`, i.e. its own
+stale pre-#16 copy of the file.
+
+**Why it was wrong (subtly):**
+The #16 version's recoverer publishes `order-failed` when payment redeliveries are
+exhausted; the stale copy only marked the order FAILED and logged. The result compiled,
+CI stayed green, and #17 merged — but on `main` the D4 compensation was **silently dead**:
+Inventory's `OrderFailedConsumer` (also from #16) kept listening on a topic Orders no
+longer published on exhaustion, so a failed order would keep its seats RESERVED forever.
+No test failed, because the compensation path had no end-to-end test yet.
+
+**How it was caught:**
+By @marcodonatucci auditing the #17 merge: a catalog PR had touched an orders-service
+config file, and diffing that file against the #16 version on `main` showed the
+`order-failed` publish had disappeared.
+
+**How it was corrected:**
+App PR #18 restored the #16 version of `KafkaErrorHandlingConfig.kt` (recoverer publishes
+`order-failed` on every exhaustion — safe on replay because the Inventory release is a
+conditional, idempotent no-op), with ADR references aligned to the #17 renumbering.
+
+**Lesson learned:**
+A rebase conflict resolution is a semantic merge, and `--theirs`/`--ours` silently
+discards the other side's working code — green CI cannot notice a feature that simply
+vanished. After any agent-resolved rebase, diff the conflicted files against BOTH
+parents; and treat "a PR touches a file outside its feature area" as a mandatory review
+trigger.
 
 ---
 

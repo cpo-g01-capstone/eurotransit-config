@@ -61,6 +61,10 @@ spec:
   config:
     retention.ms: 604800000
 ---
+# RESERVED — NOT WIRED (agent-log Case 11 / app ADR-001, 2026-07-08): no service
+# produces or consumes this topic. Notifications consumes `order-confirmed` only.
+# Kept as a declared-but-unused CR until the team decides to remove it (removal
+# deletes the in-cluster topic via Argo CD prune) or a real producer appears.
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
