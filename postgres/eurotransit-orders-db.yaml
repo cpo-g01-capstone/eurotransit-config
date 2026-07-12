@@ -25,6 +25,18 @@ spec:
       method: any
       number: 1
       dataDurability: preferred
+  # Required spread across nodes (CE-5 review follow-up 3, 2026-07-12): the CE-5
+  # pre-run check found primary AND standby on the same node — CNPG's default
+  # anti-affinity is `preferred`, which loses on a small node pool. With both
+  # instances co-located, a node drain (CE-3) becomes an unhypothesized double
+  # failure and the sync-standby RPO=0 story is void for node-level faults.
+  # Trade-off, stated: with `required`, during a drain the replacement instance
+  # can sit Pending until the drain ends — that is CORRECT behaviour for CE-3
+  # (the PDB/spread story), not a failure.
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
   storage:
     size: 1Gi
   bootstrap:
