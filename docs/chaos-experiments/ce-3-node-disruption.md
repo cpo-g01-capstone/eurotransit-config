@@ -65,13 +65,79 @@ Draining one node that hosts critical-path pods will NOT make the money path una
 - **FAIL**: any window with 0 Ready replicas of a critical service (availability hole);
   errors surfacing to clients beyond the error budget; pods stuck Pending after uncordon.
 
-## Results (fill during the run)
+## Results
 
-| Date | Operator | Node drained | Pods evicted | Drain duration | Checkout SLI dip | PDB held? | Findings for ADR 0023 | Outcome |
-|------|----------|--------------|--------------|----------------|------------------|-----------|------------------|---------|
-|      |          |              |              |                |                  |           |                  |         |
+*Executed 2026-07-12, @giova95 (Claude driving kubectl + load, per session authorization;
+ADR 0019 gate). Prerequisites set first: the hard per-node spread (#81) put every
+2-replica money-path service on two nodes before the drain. This is an **honest FAIL of
+the availability hypothesis** on the current cluster — the most valuable kind of chaos
+result: a tested hypothesis that did not hold, with a clear root cause.*
+
+| Date | Node drained | Load | Drain result | Checkout during drain | Data integrity | PDBs | Outcome |
+|------|--------------|------|--------------|-----------------------|----------------|------|---------|
+| 2026-07-12 | `…q` (orders, payments, catalog replicas + orders-db-1 **primary**) | k6 5 VUs on the money path | **did NOT complete** — held at the 2m30s timeout on `coredns`/`metrics-server` (kube-system) | **degraded: 8.88 % failed (135/1520 req)** over the ~4-min window, a ~1-min hard gap (curl returned `000`) | ✅ **0 lost/duplicate** — 420 in-window orders all CONFIRMED | held (DBs protected) | **FAIL (hypothesis not held) — capacity finding** |
+
+**Timeline (UTC):** T0 cordon+drain `…q` 17:32:08 → cascade of probe failures 17:32–17:36
+→ uncordon 17:36:17 → checkout restored 17:37:11.
+
+**What HELD (the resilience patterns worked):**
+- **Hard spread (#81):** every money-path service kept ≥1 replica on a non-drained node —
+  no service hit 0 by scheduling. The prerequisite fix did its job.
+- **PDBs protected state:** the drain was correctly *held* (never completed) — it could not
+  evict the DB primaries (`ALLOWED DISRUPTIONS = 0`) or the last kube-system singletons.
+- **CNPG failover:** `orders-db` primary moved `db-1 → db-2` during the disruption; cluster
+  stayed **healthy 2/2, RPO 0** (the CE-5 property, seen again here for free).
+- **Data integrity:** 420 in-window orders, all CONFIRMED, **zero lost, zero duplicate** —
+  idempotency + the DB held through the turbulence even as availability dipped.
+
+**What did NOT hold (the finding):**
+- The hypothesis "checkout keeps succeeding during the whole drain" is **FALSE** here:
+  8.88 % client-side errors, well past the 1 % error budget, with a ~1-min window where the
+  gateway returned no response.
+- **Root cause — capacity, not design.** The three `Standard_B2s` nodes (2 vCPU each) sit at
+  **82–99 % CPU-requests** in steady state (3-broker Kafka + 4 CNPG clusters dominate). Draining
+  one node forces its pods onto two already-full nodes → **CPU starvation** → probe timeouts
+  (`context deadline exceeded`) cascade across catalog, kafka, orders, payments, the CNPG
+  operator and Prometheus → BackOff/crashloops → the checkout degrades. The USE dashboard shows
+  the CPU-throttling spike and the container-restart step; the RED dashboard shows the
+  success-rate dip and error spike (`ce-3-images/`).
+- **Aggravators:** Traefik runs a **single replica** (a gateway SPOF); and the CPU HPAs scaled
+  *up* on the starvation-induced CPU (a false signal — the truer signal is Kafka lag, ADR 0023),
+  adding replicas the cluster could not place (Pending), deepening the pressure. Recovery after
+  uncordon was not instant for the same reason.
+
+## Dashboard captures
+
+Native Grafana, drain window (renders in CEST = UTC+2, so ~19:32–19:37):
+- **USE** — [`ce-3-images/ce3-use-infrastructure.png`](ce-3-images/ce3-use-infrastructure.png):
+  the CPU-saturation (throttled-period) spike and the container-restarts step — the starvation
+  cascade, visible.
+- **RED** — [`ce-3-images/ce3-red-money-path.png`](ce-3-images/ce3-red-money-path.png): the
+  checkout success-rate dip and 5xx spike during the window (the 1-hour success stat dilutes it;
+  the k6 client-side 8.88 % is the sharp measure).
 
 ## Conclusion
 
-*(Did the hypothesis hold? If the drain stalled or a service went to 0 replicas, feed the
-finding into ADR 0023 — topology spread + anti-affinity.)*
+> **Draft — pending team ratification (ADR 0019).**
+
+The hypothesis **did not hold**, and that is the result worth having. The *resilience patterns*
+all worked — hard spread kept a replica of every service alive, PDBs protected the databases,
+CNPG failed the primary over with RPO 0, and not a single order was lost or double-processed.
+But the *cluster* cannot absorb the loss of a node: at 82–99 % CPU-requests across three 2-vCPU
+nodes, draining one starves the other two and the checkout degrades past its error budget for
+the duration. This is a **sizing limit (ADR 0001), not an application-resilience defect** — the
+same code on a cluster with N+1 headroom would ride the drain out (the availability is already
+guaranteed *structurally* by the hard spread; it fails only because the replacement pods have
+nowhere with spare CPU to run).
+
+**Recommendations (for ADR 0001 / 0023):**
+1. **N+1 capacity for voluntary disruptions:** a 4th node (or a temporary scale-up) before any
+   node drain / upgrade / the live demo — the cluster needs one node of headroom to reschedule.
+2. **Traefik ≥ 2 replicas** with its own hard spread — remove the gateway single-point-of-failure
+   this run exposed.
+3. **A real node upgrade runbook:** cordon → planned CNPG switchover of any primary on the node →
+   drain with the PDBs → uncordon; never drain a saturated node cold.
+4. Revisit CPU-based HPA (ADR 0023 already flags it): under starvation it scales the wrong way.
+
+Re-running CE-3 after a 4th node is added would convert this FAIL into the PASS the design
+predicts — a clean "found the limit → fixed the sizing → proven" follow-up for the demo.
