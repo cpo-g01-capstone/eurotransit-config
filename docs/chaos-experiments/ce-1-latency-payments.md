@@ -64,10 +64,13 @@ Injecting 3 s (±500 ms) of network delay toward every Payments pod for 5 minute
 > delay on the payments pods) collided with kubelet probe `timeoutSeconds: 1` → probe
 > kills, 3 restarts per pod, HPA 2→4, fault self-destroyed at ~2.5 min. All hypothesised
 > properties held while the fault was live (breaker lifecycle, bounded fast-fail, catalog
-> flat, no double charge), but the window did not persist as declared. Full record and
-> the scoping lesson: [`ce-1-latency-payments-run-1.md`](ce-1-latency-payments-run-1.md).
-> The manifest was revised (delay scoped to the orders→payments path); the table below
-> records the authoritative re-run.
+> flat, no double charge), but the window did not persist as declared. **Run 2** (delay
+> on orders' egress toward payments pod IPs) was aborted: the app's traffic addresses
+> the Service VIP and bypassed the source-side filter — the fault never bit. Full
+> records and both scoping lessons:
+> [`ce-1-latency-payments-run-1.md`](ce-1-latency-payments-run-1.md). Final manifest:
+> delay on payments' egress toward the orders pods only (responses). The table below
+> records the authoritative run with that manifest.
 
 | Date | Operator | Load (checkout + catalog rps) | Breaker opened at | Fallbacks served | Catalog impact | Recovery (half-open→closed) | Double charges | Outcome |
 |------|----------|-------------------------------|-------------------|------------------|----------------|------------------------------|----------------|---------|

@@ -110,4 +110,41 @@ double charge. The run is nonetheless not a valid execution of CE-1 because the
 fault did not persist for the declared 5-minute window: the injection scoping
 (whole-egress delay) collided with kubelet probe timeouts and destroyed itself. The
 manifest was corrected to scope the delay to the orders→payments path; CE-1 is
-re-run as Run 2, which is the authoritative result.
+re-run, and that re-run is the authoritative result.
+
+## Addendum — Run 2 (first revision), aborted: service-VIP bypass
+
+The first manifest revision put the delay on the **orders pods' egress toward the
+payments pod IPs** (selector = orders, `direction: to`, target = payments). Applied
+at 15:39:25; `AllInjected=True`; the breaker **never opened** and the fallback
+counter never moved.
+
+Diagnosis from inside an orders pod under active injection:
+
+| Request path | Time |
+|---|---|
+| `http://eurotransit-payments/...` (Service name — what the app uses) | **0.00 s** |
+| `http://<payments-pod-IP>:8080/...` (direct) | **3.03 s** |
+
+The tc filter keys on *destination pod IPs*, but the app's traffic leaves the pod
+addressed to the **Service VIP** — on this cluster the VIP translation bypasses the
+source-side filter, so the app's packets are never delayed while direct pod-IP
+traffic is. **Lesson: a source-side NetworkChaos `target:` does not see through
+Service VIP translation here; fault filters must sit on the side where the packets
+carry pod IPs.** Final manifest shape: delay on the **payments pods' egress toward
+the orders pods** (responses) — the mechanics run 1 already proved effective, now
+scoped so kubelet probe responses are untouched. The run was aborted (fault
+expired without effect, object cleaned) and repeated with the final manifest.
+
+**Run 2 k6 record** (aborted by operator at 7m19s once the bypass was diagnosed;
+covers steady state + the entire ineffective 5-minute "window" 15:39:25–15:44:25):
+
+- `checkout_success` **100 %** (936/936), `catalog_healthy` **100 %**, 0 failed
+  requests of 2997, 0 × 429 — consistent with the fault never reaching the app path.
+- Breaker stayed `CLOSED` throughout; fallback counter never moved (35 → 35).
+- Client-side p95: browse_catalog 110.58 ms ✅; place_order **513.69 ms ✗** — the
+  only threshold breach of the day, on the *fault-free* run. With 933 iterations
+  (vs 1914 in run 1) and server-side checkout p95 at 20–30 ms except a brief ramp
+  spike (159 ms at 15:37, cold rate window at load start), this reads as
+  client-side WAN/TLS variance on a smaller sample, not a service regression —
+  worth keeping an eye on across the remaining experiments' baselines.
