@@ -82,14 +82,53 @@ also what a Chaos Mesh `pod-kill` sends. Main doc updated.
 - Error budget: ~17 s of write unavailability ≈ **0.07 %** of the 30-day time budget
   (432 min); request-based, 25 bad / 941 in the window.
 
+### Bounded-wait analysis (review follow-up 2: what limited the 25 bad requests?)
+
+The "no hangs" claim, quantified for **all** 25 bad requests, not just the 500s:
+
+- **20 × HTTP 500** — server-side refusals in 0.30–0.33 s: the R2DBC connection attempt hit the
+  dead endpoint and failed fast, surfaced as a clean 500.
+- **5 × client timeouts** — each waited **exactly 5.0 s**, the harness's own `curl -m 5` bound
+  (see `ce-5-evidence/ce5-load.sh`). These requests arrived while the pool was re-establishing
+  connections and waited on **connection acquire**: Orders configures **no explicit
+  `spring.r2dbc.pool.max-acquire-time`**, and the r2dbc-pool default is **unbounded** — so these
+  five were **client-bounded only**. The **4.7 s max** among *acked* requests in the first 30 s
+  is the same mechanism with a luckier ending: acquire-wait until the pool recovered, then success.
+- **Proposed follow-up (team decision — resilience thresholds are team-owned):** an explicit
+  `spring.r2dbc.pool.max-acquire-time` (e.g. 3–4 s, below any client/gateway timeout) on the
+  DB-backed services would turn "client gave up" into "server refused cleanly", making the
+  no-hang property configuration-enforced instead of caller-dependent.
+
+## What we observed in our own dashboards (run-2 window, 14:26–14:34 UTC)
+
+**RED — money path** ([`ce-5-images/ce5-run2-red-money-path.png`](ce-5-images/ce5-run2-red-money-path.png)):
+the Orders 5xx blip is visible and *bounded* to the promotion window; checkout success (1 h)
+99.7 % during the run, checkout p95 (5 m) 18.7 ms server-side at capture; Kafka consumer lag flat
+≈ 0; **Payments circuit breaker CLOSED on both orders pods for the whole window** — the DB
+failing is invisible to the Payments path, exactly the isolation the design claims.
+
+**USE — infrastructure** ([`ce-5-images/ce5-run2-use-infrastructure.png`](ce-5-images/ce5-run2-use-infrastructure.png)):
+**container restarts flat at zero** (the app never crashed; the killed DB pod was deleted, not
+restarted); ready replicas steady; the network-I/O burst at 16:30–16:32 (CEST) is the replaced
+instance re-provisioning and catching up WAL from the new primary — the visible cost of recovery,
+paid off the money path.
+
+## Evidence (committed — review follow-up 1)
+
+Raw artifacts in [`ce-5-evidence/`](ce-5-evidence/): ack-log CSVs for both runs (the RPO proof —
+every 202 with a ms timestamp), orchestrator timelines, `cnpg status` snapshots, and the harness
+scripts (`ce5-load.sh` = the ack logger; `ce5-run.sh` / `ce5-run2.sh` = the orchestrators),
+reusable as-is for CE-2/CE-3/CE-4.
+
 ## Verdict vs pass criteria (Run 2 = the hypothesis test)
 
 | Criterion | Declared | Measured | |
 |---|---|---|---|
 | RTO (kill → writes succeed) | ≤ 60 s | **17.3 s** | ✅ |
 | RPO (acked orders lost) | 0 | **0 / 916** (and 0 / 2 635 in Run 1) | ✅ |
-| Clean errors, no unbounded hangs | required | all 5xx ≤ 0.33 s | ✅ |
+| Clean errors, no unbounded hangs | required | 20 × 5xx ≤ 0.33 s; 5 waits bounded at the client's 5 s (see bounded-wait analysis) | ✅ |
 | Killed pod rejoins as standby | required | +52.9 s, quorum streaming | ✅ |
 | Manual intervention | none | none | ✅ |
 
-**PASS.** Full session evidence (ack CSVs, timelines, cnpg snapshots) archived by the operator.
+**PASS.** Evidence in [`ce-5-evidence/`](ce-5-evidence/), dashboard captures in
+[`ce-5-images/`](ce-5-images/) (review follow-ups 1–2 closed, 2026-07-12).

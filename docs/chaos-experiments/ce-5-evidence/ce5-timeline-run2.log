@@ -1,0 +1,14 @@
+1783866529675 14:28:49 RUN2-START steady-state window 45s under load
+1783866575565 14:29:35 PRE-KILL primary=eurotransit-orders-db-2 ready=2
+1783866575576 14:29:35 T0-KILL force-deleting eurotransit-orders-db-2 (SIGKILL, grace 0)
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "eurotransit-orders-db-2" force deleted from eurotransit namespace
+1783866575978 14:29:35 T0-KILL-ISSUED
+1783866578595 14:29:38 TRANSITION primary=eurotransit-orders-db-2 ready=1 phase=Failing over
+1783866596999 14:29:57 TRANSITION primary=eurotransit-orders-db-1 ready=1 phase=Waiting for the instances to become active
+1783866597010 14:29:57 PRIMARY-FLIPPED to eurotransit-orders-db-1
+1783866628461 14:30:28 TRANSITION primary=eurotransit-orders-db-1 ready=2 phase=Cluster in healthy state
+1783866628468 14:30:28 RECOVERED 2/2 with primary=eurotransit-orders-db-1
+1783866628475 14:30:28 POST-RECOVERY window 60s under load
+1783866688503 14:31:28 RUN2-END harness stopped
+1783866691652 14:31:31 DONE
