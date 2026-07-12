@@ -44,7 +44,7 @@ zero-downtime deployment.
 - **API gateway:** Traefik (from Lab03) — the single north-south entrypoint
 - **Async pipeline:** Kafka via the Strimzi operator
 - **Database:** PostgreSQL, managed by the CloudNativePG operator, **one cluster per service that needs state**: Orders (`ordersdb`), Inventory (`inventorydb`, ADR 0020), Payments (`paymentsdb`), Notifications (`notificationsdb`, per app-repo ADR-002 — a durable dedup store). Manifests in `postgres/`. Catalog is stateless (event-fed in-memory cache, app ADR 0006).
-- **Events:** `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `order-failed` (seat-release compensation); DLT: `order-confirmed.DLT`. (`notification-requested` is a reserved, unwired topic — agent-log Case 11.)
+- **Events:** `order-placed`, `inventory-reserved`, `payment-authorized`, `order-confirmed`, `order-failed` (seat-release compensation); DLT: `order-confirmed.DLT`. (`notification-requested` is a reserved, unwired topic — app ADR 0001.)
 - **Notifications** must be able to fail entirely without failing checkout (graceful degradation)
 - Internal services are **ClusterIP**; only Traefik gets a public LoadBalancer
 - Secrets in Git only as **SealedSecrets** (never plaintext)

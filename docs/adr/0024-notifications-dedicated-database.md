@@ -29,7 +29,7 @@ Two things forced a config-repo record:
 
 2. **`notifications-service` crashlooped on AKS** (`Connection to localhost:5432 refused`)
    because the chart injected no DB configuration and the app fell back to its localhost
-   default — the same env-var-contract class of bug as orders (see **agent-log Case 11**).
+   default — the same env-var-contract class of bug as orders (see **agent-log Case 13**).
    Fixing it requires both a database to exist and the correct env wiring.
 
 `eurotransit-app`'s `notifications-service/application.yml` reads **service-prefixed** env
@@ -70,7 +70,7 @@ Naming follows `CLAUDE.md`: cluster `eurotransit-notifications-db`, services
   approved Postgres-only stack.
 - **Leave the chart injecting `SPRING_DATASOURCE_*` (rejected).** The app never reads those
   keys — it is an inert manifest that silently falls back to localhost. This is exactly the
-  agent-log Case 11 failure mode.
+  agent-log Case 13 failure mode.
 
 ## Consequences
 

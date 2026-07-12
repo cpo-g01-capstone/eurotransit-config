@@ -20,7 +20,7 @@ during I/O waits (blocking-vs-suspending model, async lecture).
 | **Orders** | `POST /orders` (entry, returns fast); orchestrates the pipeline; calls Payments authorize sync (ADR 0018) | produces `order-placed`, `order-confirmed`, `order-failed` (compensation trigger); consumes `inventory-reserved`, `payment-authorized`, `order-failed` (marks order FAILED) | Strong on its own state (owns `eurotransit-orders-db`). A **failure domain**. |
 | **Inventory** | reservation decision (contended resource) | produces `inventory-reserved`, `order-failed` (sold-out); consumes `order-placed`, `order-failed` (releases reserved seats) | **CP / EC** — see `consistency.md` |
 | **Payments** | authorize (decision now, sync HTTP from Orders — ADR 0018) | produces `payment-authorized` | **Strict idempotency** — see `idempotency.md` |
-| **Notifications** | — (no public API) | consumes `order-confirmed` only (app ADR-001; `notification-requested` is reserved, not wired — agent-log Case 11); poison messages → `order-confirmed.DLT` | **None** — may fail entirely (graceful degradation) |
+| **Notifications** | — (no public API) | consumes `order-confirmed` only (app ADR-001; `notification-requested` is reserved, not wired — app ADR-001); poison messages → `order-confirmed.DLT` | **None** — may fail entirely (graceful degradation) |
 
 > ✅ **RESOLVED (team vote, 2026-07-11 — see ADR 0018).** The **payment authorization is a
 > synchronous HTTP call** `Orders → Payments` (idempotent, wrapped in a Resilience4j circuit

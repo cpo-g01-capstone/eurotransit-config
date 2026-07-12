@@ -46,7 +46,7 @@ spec:
               value: "8080"
             # DB env var names must match notifications-service application.yml
             # (NOTIFICATIONS_DB_*), not SPRING_DATASOURCE_*. R2DBC at runtime; a
-            # separate JDBC URL for Flyway (JDBC-only). See agent-log Case 11 and
+            # separate JDBC URL for Flyway (JDBC-only). See agent-log Case 13 and
             # ADR-002 (durable dedup store, cluster eurotransit-notifications-db).
             - name: NOTIFICATIONS_DB_R2DBC_URL
               value: "r2dbc:postgresql://{{ .Values.notifications.db.host }}:{{ .Values.notifications.db.port }}/{{ .Values.notifications.db.name }}"

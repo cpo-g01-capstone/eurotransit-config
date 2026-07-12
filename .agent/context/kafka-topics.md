@@ -12,7 +12,7 @@ Spring Boot env var: `SPRING_KAFKA_BOOTSTRAP_SERVERS=eurotransit-kafka-kafka-boo
 | order-confirmed | 3 | 7 days | Orders | Notifications |
 | order-failed | 3 | 7 days | Orders, Inventory (sold-out) | Inventory (seat release), Orders (mark FAILED) |
 | order-confirmed.DLT | 3 | 7 days | Notifications error handler | — (manual inspection/replay) |
-| notification-requested | 3 | 7 days | — (reserved, not wired — agent-log Case 11) | — |
+| notification-requested | 3 | 7 days | — (reserved, not wired — app ADR-001) | — |
 
 All topics are declared as `KafkaTopic` CRs — auto-creation is disabled.
 Producer/consumer columns reflect the code on `main` (grep `topics = [...]` /
