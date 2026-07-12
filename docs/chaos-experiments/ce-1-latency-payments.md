@@ -64,22 +64,86 @@ Injecting 3 s (±500 ms) of network delay toward every Payments pod for 5 minute
 > delay on the payments pods) collided with kubelet probe `timeoutSeconds: 1` → probe
 > kills, 3 restarts per pod, HPA 2→4, fault self-destroyed at ~2.5 min. All hypothesised
 > properties held while the fault was live (breaker lifecycle, bounded fast-fail, catalog
-> flat, no double charge), but the window did not persist as declared. **Run 2** (delay
+> flat, no double charge), but the window did not persist as declared —
+> [`ce-1-latency-payments-run-1.md`](ce-1-latency-payments-run-1.md). **Run 2** (delay
 > on orders' egress toward payments pod IPs) was aborted: the app's traffic addresses
-> the Service VIP and bypassed the source-side filter — the fault never bit. Full
-> records and both scoping lessons:
-> [`ce-1-latency-payments-run-1.md`](ce-1-latency-payments-run-1.md). Final manifest:
+> the Service VIP and bypassed the source-side filter — the fault never bit —
+> [`ce-1-latency-payments-run-2.md`](ce-1-latency-payments-run-2.md). Final manifest:
 > delay on payments' egress toward the orders pods only (responses). The table below
-> records the authoritative run with that manifest.
+> records **run 3**, the authoritative run with that manifest.
 
 | Date | Operator | Load (checkout + catalog rps) | Breaker opened at | Fallbacks served | Catalog impact | Recovery (half-open→closed) | Double charges | Outcome |
 |------|----------|-------------------------------|-------------------|------------------|----------------|------------------------------|----------------|---------|
-|      |          |                               |                   |                  |                |                              |                |         |
+| 2026-07-12 | @vojtech-n | 2.0 + 2.4 rps (k6 baseline.js, 3 VUs, 15 m) | 15:59:33 (~23 s after T0 15:59:10) | 84 (not-permitted counter 35→119) | **none** — p95 1 ms and rate flat for the whole window | fault expired 16:04:10 → both breakers CLOSED 16:04:30 (~20 s) | **0** | **PASS** |
 
-**Observations (dashboards/screenshots):**
+**Observations (Prometheus samples @15 s + DB verification; run 3, the authoritative
+run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
+[run 2](ce-1-latency-payments-run-2.md) have their own records):**
 
-*(link Grafana panels here)*
+- **Injection verified live**: orders→payments request via the Service took 5.51 s
+  under the fault (SYN-ACK + response each delayed ~3 s) vs 0.00 s after expiry.
+- **Breaker lifecycle** (per orders pod, each replica independent): CLOSED → **OPEN
+  at 15:59:33** (~23 s after T0), then open ↔ half-open cycling roughly every 30–40 s
+  for the whole 5-minute window — every HALF_OPEN probe correctly hit the live fault
+  and snapped back to OPEN (observed at 16:00:08, 16:00:26, 16:01:21, 16:01:41,
+  16:02:16, 16:02:33, 16:03:15, 16:03:53). After expiry (16:04:10) the first probes
+  succeeded: **both CLOSED at 16:04:30**.
+- **No unbounded hang**: checkout (`POST /orders`) server-side p95 stayed **19–21 ms
+  during the entire window** (steady-state 19 ms) — the open breaker fast-failed the
+  authorize step and the order parked `RESERVED`; the sync entry kept returning 202.
+- **Containment**: Catalog rate ~2.4 req/s and p95 1 ms, completely flat — the
+  failure did not propagate outside the Orders→Payments edge. Payments pods
+  themselves: **0 restarts, 0 probe failures, HPA steady at 2** (the run-1 cascade
+  is gone with the scoped manifest).
+- **Queued-drain convergence** (orders DB, window cohort vs steady cohort):
+  - steady-state orders (13:56–13:59 UTC): confirmed in median **0.14 s** / p95 0.37 s;
+  - in-window orders (544): parked during the fault, confirmed in median **198 s** /
+    p95 313 s / max 342 s — i.e. the backlog **fully drained within ~40 s of the
+    breaker closing**. 0 orders stuck non-terminal.
+  - **2 orders** (created 15:59:06, seconds before T0, authorize in flight when the
+    fault hit) exhausted their bounded retries inside the window → compensated to
+    `FAILED` via `order-failed`, **no payment intent created, no charge**. Explicit
+    bounded failure, not a hang: 2 / 546 window orders (0.37 %).
+- **Exactly-one-charge**: 0 duplicate `payment_intents` per order across the run.
+- **Error budget**: 0 × 5xx measured for the entire run — the fault window consumed
+  no success-rate budget at the sync entry (the 2 async failures surfaced as
+  compensated `FAILED` orders, not 5xx).
+
+- **k6 client-side record** (aborted by operator at 12 m 26 s — covers steady state,
+  the full fault window and the recovery/drain): `checkout_success` **100 %**
+  (1413/1413), `catalog_healthy` **100 %**, 0 failed requests of 4515, 0 × 429.
+  Client-side p95: browse_catalog 355.36 ms ✅; place_order **859.69 ms ✗** (max
+  3.65 s). Caveat on that breach: the server-side SLI of record stayed at 19–21 ms
+  for checkout and **1 ms for catalog** throughout — yet the *catalog* client-side
+  p95 also inflated to 355 ms, so the inflation sits between the k6 client and the
+  gateway (WAN/TLS variance, same pattern flagged on the fault-free run 2 at
+  513 ms), not in the services. The PrometheusRule SLIs are the measurement of
+  record for the SLO; the client-side view is kept here for honesty and should be
+  re-baselined from a less noisy vantage point before the demo.
+
+*(Grafana screenshots of the RED money-path dashboard incl. the breaker state
+timeline: `ce-1-images/`.)*
 
 ## Conclusion
 
-*(Did the hypothesis hold? Tune the ADR 0018 thresholds if the window/rates proved wrong.)*
+*(Draft for team sign-off — the numbers are measured, the judgement is yours.)*
+
+The hypothesis held on all four points, with one nuance to ratify. (1) The breaker
+opened ~23 s after injection and fast-failed for the full window. (2) No unbounded
+hang: sync checkout p95 never left ~20 ms, and the bulkhead never saturated; orders
+parked `RESERVED` and drained after recovery. Nuance: the 2 orders whose authorize
+was in flight at fault onset exhausted their bounded retries and failed *explicitly*
+with compensation (no charge, seats released) rather than waiting for the queue —
+this is the designed bounded-retry behaviour (ADR 0018), and arguably stronger than
+the "queued forever" reading of the hypothesis, but the team should ratify that
+reading. (3) Catalog was untouched — containment proven. (4) Recovery: breaker
+closed within ~20 s of the fault lifting and the 544-order backlog converged in
+~40 s, with exactly one charge per confirmed order. No threshold tuning of ADR 0018
+appears necessary: the ~30–40 s open→half-open cadence probed often enough to detect
+recovery quickly without letting meaningful traffic through during the fault.
+
+The two aborted attempts that preceded this run produced their own findings —
+the probe-timeout cascade ([run 1](ce-1-latency-payments-run-1.md)) and the
+Service-VIP bypass of source-side tc filters
+([run 2](ce-1-latency-payments-run-2.md)) — both candidate material for
+`docs/agent-log.md`.
