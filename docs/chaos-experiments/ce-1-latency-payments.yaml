@@ -10,14 +10,25 @@
 # the breaker MUST open. duration: 5m bounds the window — the fault self-expires
 # even if cleanup is forgotten.
 #
-# Scope (revised after run 1, 2026-07-12): the delay is installed on the ORDERS
-# pods and applies only to their egress toward the PAYMENTS pods (`target:`).
-# The first run selected the payments pods with no target, which delayed ALL
-# their egress — including liveness/readiness probe responses. With the probes'
-# timeoutSeconds=1 the kubelet killed the containers (3 restarts each), the
-# restart churn drove the payments HPA 2→4, and the fault self-destructed at
-# ~2.5 min. Scoping to the orders→payments path keeps kubelet probes (and every
-# other flow) untouched, so the fault holds the full window.
+# Scope (revised twice on 2026-07-12 — both attempts are documented in
+# ce-1-latency-payments-run-1.md):
+#
+# 1. The original spec selected the payments pods with no `target`, delaying ALL
+#    their egress — including liveness/readiness probe responses. With the probes'
+#    timeoutSeconds=1 the kubelet killed the containers (3 restarts each), the
+#    restart churn drove the payments HPA 2→4, and the fault self-destructed at
+#    ~2.5 min.
+# 2. The first revision put the delay on the ORDERS pods' egress toward the
+#    payments pod IPs. Ineffective: the app calls payments through the Service
+#    (`http://eurotransit-payments`), and on this cluster the VIP translation
+#    bypasses a source-side tc filter keyed on destination pod IPs (verified:
+#    service-name request 0.00s, direct pod-IP request 3.03s under injection).
+#
+# Final shape: the delay sits on the PAYMENTS pods (where run 1 proved tc bites)
+# but is scoped with `target:` to their egress toward the ORDERS pods only —
+# i.e. the authorize responses. Kubelet probe responses (destination = node) and
+# every other payments flow are untouched, so the fault holds the full window
+# without probe kills.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
@@ -30,7 +41,7 @@ spec:
     namespaces:
       - eurotransit
     labelSelectors:
-      app.kubernetes.io/name: eurotransit-orders
+      app.kubernetes.io/name: eurotransit-payments
   direction: to
   target:
     mode: all
@@ -38,7 +49,7 @@ spec:
       namespaces:
         - eurotransit
       labelSelectors:
-        app.kubernetes.io/name: eurotransit-payments
+        app.kubernetes.io/name: eurotransit-orders
   delay:
     latency: "3s"
     jitter: "500ms"
