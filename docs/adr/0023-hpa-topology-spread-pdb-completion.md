@@ -55,3 +55,36 @@ Three gaps remained in the chart's Kubernetes-level resilience:
   default anti-affinity is `preferred`, which loses on a small pool).
   `postgres/eurotransit-orders-db.yaml` enforces `podAntiAffinityType: required` on
   `kubernetes.io/hostname`; CE-3's runbook lists this as a prerequisite.
+
+## Addendum (2026-07-12) — CE-3 answered the soft-spread question: NOT enough
+
+CE-3's prerequisite check (before any drain) found **both `orders` replicas co-located
+on one node** under the soft (`ScheduleAnyway`) constraint — exactly the co-location the
+decision above left for CE-3 to detect. Soft spreading did not suffice for the critical
+money-path entry.
+
+**Decision refined:** the per-node (`kubernetes.io/hostname`) constraint is now
+**`DoNotSchedule` (hard) for the critical money-path services — orders, inventory,
+payments** (helper param `hard=true`); catalog (read-only AP cache) and notifications
+(single best-effort replica) stay soft, where a hard rule would risk Pending for no
+availability gain.
+
+**Correction to the original "flip zone-level only" note above:** that was wrong for
+this cluster. All nodes are in a **single zone** (`topology.kubernetes.io/zone = 0`), so
+a hard *zone* constraint with maxSkew 1 would be permanently unsatisfiable for any
+2-replica service (Pending forever). The hard constraint therefore applies at the
+**hostname** level; the zone constraint stays soft so it activates cleanly if a
+multi-zone pool is ever added.
+
+**Capacity note (finding, not fixed here):** the cluster runs near its CPU-request
+ceiling (nodes at 82–99 %), dominated by the 3-broker Kafka and the 4 CNPG clusters
+(250m each); the app services are already trimmed to 100m. A node drain will therefore
+likely leave some evicted pods **Pending** for lack of schedulable headroom. Per the
+CE-3 runbook that is a *correct, hypothesis-consistent* outcome (PDB + hard spread keep
+≥1 replica of each critical service serving; the evicted replica waits) — **not** a
+failure. Right-sizing infrastructure requests, or a temporary 4th node for the demo, is
+a separate sizing decision (ADR 0001), left out of this change deliberately.
+
+With the hard hostname spread, each 2-replica money-path service occupies two nodes, so
+draining any single node always leaves a serving replica — the CE-3 availability claim
+now holds by construction, not by scheduler luck.
