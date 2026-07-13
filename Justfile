@@ -199,13 +199,14 @@ chaos-enable:
     kubectl annotate namespace eurotransit chaos-mesh.org/inject=enabled --overwrite
 
 # Inject one experiment, e.g. `just chaos ce-2-pod-kill-inventory`
+# (manifests live in per-experiment subfolders: docs/chaos-experiments/ce-N/)
 chaos experiment:
-    kubectl apply -f docs/chaos-experiments/{{experiment}}.yaml
+    kubectl apply -f "docs/chaos-experiments/$(printf '%s' '{{experiment}}' | cut -d- -f1-2)/{{experiment}}.yaml"
     @echo "Injected {{experiment}} — observe dashboards, then 'just chaos-clean {{experiment}}'"
 
 # Remove the experiment object after observing (ends the window)
 chaos-clean experiment:
-    kubectl delete -f docs/chaos-experiments/{{experiment}}.yaml
+    kubectl delete -f "docs/chaos-experiments/$(printf '%s' '{{experiment}}' | cut -d- -f1-2)/{{experiment}}.yaml"
 
 # List live chaos objects and their phase
 chaos-status:
