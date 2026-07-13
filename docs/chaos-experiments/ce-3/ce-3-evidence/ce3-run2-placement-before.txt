@@ -1,0 +1,21 @@
+NAME                                                READY   STATUS    RESTARTS      AGE   IP             NODE                             NOMINATED NODE   READINESS GATES
+eurotransit-catalog-7ddb546679-74zv7                1/1     Running   0             48m   10.244.2.233   aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-catalog-7ddb546679-7f2w8                1/1     Running   0             49m   10.244.1.66    aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-frontend-78c4c556cb-8bkcq               1/1     Running   0             9h    10.244.1.44    aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-frontend-78c4c556cb-vz7bw               1/1     Running   0             17h   10.244.2.232   aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-inventory-6f94ffd594-6hnrf              1/1     Running   0             44m   10.244.1.32    aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-inventory-6f94ffd594-8dsld              1/1     Running   5 (46m ago)   49m   10.244.0.76    aks-sysb2s-33819783-vmss00000t   <none>           <none>
+eurotransit-inventory-db-1                          1/1     Running   0             46m   10.244.2.93    aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-kafka-dual-role-0                       1/1     Running   0             47m   10.244.1.236   aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-kafka-dual-role-1                       1/1     Running   0             49m   10.244.2.17    aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-kafka-dual-role-2                       1/1     Running   0             48m   10.244.1.129   aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-kafka-entity-operator-f4ffb7577-f6zsp   1/1     Running   6 (9h ago)    17h   10.244.0.112   aks-sysb2s-33819783-vmss00000t   <none>           <none>
+eurotransit-notifications-84bfd8b74b-c4hfm          1/1     Running   2 (9h ago)    17h   10.244.2.138   aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-notifications-db-1                      1/1     Running   0             47m   10.244.2.168   aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-orders-d7dfb978b-fgs9r                  1/1     Running   3 (47m ago)   49m   10.244.0.6     aks-sysb2s-33819783-vmss00000t   <none>           <none>
+eurotransit-orders-d7dfb978b-tm77m                  1/1     Running   0             46m   10.244.1.21    aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-orders-db-1                             1/1     Running   0             47m   10.244.1.198   aks-sysb2s-33819783-vmss00000s   <none>           <none>
+eurotransit-orders-db-2                             1/1     Running   0             49m   10.244.0.45    aks-sysb2s-33819783-vmss00000t   <none>           <none>
+eurotransit-payments-c8dff8d54-t6t7q                1/1     Running   1 (48m ago)   49m   10.244.0.69    aks-sysb2s-33819783-vmss00000t   <none>           <none>
+eurotransit-payments-c8dff8d54-x2dg6                1/1     Running   0             48m   10.244.2.9     aks-sysb2s-33819783-vmss00000r   <none>           <none>
+eurotransit-payments-db-1                           1/1     Running   0             48m   10.244.2.66    aks-sysb2s-33819783-vmss00000r   <none>           <none>
