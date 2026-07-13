@@ -236,7 +236,7 @@ frontend:
     # Initial tag = bootstrap image pushed from the same source as app-repo
     # PR #29 (documented there). From the first frontend/** merge onwards this
     # field is CI-owned like every other service tag.
-    tag: "786f302"
+    tag: "6693c9a"
     pullPolicy: IfNotPresent
   # Static content: fixed replica count (no HPA — nothing meaningful to scale
   # on); the PDB keeps one replica through voluntary disruptions.
