@@ -46,7 +46,13 @@ spec:
       encoding: UTF8
   resources:
     requests:
-      cpu: 250m
+      # CPU rightsizing (2026-07-13, CE-3 run-1 capacity finding): 250m -> 100m
+      # for all CNPG instances. Measured usage is 7-37m/pod; the 3x B2s_v2 pool
+      # is quota-capped at 6 vCPU (ADR 0005) and was 91-96% CPU-requested, so a
+      # node drain could not reschedule (CE-3 FAIL). Frees 750m across the 5 DB
+      # pods. Limits stay 500m for burst. NOTE: changing resources makes CNPG
+      # roll the instances — merge in a quiet window.
+      cpu: 100m
       memory: 256Mi
     limits:
       cpu: 500m

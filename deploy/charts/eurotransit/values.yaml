@@ -65,7 +65,8 @@ catalog:
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
-      cpu: "100m"
+      # See CPU rightsizing round-2 note under orders.resources (2026-07-13, CE-3).
+      cpu: "75m"
       memory: "256Mi"
     limits:
       cpu: "500m"
@@ -98,13 +99,14 @@ orders:
   replicaCount: 2
   resources:
     requests:
-      # CPU rightsizing (2026-07-11, follow-up to #46): 150m -> 100m requests for
-      # orders/inventory/payments. Node CPU requests hit 95/89/92% and the Kafka
-      # broker-0 roll got stuck Pending (needs 250m on one node; no node had it).
-      # HPAs report 3-8% actual CPU, so 100m still leaves ample headroom; frees
-      # 300m across 6 pods. Limits stay 1000m. Revert to 150m if HPA flaps on
-      # startup bursts.
-      cpu: "100m"
+      # CPU rightsizing round 2 (2026-07-13, CE-3 run-1 capacity finding): 100m ->
+      # 75m for catalog/orders/inventory/payments. The 3x B2s_v2 pool is quota-
+      # capped at 6 vCPU (ADR 0005, increase denied) and sat at 91-96% CPU-requests
+      # — a drained node's pods had nowhere to go (CE-3 FAIL). Actual usage is
+      # 3-7m/pod. Trade-off: HPA targets are % of request, so JVM startup bursts
+      # read hotter — watch for transient scale-up flap during rollouts (ADR 0023).
+      # Round 1 (2026-07-11, #46): 150m -> 100m. Limits stay 1000m for real burst.
+      cpu: "75m"
       # PROPOSAL (memory rightsizing, 2026-07-11): 512Mi -> 384Mi requests and
       # 1Gi -> 768Mi limits for the three DB-backed services (orders/inventory/
       # payments). Measured RSS 215-260Mi; frees 128Mi of scheduling reservation
@@ -148,8 +150,8 @@ inventory:
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
-      # See CPU rightsizing note under orders.resources (2026-07-11).
-      cpu: "100m"
+      # See CPU rightsizing notes under orders.resources (round 2: 2026-07-13, CE-3).
+      cpu: "75m"
       # See memory-rightsizing proposal under orders.resources (2026-07-11).
       memory: "384Mi"
     limits:
@@ -180,8 +182,8 @@ payments:
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
     requests:
-      # See CPU rightsizing note under orders.resources (2026-07-11).
-      cpu: "100m"
+      # See CPU rightsizing notes under orders.resources (round 2: 2026-07-13, CE-3).
+      cpu: "75m"
       # See memory-rightsizing proposal under orders.resources (2026-07-11).
       memory: "384Mi"
     limits:
