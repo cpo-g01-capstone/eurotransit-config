@@ -131,6 +131,14 @@ guaranteed *structurally* by the hard spread; it fails only because the replacem
 nowhere with spare CPU to run).
 
 **Recommendations (for ADR 0001 / 0023):**
+
+> **Re-scoped 2026-07-13 (ADR 0027):** recommendation 1 as written is infeasible — the
+> regional vCPU quota is capped at ~6 (ADR 0005, increase denied), so a 4th node cannot
+> be added. The headroom is instead created by CPU-request rightsizing (~1250m freed;
+> nodes were 91–96 % requested but only 12–25 % used), and recommendation 2 is
+> implemented (Traefik 2 replicas + anti-affinity + PDB). See ADR 0027 for the decision,
+> arithmetic, and the run-2 verification checklist.
+
 1. **N+1 capacity for voluntary disruptions:** a 4th node (or a temporary scale-up) before any
    node drain / upgrade / the live demo — the cluster needs one node of headroom to reschedule.
 2. **Traefik ≥ 2 replicas** with its own hard spread — remove the gateway single-point-of-failure
