@@ -74,8 +74,9 @@ Injecting 3 s (±500 ms) of network delay toward every Payments pod for 5 minute
 
 | Date | Operator | Load (checkout + catalog rps) | Breaker opened at | Fallbacks served | Catalog impact | Recovery (half-open→closed) | Double charges | Outcome |
 |------|----------|-------------------------------|-------------------|------------------|----------------|------------------------------|----------------|---------|
-| 2026-07-12 | @vojtech-n | 2.0 + 2.4 rps (k6 baseline.js, 3 VUs, 15 m) | 15:59:33 (~23 s after T0 15:59:10) | 84 (not-permitted counter 35→119) | **none** — p95 1 ms and rate flat for the whole window | fault expired 16:04:10 → both breakers CLOSED 16:04:30 (~20 s) | **0** | **PASS** |
+| 2026-07-12 | @vojtech-n | 2.0 + 2.4 rps (k6 baseline.js, 3 VUs, 15 m) | 13:59:33 UTC (~23 s after T0 13:59:10) | 84 (not-permitted counter 35→119) | **none** — p95 1 ms and rate flat for the whole window | fault expired 14:04:10 → both breakers CLOSED 14:04:30 (~20 s) | **0** | **PASS** |
 | 2026-07-12 | @giova95 | 2.2 + 2.7 rps (same harness, 15 m) | ≤ T0+36 s (T0 15:47:39) | 63+ not-permitted | **none** — p95 0.95 ms flat | expired 15:52:39 → CLOSED ≤ 95 s | **0** | **PASS — verification re-run, case-24 finding CLOSED** ([run 4](ce-1-latency-payments-run-4.md)) |
+| 2026-07-13 | @vojtech-n (reviewer) | 2.7 + 2.7 rps (same harness, 15 m, **pristine seed** via `just seed-db ce-1`) | ≤ T0+35 s (T0 08:57:25 UTC) | ~84 not-permitted | **none** — flat | expired 09:02:25 → CLOSED ≤ ~60 s | **0** | **PASS — independent reviewer reproduction; exact 2415 = 2415 reconciliation; guard blocked a third case-24 recurrence** ([run 5](ce-1-latency-payments-run-5.md)) |
 
 **Observations (Prometheus samples @15 s + DB verification; run 3, the authoritative
 run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
@@ -84,11 +85,13 @@ run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
 - **Injection verified live**: orders→payments request via the Service took 5.51 s
   under the fault (SYN-ACK + response each delayed ~3 s) vs 0.00 s after expiry.
 - **Breaker lifecycle** (per orders pod, each replica independent): CLOSED → **OPEN
-  at 15:59:33** (~23 s after T0), then open ↔ half-open cycling roughly every 30–40 s
+  at 13:59:33 UTC** (~23 s after T0), then open ↔ half-open cycling roughly every 30–40 s
   for the whole 5-minute window — every HALF_OPEN probe correctly hit the live fault
-  and snapped back to OPEN (observed at 16:00:08, 16:00:26, 16:01:21, 16:01:41,
-  16:02:16, 16:02:33, 16:03:15, 16:03:53). After expiry (16:04:10) the first probes
-  succeeded: **both CLOSED at 16:04:30**.
+  and snapped back to OPEN (observed at 14:00:08, 14:00:26, 14:01:21, 14:01:41,
+  14:02:16, 14:02:33, 14:03:15, 14:03:53). After expiry (14:04:10) the first probes
+  succeeded: **both CLOSED at 14:04:30**. *(Times corrected 2026-07-13: this record
+  originally carried these timestamps in CEST while stating UTC — found in the run-5
+  review; the dashboard-note conversion below was always the correct one.)*
 - **No unbounded hang**: checkout (`POST /orders`) server-side p95 stayed **19–21 ms
   during the entire window** (steady-state 19 ms) — the open breaker fast-failed the
   authorize step and the order parked `RESERVED`; the sync entry kept returning 202.
@@ -98,10 +101,11 @@ run with the final manifest — [run 1](ce-1-latency-payments-run-1.md) and
   is gone with the scoped manifest).
 - **Queued-drain convergence** (orders DB, window cohort vs steady cohort):
   - steady-state orders (13:56–13:59 UTC): confirmed in median **0.14 s** / p95 0.37 s;
-  - in-window orders (544): parked during the fault, confirmed in median **198 s** /
+  - in-window orders (544 of the 546-order window cohort; the other 2 failed, below):
+    parked during the fault, confirmed in median **198 s** /
     p95 313 s / max 342 s — i.e. the backlog **fully drained within ~40 s of the
     breaker closing**. 0 orders stuck non-terminal.
-  - **2 orders** (created 15:59:06, seconds before T0, authorize in flight when the
+  - **2 orders** (created 13:59:06 UTC, seconds before T0, authorize in flight when the
     fault hit) exhausted their bounded retries inside the window → compensated to
     `FAILED` via `order-failed`, **no payment intent created, no charge**. Explicit
     bounded failure, not a hang: 2 / 546 window orders (0.37 %).
