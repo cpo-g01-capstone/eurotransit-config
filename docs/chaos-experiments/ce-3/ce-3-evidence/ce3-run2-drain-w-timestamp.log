@@ -1,0 +1,179 @@
+NODE=aks-sysb2s-33819783-vmss00000s
+date -u && kubectl cordon "$NODE"
+date -u && kubectl drain "$NODE" --ignore-daemonsets --delete-emptydir-data --timeout=10m \
+  2>&1 | tee ce3-run2-drain.log
+date -u   # drain completion time — the headline number vs run 1's "never completed"
+Mon Jul 13 15:53:08 UTC 2026
+node/aks-sysb2s-33819783-vmss00000s cordoned
+Mon Jul 13 15:53:08 UTC 2026
+node/aks-sysb2s-33819783-vmss00000s already cordoned
+Warning: ignoring DaemonSet-managed Pods: chaos-testing/chaos-daemon-8nkvk, kube-system/azure-cns-xt4rk, kube-system/azure-ip-masq-agent-qgxf8, kube-system/cloud-node-manager-gpcm4, kube-system/csi-azuredisk-node-h2p9q, kube-system/csi-azurefile-node-8sp76, kube-system/kube-proxy-k6d6g, monitoring/kube-prometheus-stack-prometheus-node-exporter-n89l8
+evicting pod traefik/traefik-7bbd467bfc-ngm9g
+evicting pod eurotransit/eurotransit-catalog-7ddb546679-7f2w8
+evicting pod chaos-testing/chaos-dns-server-dcfc76dc5-x6j6x
+evicting pod eurotransit/eurotransit-orders-db-1
+evicting pod eurotransit/eurotransit-kafka-dual-role-0
+evicting pod eurotransit/eurotransit-payments-c8dff8d54-fj5qx
+evicting pod kube-system/azure-wi-webhook-controller-manager-694c5659b8-qt64k
+evicting pod eurotransit/eurotransit-inventory-6f94ffd594-6hnrf
+evicting pod eurotransit/eurotransit-orders-d7dfb978b-tm77m
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+evicting pod monitoring/prometheus-kube-prometheus-stack-prometheus-0
+evicting pod strimzi-system/strimzi-cluster-operator-58df5865cf-l2z7d
+evicting pod eurotransit/eurotransit-frontend-78c4c556cb-8bkcq
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+pod/azure-wi-webhook-controller-manager-694c5659b8-qt64k evicted
+I0713 17:53:11.315733   92396 request.go:752] "Waited before sending request" delay="1.1801485s" reason="client-side throttling, not priority and fairness" verb="GET" URL="https://aks-eurotransit-g01-dns-06cmx3tc.hcp.polandcentral.azmk8s.io:443/api/v1/namespaces/eurotransit/pods/eurotransit-orders-d7dfb978b-tm77m"
+pod/strimzi-cluster-operator-58df5865cf-l2z7d evicted
+pod/eurotransit-frontend-78c4c556cb-8bkcq evicted
+pod/eurotransit-orders-db-1 evicted
+pod/prometheus-kube-prometheus-stack-prometheus-0 evicted
+pod/eurotransit-kafka-dual-role-0 evicted
+pod/chaos-dns-server-dcfc76dc5-x6j6x evicted
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+pod/eurotransit-inventory-6f94ffd594-6hnrf evicted
+pod/eurotransit-payments-c8dff8d54-fj5qx evicted
+pod/eurotransit-catalog-7ddb546679-7f2w8 evicted
+pod/eurotransit-orders-d7dfb978b-tm77m evicted
+pod/traefik-7bbd467bfc-ngm9g evicted
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+error when evicting pods/"eurotransit-kafka-dual-role-2" -n "eurotransit" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+evicting pod eurotransit/eurotransit-kafka-dual-role-2
+pod/eurotransit-kafka-dual-role-2 evicted
+node/aks-sysb2s-33819783-vmss00000s drained
+Mon Jul 13 15:59:14 UTC 2026

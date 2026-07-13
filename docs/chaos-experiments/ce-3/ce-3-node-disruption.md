@@ -76,6 +76,7 @@ result: a tested hypothesis that did not hold, with a clear root cause.*
 | Date | Node drained | Load | Drain result | Checkout during drain | Data integrity | PDBs | Outcome |
 |------|--------------|------|--------------|-----------------------|----------------|------|---------|
 | 2026-07-12 | `…q` (orders, payments, catalog replicas + orders-db-1 **primary**) | k6 5 VUs on the money path | **did NOT complete** — held at the 2m30s timeout on `coredns`/`metrics-server` (kube-system) | **degraded: 8.88 % failed (135/1520 req)** over the ~4-min window, a ~1-min hard gap (curl returned `000`) | ✅ **0 lost/duplicate** — 420 in-window orders all CONFIRMED | held (DBs protected) | **FAIL (hypothesis not held) — capacity finding** |
+| 2026-07-13 | `…s` (most critical-path pods, 2 brokers, orders-db primary — switched over first) | k6 5 VUs, pristine seed | **completed, 6 m 06 s** | **0.008 % failed (1/12,448)**, success 100 % | ✅ 3889 = 3889, 0 lost/duplicate | Kafka PDB sequenced the 2-broker eviction | **PASS — re-run after the capacity fix (PR #89)** ([run 2](ce-3-node-disruption-run-2.md)) |
 
 **Timeline (UTC):** T0 cordon+drain `…q` 17:32:08 → cascade of probe failures 17:32–17:36
 → uncordon 17:36:17 → checkout restored 17:37:11.
