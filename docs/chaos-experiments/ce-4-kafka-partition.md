@@ -60,14 +60,24 @@ Isolating one broker will NOT break the async money path and will NOT lose or du
 - **FAIL**: checkout errors beyond the error budget; any order stuck/missing after convergence;
   double-processing visible in `processed_events` violations; broker fails to rejoin the ISR.
 
-## Results (fill during the run)
+## Results
+
+Full execution record: [`ce-4-kafka-partition-run-1.md`](ce-4-kafka-partition-run-1.md).
 
 | Date | Operator | Isolated broker | Orders submitted | Lag peak | Producer errors seen | Lost events | Duplicates | Time to converge after heal | Outcome |
 |------|----------|-----------------|------------------|----------|----------------------|-------------|------------|-----------------------------|---------|
-|      |          |                 |                  |          |                      |             |            |                             |         |
+| 2026-07-13 | @vojtech-n | `dual-role-1` (id 1) | 6365 | none visible (sub-scrape at ~10.6 orders/s) | `REQUEST_TIMED_OUT` burst at T0+26 s, all retried, 0 failed sends | **0** | **0** | ISR 3/3 on first post-heal check; coordinator rebalance done by T0+12 m | **PASS** |
 
 ## Conclusion
 
-*(Did the hypothesis hold? Record leadership-movement behaviour, any window where producers
-blocked, and whether idempotency absorbed redeliveries. Feed scheduling findings — e.g. two
-brokers on one node — into ADR 0023.)*
+> **Draft — pending team ratification (ADR 0019).**
+
+The hypothesis held on all four points — see the run record for the full narrative.
+Leadership moved to brokers 0/2 within ~26 s (ISR shrank to 2 = min ISR on every
+partition, including `__consumer_offsets`); the idempotent producer retried through
+the movement with zero failed sends; k6's client-side order count (6365) equals the
+DB terminal count (5000 CONFIRMED + 1365 FAILED), so no acked event was lost;
+`processed_events` holds exactly one row per order, so idempotency absorbed the
+redelivery window with zero duplicates. Checkout was untouched: 100 % success,
+0 × 5xx, p95 73.5 ms across the whole run. On heal, broker 1 rejoined unaided
+(ISR back to 3/3). No scheduling anomaly observed to feed into ADR 0023.
