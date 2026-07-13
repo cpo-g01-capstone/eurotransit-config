@@ -76,6 +76,7 @@ Full execution record (both runs, verification queries, the timestamp-boundary n
 |------|----------|--------------|-----------|---------------|--------------------|--------------|-----------|----|----|----|---------------|-----------|---------|
 | 2026-07-12 | @giova95 | 2124 / 12 VUs | 100 | 16:45:39 | 0 (backlog drain) | new pod Ready ~30 s | → 0 | ✅ | ✅ | ✅ | none | ✅ | **PASS** |
 | 2026-07-12 | @giova95 | 2152 / 12 VUs | 500 | 16:51:39 | **272 (in flight)** | new pod Ready fast | → 0 | ✅ | ✅ | ✅ | none | ✅ | **PASS (authoritative)** |
+| 2026-07-13 | @vojtech-n (reviewer) | 2537 / 12 VUs, **pristine seed** | 500 | 14:02:26 | **224 (in flight)** | new pod Ready ~21 s | ≈ 0 throughout | ✅ | ✅ | ✅ | none | ✅ | **PASS — independent reviewer reproduction** ([run 3](ce-2-pod-kill-inventory-run-3.md)) |
 
 **Observations:**
 
