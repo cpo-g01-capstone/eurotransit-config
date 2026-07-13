@@ -60,7 +60,7 @@ probes:
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "786f302"
+    tag: "3107c02"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -145,7 +145,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "786f302"
+    tag: "3107c02"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
