@@ -39,6 +39,26 @@ spec:
         # overhead), not a permanent setting; raise `log.level` only when needed.
         accessLog:
           enabled: true
+
+        # Gateway HA (2026-07-13, CE-3 run-1 finding): a single Traefik replica
+        # was a north-south SPOF — during the node drain the gateway returned no
+        # response for ~1 min. Two replicas with REQUIRED per-node anti-affinity
+        # (same rationale as the app chart's hard spread, #81) + a PDB so a
+        # voluntary drain always leaves one gateway serving. No CPU requests, in
+        # line with the other platform components on the quota-capped pool
+        # (ADR 0005) — the drain-headroom budget is spent on the app namespace.
+        deployment:
+          replicas: 2
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: traefik
+                topologyKey: kubernetes.io/hostname
+        podDisruptionBudget:
+          enabled: true
+          minAvailable: 1
   destination:
     server: "https://kubernetes.default.svc"
     namespace: traefik

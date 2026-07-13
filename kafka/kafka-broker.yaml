@@ -17,7 +17,12 @@ spec:
     type: ephemeral
   resources:
     requests:
-      cpu: 250m
+      # CPU rightsizing (2026-07-13, CE-3 run-1 capacity finding): 250m -> 150m.
+      # Brokers measure ~20m steady; 150m keeps a stronger CFS share than the
+      # app pods (latency-sensitive) while freeing 300m toward drain headroom
+      # (quota-capped pool, ADR 0005). Memory request deliberately NOT cut:
+      # brokers use ~650Mi of the 768Mi request. Limits stay 500m.
+      cpu: 150m
       memory: 768Mi
     limits:
       cpu: 500m
