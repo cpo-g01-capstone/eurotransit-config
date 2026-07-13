@@ -214,3 +214,13 @@ chaos-status:
 # Chaos Mesh dashboard (ClusterIP only — reachable exclusively via this port-forward)
 chaos-dashboard:
     kubectl port-forward -n chaos-testing svc/chaos-dashboard 2333:2333
+
+# --------------------------------------------------------------------------
+# DB state seeding (demos + chaos experiment setup)
+# Runs SQL on the CNPG primaries via kubectl exec — dev/demo cluster only.
+# --------------------------------------------------------------------------
+
+# Put the databases into a known state: status | clean | normal | ce-1..ce-5
+# e.g. `just seed-db ce-4`, `SEATS=500 just seed-db ce-2`, `just seed-db status`
+seed-db scenario:
+    ./scripts/seed-db.sh {{scenario}}
