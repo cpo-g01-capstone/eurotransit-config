@@ -72,6 +72,7 @@ spec:
                   key: password
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
+            {{- include "eurotransit.kafkaSaslEnv" .Values.orders.kafkaUserSecret | nindent 12 }}
             # Same group as stable ON PURPOSE: canary pods join the consumer
             # group and take partitions — the canary must prove the WHOLE
             # money path (HTTP + Kafka stages), not just the sync entry point.

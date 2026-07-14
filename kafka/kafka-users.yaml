@@ -1,0 +1,66 @@
+# Per-service KafkaUser CRs (hardening H1, 2026-07-14).
+# Each KafkaUser creates a Secret with keys `username` and `password`.
+# The Helm chart deployments reference these secrets for SASL authentication.
+# Strimzi naming convention: secret name = KafkaUser metadata.name.
+#
+# apiVersion is kafka.strimzi.io/v1 — the Strimzi 1.1.0 operator serves only v1
+# and dropped v1beta2 for ALL Kafka CRDs, KafkaUser included (see ADR 0014).
+# Emitting v1beta2 here fails Argo CD sync ("no matches for kind KafkaUser in
+# version kafka.strimzi.io/v1beta2"), which means no credentials get created —
+# with SCRAM auth enabled on the broker, that's a total Kafka outage for every
+# service, not just an incomplete fix.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: eurotransit-catalog
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  authentication:
+    type: scram-sha-512
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: eurotransit-orders
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  authentication:
+    type: scram-sha-512
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: eurotransit-inventory
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  authentication:
+    type: scram-sha-512
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: eurotransit-payments
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  authentication:
+    type: scram-sha-512
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: eurotransit-notifications
+  namespace: eurotransit
+  labels:
+    strimzi.io/cluster: eurotransit-kafka
+spec:
+  authentication:
+    type: scram-sha-512

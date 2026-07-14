@@ -66,6 +66,7 @@ spec:
                   key: password
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.kafka.bootstrapServers | quote }}
+            {{- include "eurotransit.kafkaSaslEnv" .Values.notifications.kafkaUserSecret | nindent 12 }}
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "notifications-group"
             # Spring graceful shutdown — drain in-flight work before the JVM exits.

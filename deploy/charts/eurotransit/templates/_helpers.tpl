@@ -126,3 +126,28 @@ securityContext:
   capabilities:
     drop: [ALL]
 {{- end -}}
+
+{{- /*
+Kafka SASL env vars (hardening H1): Spring Boot properties for SCRAM-SHA-512
+authentication against the Strimzi broker. The JAAS config string uses
+Kubernetes $(VAR) substitution to inject the password from the KafkaUser secret.
+Usage: {{ include "eurotransit.kafkaSaslEnv" "secret-name" | nindent 12 }}
+*/ -}}
+{{- define "eurotransit.kafkaSaslEnv" -}}
+- name: SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL
+  value: "SASL_PLAINTEXT"
+- name: SPRING_KAFKA_PROPERTIES_SASL_MECHANISM
+  value: "SCRAM-SHA-512"
+- name: KAFKA_USER
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: username
+- name: KAFKA_PASS
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: password
+- name: SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG
+  value: 'org.apache.kafka.common.security.scram.ScramLoginModule required username="$(KAFKA_USER)" password="$(KAFKA_PASS)";'
+{{- end -}}

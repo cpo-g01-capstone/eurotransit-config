@@ -57,6 +57,14 @@ spec:
         port: 9092
         type: internal
         tls: false
+        # Hardening H1 (2026-07-14): SCRAM-SHA-512 authentication on the
+        # internal listener. Every service must present valid credentials
+        # (KafkaUser CR) to produce or consume. SCRAM is challenge-response,
+        # so the password is never sent in cleartext even without TLS.
+        # TLS encryption deferred: traffic is namespace-internal only,
+        # and enabling TLS would require truststore config on all services.
+        authentication:
+          type: scram-sha-512
     config:
       auto.create.topics.enable: "false"
       # 3-broker HA defaults (ADR 0021, D8): survive one broker loss (CE-4)
@@ -68,7 +76,7 @@ spec:
       min.insync.replicas: 2
   entityOperator:
     topicOperator: {}   # manages the five KafkaTopic CRs — required
-    # userOperator removed (memory rightsizing, 2026-07-11): zero KafkaUser CRs
-    # exist — the plain listener has no authentication (tls: false, no auth
-    # block), so nothing creates users. Saved ~200Mi in the entity-operator pod.
-    # Reinstate if a KafkaUser / authenticated listener is ever introduced.
+    # userOperator RE-ENABLED (hardening H1, 2026-07-14): manages KafkaUser CRs
+    # for per-service SCRAM-SHA-512 credentials. Adds ~200Mi to the entity-operator
+    # pod, accepted as the cost of authenticated Kafka access.
+    userOperator: {}
