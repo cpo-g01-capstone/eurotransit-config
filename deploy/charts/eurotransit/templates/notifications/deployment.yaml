@@ -25,6 +25,7 @@ spec:
         app.kubernetes.io/part-of: eurotransit
     spec:
       terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
+      {{- include "eurotransit.podSecurityContext" . | nindent 6 }}
       {{- include "eurotransit.topologySpread" (dict "name" "eurotransit-notifications" "instance" .Release.Name) | nindent 6 }}
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -34,6 +35,7 @@ spec:
         - name: notifications
           image: {{ include "eurotransit.imageRef" (list .Values.global.imageRegistry .Values.notifications.image) }}
           imagePullPolicy: {{ .Values.notifications.image.pullPolicy }}
+          {{- include "eurotransit.containerSecurityContext" . | nindent 10 }}
           ports:
             - name: http
               containerPort: 8080
@@ -73,3 +75,9 @@ spec:
           {{- include "eurotransit.probes" . | nindent 10 }}
           resources:
             {{- toYaml .Values.notifications.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
