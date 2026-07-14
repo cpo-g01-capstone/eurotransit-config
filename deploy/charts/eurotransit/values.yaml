@@ -60,7 +60,7 @@ probes:
 catalog:
   image:
     repository: eurotransit/catalog
-    tag: "3107c02"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -94,7 +94,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "786f302"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -145,7 +145,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "3107c02"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -177,7 +177,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "786f302"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -208,7 +208,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "786f302"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
@@ -236,7 +236,7 @@ frontend:
     # Initial tag = bootstrap image pushed from the same source as app-repo
     # PR #29 (documented there). From the first frontend/** merge onwards this
     # field is CI-owned like every other service tag.
-    tag: "55f4ce8"
+    tag: "66fafcf"
     pullPolicy: IfNotPresent
   # Static content: fixed replica count (no HPA — nothing meaningful to scale
   # on); the PDB keeps one replica through voluntary disruptions.
