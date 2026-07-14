@@ -97,3 +97,32 @@ topologySpreadConstraints:
         app.kubernetes.io/name: {{ .name }}
         app.kubernetes.io/instance: {{ .instance }}
 {{- end }}
+
+{{- /*
+Pod-level security context (hardening C1): enforces non-root UID and the
+RuntimeDefault seccomp profile. Applied at spec.securityContext on every
+Deployment. The JVM images run as UID 10001 (created in the Dockerfile);
+nginx runs as the stock nginx user (UID 101).
+Usage: {{ include "eurotransit.podSecurityContext" . | nindent 6 }}
+*/ -}}
+{{- define "eurotransit.podSecurityContext" -}}
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+{{- end -}}
+
+{{- /*
+Container-level security context (hardening C1): least-privilege defaults.
+Drop ALL Linux capabilities, deny privilege escalation, and make the root
+filesystem read-only. Services that need a writable directory (e.g. /tmp
+for the JVM) must mount an emptyDir separately.
+Usage: {{ include "eurotransit.containerSecurityContext" . | nindent 10 }}
+*/ -}}
+{{- define "eurotransit.containerSecurityContext" -}}
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+{{- end -}}
