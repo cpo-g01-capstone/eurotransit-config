@@ -58,22 +58,44 @@ To verify with the team:
 - [ ] Decide owner: chart template vs. one-time bootstrap manifest. (If in the
       chart, it lands in the Argo-created namespace automatically.)
 
-## 3. Pod Security Admission labels (not started)
+## 3. Pod Security Admission labels (implemented — `enforce` deferred)
 
-- [ ] ⬜ Add PSA labels to the `eurotransit` namespace via Argo CD
-      `managedNamespaceMetadata` (the namespace is Argo-created via
-      `CreateNamespace=true`, so a `kind: Namespace` in the chart would conflict):
+**What shipped:** `apps/eurotransit.yaml` under `spec.syncPolicy.managedNamespaceMetadata`
+(not a `kind: Namespace` manifest in the chart — the namespace is Argo-created via
+`CreateNamespace=true`, so a chart-owned `Namespace` resource would fight Argo CD
+for ownership of the same labels on every sync):
 
-      ```yaml
-      # apps/eurotransit.yaml under spec.syncPolicy
-      managedNamespaceMetadata:
-        labels:
-          pod-security.kubernetes.io/enforce: restricted
-          app.kubernetes.io/part-of: eurotransit
-      ```
-- [ ] Verify the five Spring Boot pods satisfy `restricted` (non-root,
-      seccompProfile, no privilege escalation) — may need `securityContext` edits.
-      Start with `warn`/`audit` before `enforce`.
+```yaml
+managedNamespaceMetadata:
+  labels:
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+```
+
+**`enforce` deliberately NOT set yet.** The five app Deployments satisfy `restricted`
+(hardening C1 — `runAsNonRoot`, `seccompProfile: RuntimeDefault`,
+`allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`,
+`capabilities.drop: [ALL]`), but the Strimzi `Kafka`/`KafkaNodePool`
+(`kafka/kafka-broker.yaml`) and CloudNativePG `Cluster` CRs (`postgres/*.yaml`)
+also run in `eurotransit` and set no explicit pod/container `securityContext` —
+their compliance with `restricted` is unverified. Full rationale in
+`docs/hardening-handout.md` (Decision Log, H4).
+
+To verify with the team:
+
+- [ ] 🟡 Confirm the `warn`/`audit` labels actually land on the namespace once
+      Argo CD reconciles (`kubectl get ns eurotransit --show-labels`).
+- [ ] Review the PSA admission warnings / audit log entries surfaced for Kafka
+      and CNPG pods — this is the evidence needed to decide whether `enforce` is safe.
+- [ ] Add an explicit `template.pod.securityContext` /
+      `template.kafkaContainer.securityContext` to the Strimzi `Kafka` CR if the
+      broker pods don't already satisfy `restricted`.
+- [ ] Verify CloudNativePG's default pod security context against `restricted`
+      (operator pinned at chart `0.29.0` / CNPG `1.30.0`,
+      `platform/cloudnative-pg/cloudnative-pg.yaml`).
+- [ ] Once both are confirmed compliant, flip to
+      `pod-security.kubernetes.io/enforce: restricted` (tracked as
+      `docs/hardening-handout.md` action-plan item 11).
 
 ## 4. Namespace ownership model (confirmed — record for the team)
 

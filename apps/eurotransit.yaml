@@ -22,6 +22,18 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # Hardening H4: PSA labels on the Argo-created namespace. Applied here (not a
+    # `kind: Namespace` template in the chart) because CreateNamespace=true already
+    # owns that object — a chart-managed Namespace resource would fight Argo CD for
+    # ownership of the same labels on every sync. `warn`+`audit` only for now: the
+    # app Deployments satisfy `restricted` (C1), but the Strimzi Kafka and
+    # CloudNativePG CRs sharing this namespace don't yet set an explicit
+    # securityContext, so `enforce` is deferred until that's verified (see the
+    # Decision Log in docs/hardening-handout.md).
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/audit: restricted
     syncOptions:
       - CreateNamespace=true
       # The chart ships CRs whose CRDs are installed by SEPARATE platform apps
