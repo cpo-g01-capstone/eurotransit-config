@@ -97,6 +97,7 @@ Full execution record: [`ce-5-cnpg-failover-run-1.md`](ce-5-cnpg-failover-run-1.
 |------|----------|----------------|-----------|--------------------|------------------------|-----|----------------------|---------|-----------------|---------|
 | 2026-07-12 | @marcodonatucci (+Claude) | `-db-1`, **graceful delete** (method bug) | 14:19:01Z | T0+184.8 s (status) | outage only T0+182.7→185.8 s (3.17 s) | n/a — wrong scenario, see run doc | 2 635 | **0** | 3 × 5xx | **FINDING** → method corrected |
 | 2026-07-12 | @marcodonatucci (+Claude) | `-db-2`, **SIGKILL** | 14:29:35Z | T0+21.4 s (status; data plane ≈ +17 s) | **T0+17.3 s** | **17.3 s** | 916 | **0** | 25 bad req ≈ 0.07 % time-budget | **PASS** |
+| 2026-07-13 | @vojtech-n (reviewer) | `-db-2`, **SIGKILL**, pristine seed | 20:14:59Z | T0+19.9 s (status; data ≈ +16.8 s) | **T0+16.76 s** | **16.8 s** | 435 pre-T0 (1021 whole-run) | **0** | 19 bad req / 12.4 s outage | **PASS — reviewer reproduction** ([run 3](ce-5-cnpg-failover-run-3.md)) |
 
 ## Conclusion
 

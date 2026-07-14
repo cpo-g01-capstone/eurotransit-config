@@ -1,0 +1,13 @@
+91s         Normal    Scheduled                      pod/eurotransit-orders-db-2                         Successfully assigned eurotransit/eurotransit-orders-db-2 to aks-sysb2s-33819783-vmss00000s
+112s        Normal    NoPods                         poddisruptionbudget/eurotransit-orders-db-primary   No matching pods found
+112s        Normal    Killing                        pod/eurotransit-orders-db-2                         Stopping container postgres
+109s        Normal    FailoverTarget                 cluster/eurotransit-orders-db                       Failing over from eurotransit-orders-db-2 to eurotransit-orders-db-1
+109s        Normal    FailingOver                    cluster/eurotransit-orders-db                       Current primary isn't healthy, initiating a failover from eurotransit-orders-db-2
+83s         Normal    SuccessfulAttachVolume         pod/eurotransit-orders-db-2                         AttachVolume.Attach succeeded for volume "pvc-7695e3aa-caca-4e59-8453-d689bc83250f"
+83s         Normal    Pulled                         pod/eurotransit-orders-db-2                         Container image "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.0" already present on machine
+82s         Normal    Created                        pod/eurotransit-orders-db-2                         Created container: bootstrap-controller
+82s         Normal    Started                        pod/eurotransit-orders-db-2                         Started container bootstrap-controller
+81s         Normal    Started                        pod/eurotransit-orders-db-2                         Started container postgres
+81s         Normal    Created                        pod/eurotransit-orders-db-2                         Created container: postgres
+81s         Normal    Pulled                         pod/eurotransit-orders-db-2                         Container image "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie" already present on machine
+72s         Warning   Unhealthy                      pod/eurotransit-orders-db-2                         Readiness probe failed: HTTP probe failed with statuscode: 500
