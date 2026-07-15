@@ -94,8 +94,11 @@ Double-reservation is prevented at two levels:
 Per [consistency-owner.md](../../.agent/agents/consistency-owner.md):
 transactions are kept small. The Kafka consumer wraps the reservation + dedup record
 insert in a single transaction. The downstream Kafka publish (`inventory-reserved`)
-happens **outside** the transaction — at-least-once delivery is safe because the
-Payments consumer is also idempotent.
+happens **outside** the transaction — at-least-once delivery is safe because both of its
+consumers tolerate redelivery: **Orders** dedupes on `{orderId}:inventory-reserved` in its own
+`processed_events` table, and **Catalog** is an AP cache that can safely skip or replay the event
+(app ADR 0006). (Payments is *not* a consumer of this event — since ADR 0018 it is reached by a
+synchronous call from Orders.)
 
 ## What we sacrifice in a partition
 
