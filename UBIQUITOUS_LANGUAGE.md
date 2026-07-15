@@ -61,7 +61,7 @@ The five events / topics: `order-placed`, `inventory-reserved`, `payment-authori
 | Term                       | Definition                                                                        | Aliases to avoid             |
 | -------------------------- | --------------------------------------------------------------------------------- | ---------------------------- |
 | **Liveness probe**         | Checks only local process health; must never touch a downstream dependency        | health check (ambiguous)     |
-| **Readiness probe**        | Checks local readiness including Kafka + DB connectivity; gates traffic            | health check (ambiguous)     |
+| **Readiness probe**        | Reflects internal readiness state only; gates traffic and refuses during drain — DB/Kafka deliberately excluded (app ADR 0004) | health check (ambiguous)     |
 | **Drain**                  | Refusing new traffic while in-flight work finishes on SIGTERM                      | shutdown, teardown           |
 | **PodDisruptionBudget**    | Guarantee of minimum available replicas during voluntary disruption               | PDB budget (redundant)       |
 | **Circuit breaker**        | Guard on a synchronous cross-service call (e.g. Orders → Payments)                 | breaker, fuse                |
@@ -109,13 +109,13 @@ The five events / topics: `order-placed`, `inventory-reserved`, `payment-authori
 
 > **Observability owner:** "Good. And the **liveness probe** on **Orders** only checks the local process, right? If it checked the **DB** we'd get cascading restarts on top of this."
 
-> **Delivery owner:** "Correct — **liveness** is local-only. **Readiness** is what checks Kafka and DB, and it **drains** in-flight work on SIGTERM. A CrashLoop here is the image, not a **failover**."
+> **Delivery owner:** "Correct — **liveness** is local-only. **Readiness** is lifecycle-only too: it refuses traffic during the **drain** on SIGTERM, but it deliberately doesn't check Kafka or the **DB** — a shared-dependency blip would pull every replica out of the endpoints at once. A CrashLoop here is the image, not a **failover**."
 
 ## Flagged ambiguities
 
 - **"the app" / "Application"** was overloaded three ways: the **Argo CD Application** CR, the **Application repository** (source code), and a running service. Reserve "**Argo CD Application**" for the CR, "**Application repository**" for the source repo, and name the specific service (e.g. "**Orders**") otherwise.
 - **"critical path" vs "money path"** were used interchangeably. Canonical term is **money path**.
-- **"health check"** is ambiguous between **liveness** (local only) and **readiness** (includes DB/Kafka). Always say which — conflating them is the project's flagship agent mistake.
+- **"health check"** is ambiguous between **liveness** (local process only) and **readiness** (lifecycle state — refuses traffic during drain; deliberately excludes DB/Kafka, app ADR 0004). Always say which — conflating them is the project's flagship agent mistake.
 - **"rollback"** was used for both a Git revert and a canary abort. Reserve **rollback** for the `git revert` delivery action; use **abort** for pulling canary traffic to 0.
 - **"Synced" vs "Healthy"** are distinct and must not be merged — a service can be **Synced** but **Unhealthy**. Never report "it's deployed" without saying which.
 - **"config-repo" / "gitops dir" / "the manifests"** all name the **Configuration repository**. CI clones it into a local `gitops/` directory, which is the source of the "gitops dir" alias — avoid it in prose.

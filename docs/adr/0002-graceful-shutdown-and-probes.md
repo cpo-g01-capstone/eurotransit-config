@@ -57,7 +57,7 @@ to all five services via Helm helpers.
 |---|---|---|---|
 | startup | `/actuator/health/liveness` | local process | `failureThreshold: 20`, `periodSeconds: 10` |
 | liveness | `/actuator/health/liveness` | **local process only — never downstream** | `periodSeconds: 15`, `failureThreshold: 3` |
-| readiness | `/actuator/health/readiness` | Kafka/DB; reports draining on shutdown | `periodSeconds: 5`, `failureThreshold: 3` |
+| readiness | `/actuator/health/readiness` | internal readiness state; reports draining on shutdown — **not** Kafka/DB (see amendment) | `periodSeconds: 5`, `failureThreshold: 3` |
 
 Settings are **shared/global** across services for now; per-service overrides can be added
 later (e.g. a longer `shutdownTimeout` for Orders/Payments if chaos testing shows the money
@@ -101,6 +101,28 @@ This refactor was produced with agent assistance and **must be verified by the t
 - [ ] Demonstrate under chaos experiment #2 (Pod kill mid-reservation): no dropped requests,
       no double-processing, readiness refuses traffic during drain.
 - [ ] Decide whether Orders/Payments need a longer `shutdownTimeout` than the shared default.
+
+## Amendment (2026-07-15) — readiness does not check Kafka/DB
+
+The probe table originally said readiness "checks Kafka/DB". That never matched the
+implementation: the services enable the Actuator probe endpoints with Spring's **default**
+health groups, so `/actuator/health/readiness` reflects only the application's internal
+`ReadinessState` — flipped to `REFUSING_TRAFFIC` by each service's `GracefulShutdownManager`
+during drain. DB/Kafka indicators are deliberately **not** wired into the readiness group,
+a decision ratified in app-repo ADR 0004:
+
+- a blip on a **shared** dependency would de-register every replica simultaneously —
+  turning a partial failure into hard 503s at Traefik while doing nothing to heal the
+  dependency, and dropping the endpoints Prometheus scrapes exactly when they're needed;
+- during a CNPG failover (chaos experiment #5) readiness gating would flap pods out of
+  endpoints *after* the failover already completed, inflating the observed RTO — confirmed
+  by CE-5 runs: 0 restarts, no readiness flap, R2DBC pool reconnected on its own;
+- DB/Kafka failures surface as symptoms (5xx → `CheckoutHighErrorRate`), consistent with
+  the project's symptom-based alerting rule.
+
+Startup ordering against the DB is covered separately: Flyway runs during context startup
+(the app cannot become ready without having reached the DB once), and the CNPG-generated
+credentials secret gates container start via `secretKeyRef`.
 
 ## References
 
