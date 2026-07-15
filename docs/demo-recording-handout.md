@@ -66,7 +66,7 @@ kubectl port-forward -n monitoring svc/kube-prometheus-stack-alertmanager 9093:9
 
 ```bash
 # Duration must cover all recording, incl. retakes
-BASE_URL=https://gXX.cpo2026.it VUS=3 DURATION=60m k6 run tests/k6/baseline.js
+BASE_URL=https://eurotransit.vojtechn.dev VUS=3 DURATION=60m k6 run tests/k6/baseline.js
 ```
 
 Verify on the RED dashboard: request rate flat, errors ~0%, p95 well under 500 ms.
@@ -101,7 +101,7 @@ Especially Segment 4 — know exactly what the pending→firing transition looks
 | Step | Do | Say (one line) |
 |---|---|---|
 | 1 | Argo CD UI: application tree, **Synced / Healthy** badges | "Five services, delivered by Argo CD from the config repo — Git is the only way anything reaches this cluster." |
-| 2 | `git log --oneline -3 -- deploy/charts/eurotransit/values.yaml` | "CI ships images by committing a tag bump; Argo reconciles. No CI credentials ever touch the cluster." |
+| 2 | `git log -5 --format='%h %an — %s' -- deploy/charts/eurotransit/values.yaml` — point at the `eurotransit-gitops-writeback[bot]` author lines | "CI ships images by committing a tag bump; Argo reconciles. No CI credentials ever touch the cluster." |
 | 3 | Grafana RED dashboard: flat rate, ~0% errors, low p95 under k6 load | "Steady state under baseline load — this is what every later claim is measured against." |
 
 ---
@@ -113,9 +113,9 @@ Especially Segment 4 — know exactly what the pending→firing transition looks
 | Step | Do | Say |
 |---|---|---|
 | 1 | `gh pr merge <PR-1> --squash` then force Argo refresh (command above) | "Enabling a 10% canary is one merged commit." |
-| 2 | `kubectl get pods -n eurotransit -l app.kubernetes.io/name=eurotransit-orders -w` — canary pod appears and goes Ready | "Traefik's weighted service now splits /api/orders 90/10." |
+| 2 | `kubectl get pods -n eurotransit -l 'app.kubernetes.io/name in (eurotransit-orders,eurotransit-orders-canary)' -w` — canary pod appears and goes Ready (the canary carries its own `name` label; the stable-only selector would miss it) | "Traefik's weighted service now splits /api/orders 90/10." |
 | 3 | Show `deploy/charts/eurotransit/templates/traefik-services.yaml` weights briefly, or the TraefikService in the Argo tree | — |
-| 4 | Grafana: Errors % and p95 panels — canary track healthy | "Promotion gate is team-ratified: error rate < 1% AND p95 < 300 ms sustained 5 minutes on the canary — stricter than the SLO on purpose." |
+| 4 | Grafana RED: the per-service Rate / Errors / Duration panels group `by (job)` — a new **eurotransit-orders-canary** series appears (dedicated ServiceMonitor; allow ~30 s for the first 15 s-interval scrapes) | "The canary is scraped separately — the gate reads the canary's own SLIs, not the blend. Team-ratified: error rate < 1% AND p95 < 300 ms sustained 5 minutes — stricter than the SLO on purpose." |
 | 5 | `gh pr merge <PR-2> --squash` + Argo refresh; canary pod terminates | "Abort is symmetric: weight to zero, one commit. Promote would instead bump `orders.image.tag` to the candidate." |
 
 > Narration honesty: you are demonstrating the *mechanism and the gate*, then
@@ -132,7 +132,7 @@ PR-4 open + approved.
 | Step | Do | Say |
 |---|---|---|
 | 1 | `kubectl get pods -n eurotransit -l app.kubernetes.io/name=eurotransit-catalog` — both tracks running | "Green is fully deployed and warmed, serving nothing." |
-| 2 | In a spare terminal start: `while true; do curl -s https://gXX.cpo2026.it/api/catalog/... -o /dev/null -w "%{http_code} %{time_total}s\n"; sleep 0.5; done` | "Continuous requests against catalog — watch for any gap." |
+| 2 | In a spare terminal start: `while true; do curl -s https://eurotransit.vojtechn.dev/api/catalog -o /dev/null -w "%{http_code} %{time_total}s\n"; sleep 0.5; done` | "Continuous requests against catalog — watch for any gap." |
 | 3 | `gh pr merge <PR-4> --squash` + Argo refresh | "The switch is one field: `activeTrack: green`. The IngressRoute repoints; Traefik cutover is instant." |
 | 4 | Curl loop: no non-200, no latency spike; `kubectl logs` on the green pod shows requests arriving | "Zero-downtime cutover." |
 | 5 | Show (don't run) the rollback: `git revert <switch-commit>` → PR → Argo | "Blue never stopped running — rollback is reverting one commit. Ratified policy: delete the old track after 5 clean minutes." |
