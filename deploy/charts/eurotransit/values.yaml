@@ -212,7 +212,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "66fafcf"
+    tag: "c212a15"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
