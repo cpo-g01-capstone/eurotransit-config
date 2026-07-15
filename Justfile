@@ -226,6 +226,76 @@ chaos-dashboard:
 seed-db scenario:
     ./scripts/seed-db.sh {{scenario}}
 
+# Catalog only hydrates its browse cache at startup — from Inventory's
+# GET /inventory/routes, then inventory-reserved events from latest (app-repo
+# #33) — so a SQL reseed stays invisible to browse until Catalog restarts.
+# Inventory needs no restart (it reads inventorydb live). Hydration is async
+# post-readiness with backoff, so give it a couple of seconds before reloading
+# the frontend. Restarting a pod is not drift — Argo CD's spec is unchanged
+# (see docs/delivery/cluster-bootstrap.md).
+# Refresh Catalog's browse cache after an out-of-band DB change (e.g. seed-db)
+catalog-refresh:
+    kubectl rollout restart deployment/eurotransit-catalog -n eurotransit
+    kubectl rollout status  deployment/eurotransit-catalog -n eurotransit --timeout=120s
+    @echo "Catalog restarted. Cache hydrates from Inventory a moment after readiness — reload the frontend."
+
+# --------------------------------------------------------------------------
+# Local DB access (Beekeeper / psql against the live cluster DBs)
+# Port-forwards each CNPG primary (-rw service, :5432) to a fixed localhost port:
+#   orders 5433 · inventory 5434 · payments 5435 · notifications 5436
+# A port-forward doesn't touch desired state (no Argo drift), but you ARE on the
+# live PRIMARY — writes hit production data. Get credentials from the CNPG app
+# secret with `just db-creds <svc>`. Read-only? point Beekeeper at the -ro service
+# by editing the recipe, or just be careful.
+# --------------------------------------------------------------------------
+
+# svc: orders(5433) | inventory(5434) | payments(5435) | notifications(5436)
+# Port-forward one DB primary to its localhost port (blocks; Ctrl-C to stop)
+db-forward svc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{svc}}" in
+      orders)        port=5433;; inventory) port=5434;;
+      payments)      port=5435;; notifications) port=5436;;
+      *) echo "unknown service '{{svc}}' — orders|inventory|payments|notifications" >&2; exit 1;;
+    esac
+    echo "Forwarding eurotransit-{{svc}}-db-rw:5432 -> localhost:$port  (Ctrl-C to stop)"
+    kubectl port-forward -n eurotransit "svc/eurotransit-{{svc}}-db-rw" "$port:5432"
+
+# Port-forward ALL four DB primaries at once, backgrounded; Ctrl-C stops all.
+db-forward-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pids=()
+    cleanup() { echo; echo "Stopping port-forwards..."; kill "${pids[@]}" 2>/dev/null || true; }
+    trap cleanup EXIT INT TERM
+    for pair in orders:5433 inventory:5434 payments:5435 notifications:5436; do
+      svc="${pair%%:*}"; port="${pair##*:}"
+      kubectl port-forward -n eurotransit "svc/eurotransit-${svc}-db-rw" "${port}:5432" >/dev/null 2>&1 &
+      pids+=($!)
+      echo "  eurotransit-${svc}-db-rw:5432 -> localhost:${port}"
+    done
+    echo "All four forwarded. Ctrl-C to stop them all."
+    wait
+
+# Run `just db-forward <svc>` (or db-forward-all) in another shell first.
+# Print Beekeeper connection details for one DB (creds from the CNPG app secret)
+db-creds svc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{svc}}" in
+      orders)        port=5433; db=ordersdb;;
+      inventory)     port=5434; db=inventorydb;;
+      payments)      port=5435; db=paymentsdb;;
+      notifications) port=5436; db=notificationsdb;;
+      *) echo "unknown service '{{svc}}' — orders|inventory|payments|notifications" >&2; exit 1;;
+    esac
+    secret="eurotransit-{{svc}}-db-app"
+    user="$(kubectl get secret -n eurotransit "$secret" -o jsonpath='{.data.username}' | base64 -d)"
+    pass="$(kubectl get secret -n eurotransit "$secret" -o jsonpath='{.data.password}' | base64 -d)"
+    printf 'Host:     localhost\nPort:     %s\nDatabase: %s\nUser:     %s\nPassword: %s\n' \
+      "$port" "$db" "$user" "$pass"
+
 # --------------------------------------------------------------------------
 # Sealed Secrets key disaster recovery (docs/delivery/sealed-secrets-key-dr.md)
 # The controller's private sealing key is the ONE piece of state that cannot

@@ -27,9 +27,13 @@
 #     confusing FK/optimistic-lock errors, not data corruption.
 #   - Kafka offsets are untouched: already-consumed events are not re-delivered,
 #     so wiped processed_events rows cannot cause double-processing.
-#   - Catalog's route cache is event-fed (app ADR 0006), so SQL-inserted routes
-#     may not appear in GET /api/catalog. The k6 harnesses pass ROUTE_ID
-#     directly, so experiments are unaffected.
+#   - Catalog serves browse from an in-memory advisory cache (app ADR 0006) that
+#     only loads at startup (hydrates from Inventory's GET /inventory/routes, then
+#     applies inventory-reserved events from latest). A SQL reseed is invisible to
+#     it until you restart Catalog: `just catalog-refresh` (app-repo #33 made the
+#     restart convergent; before it, restart replayed-from-earliest and re-diverged).
+#     Inventory needs no restart — it reads inventorydb live. The k6 harnesses pass
+#     ROUTE_ID directly, so experiments are unaffected.
 
 set -euo pipefail
 
