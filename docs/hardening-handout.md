@@ -287,6 +287,44 @@ The `/assets/` location block uses `add_header` which **replaces** (not appends 
 **Files modified (eurotransit-config)**:
 - `apps/eurotransit.yaml` — added `spec.syncPolicy.managedNamespaceMetadata.labels`
 
+
+### H1 — Kafka SCRAM-SHA-512 authentication (2026-07-14)
+
+**Decision**: Add SCRAM-SHA-512 authentication to the Kafka internal listener and create per-service KafkaUser CRs. TLS encryption deferred (traffic is namespace-internal only).
+
+**Key design choices**:
+- **SCRAM-SHA-512 over mTLS**: SCRAM is challenge-response — the password is never sent in cleartext even without TLS. mTLS would require per-service certificates and truststore management, adding complexity disproportionate to the internal-only traffic model.
+- **TLS deferred**: All Kafka traffic is namespace-internal (`eurotransit` namespace). Enabling TLS would require configuring Java truststores on every service to trust the Strimzi-managed cluster CA. Accepted trade-off for internal traffic.
+- **Per-service KafkaUser CRs**: Each service gets its own credentials (least-privilege). Strimzi auto-creates a Secret per KafkaUser with `username` and `password` keys.
+- **Shared Helm helper (`eurotransit.kafkaSaslEnv`)**: A single helper outputs all 5 SASL env vars (security protocol, mechanism, KAFKA_USER, KAFKA_PASS, JAAS config). Uses Kubernetes `$(VAR)` substitution to build the JAAS config string from secretKeyRef values.
+- **userOperator re-enabled**: Adds ~200Mi to the entity-operator pod — accepted as the cost of authenticated Kafka access.
+
+**Files modified (eurotransit-config)**:
+- `kafka/kafka-broker.yaml` — added `authentication.type: scram-sha-512`, re-enabled `userOperator`
+- `kafka/kafka-users.yaml` — **[NEW]** 5 KafkaUser CRs (catalog, orders, inventory, payments, notifications)
+- `deploy/charts/eurotransit/templates/_helpers.tpl` — new `kafkaSaslEnv` helper
+- `deploy/charts/eurotransit/values.yaml` — added `kafkaUserSecret` per service
+- All 7 deployment templates (5 services + canary + green) — added `kafkaSaslEnv` include
+
+**Post-implementation verification (2026-07-14) found and fixed a blocking bug**:
+`kafka/kafka-users.yaml` was authored with `apiVersion: kafka.strimzi.io/v1beta2` on all 5
+`KafkaUser` CRs. The Strimzi operator is pinned to 1.1.0 (ADR 0004), which serves **only**
+`kafka.strimzi.io/v1` — the exact same class of issue already documented in
+[ADR 0014](adr/0014-strimzi-v1-api-migration.md) for `Kafka`/`KafkaNodePool`/`KafkaTopic`, and
+already called out for future Kafka CRs in `.agent/agents/delivery-owner.md`. Left as `v1beta2`,
+Argo CD would fail to sync the `KafkaUser` CRs (`no matches for kind "KafkaUser" in version
+"kafka.strimzi.io/v1beta2"`) — no per-service Secrets would be created, and since the broker
+listener now *requires* SCRAM-SHA-512 auth, every service would fail to connect to Kafka
+(a full outage of the async pipeline, strictly worse than the original H1 finding). Confirmed
+against the Strimzi 1.1.0 release notes (v1beta2/v1beta1/v1alpha1 dropped for all CRDs from
+1.0.0 onward) before fixing. **Fix**: changed all 5 CRs to `apiVersion: kafka.strimzi.io/v1`,
+with an inline comment referencing ADR 0014 to prevent regression.
+`helm template` on the chart renders cleanly and the rendered env vars match the KafkaUser
+secret names in `values.yaml`; live cluster verification (`kubectl get crd kafkausers... `,
+Argo CD sync status) is still pending because the local k3d cluster was not running at review
+time — re-run the ADR 0014 verification checklist against `kafkausers.kafka.strimzi.io` once
+the cluster is up.
+
 ---
 
 ### Deferred items
@@ -296,3 +334,4 @@ The `/assets/` location block uses `add_header` which **replaces** (not appends 
 | H2 — Kafka persistent storage | Cluster CPU/memory budget too tight (ADR 0005, 3× B2s_v2 nodes) |
 | H3 — DB multi-instance | Same cluster budget constraint — adding instances would exceed the 6 vCPU quota |
 | H4 — PSA `enforce` | Strimzi Kafka / CloudNativePG pods in `eurotransit` don't yet set an explicit `securityContext` — unverified against `restricted`; only the app Deployments (C1) are confirmed compliant |
+| H1 — TLS encryption on Kafka | Traffic is namespace-internal; SCRAM auth provides authentication without TLS overhead |

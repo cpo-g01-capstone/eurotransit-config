@@ -71,6 +71,7 @@ catalog:
     limits:
       cpu: "500m"
       memory: "512Mi"
+  kafkaUserSecret: "eurotransit-catalog"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -125,6 +126,7 @@ orders:
     host: "eurotransit-orders-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "ordersdb"
+  kafkaUserSecret: "eurotransit-orders"
   # Canary track (ADR 0026). /api/orders always routes through the
   # weighted TraefikService; with the canary disabled the stable track gets
   # 100%. Promotion gate (team-ratified, ADR 0026 — stricter than the SLO on purpose): error rate
@@ -171,6 +173,7 @@ inventory:
     host: "eurotransit-inventory-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "inventorydb"
+  kafkaUserSecret: "eurotransit-inventory"
 # ------------------------------------------------------------------------------
 # Payments — strict idempotency, must not double-charge
 # ------------------------------------------------------------------------------
@@ -202,6 +205,7 @@ payments:
     host: "eurotransit-payments-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "paymentsdb"
+  kafkaUserSecret: "eurotransit-payments"
 # ------------------------------------------------------------------------------
 # Notifications — fully async; failure must degrade gracefully
 # ------------------------------------------------------------------------------
@@ -225,6 +229,7 @@ notifications:
     host: "eurotransit-notifications-db-rw.eurotransit.svc.cluster.local"
     port: "5432"
     name: "notificationsdb"
+  kafkaUserSecret: "eurotransit-notifications"
 # ------------------------------------------------------------------------------
 # Frontend — static SPA (nginx). No state, no Kafka, no DB; not on the money
 # path. nginx serves the bundle on 8080 (chart-wide appPort) with the security

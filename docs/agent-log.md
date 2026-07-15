@@ -420,3 +420,40 @@ An injection must reproduce the failure mode in the hypothesis — a graceful de
 measurement, verify the steady state actually BROKE (a chaos run where nothing degrades is a
 scoping bug until proven otherwise, cf. Case CE-1/Run-1). And operator status fields are
 control-plane views: time recovery from the data plane (the requests), not the CRD.
+
+## Case 22 — 2026-07-14 — Kafka SASL helper referenced a `username` secret key Strimzi never generates (eurotransit-config)
+
+**What the AI produced:**
+The `eurotransit.kafkaSaslEnv` Helm helper (PR #95, Feature/kafka auth) wired SCRAM-SHA-512
+credentials into the services by pulling `KAFKA_USER` and `KAFKA_PASS` from the KafkaUser
+secret via `secretKeyRef` (keys `username` / `password`) and assembling the JAAS string with
+Kubernetes `$(VAR)` substitution.
+
+**Why it was wrong (subtly):**
+Strimzi SCRAM-SHA-512 user secrets contain exactly two keys: `password` and
+`sasl.jaas.config`. There is **no `username` key** — the SCRAM username is the KafkaUser's
+`metadata.name` itself. The manifest was schema-valid, so `helm lint`, `helm template`, and
+kubeconform all passed; the secret-key contract is only checked by the kubelet at container
+creation. The rollout wedged silently: every new ReplicaSet pod across all five services sat
+in `CreateContainerConfigError` (`couldn't find key username in Secret
+eurotransit/eurotransit-orders`) while the pre-#95 pods kept serving — Argo CD "Synced but
+Degraded", exactly the state the delivery-owner doc flags as a deployment failure.
+
+**How it was caught:**
+Argo CD health went Degraded ~20 min after the #95 merge; `kubectl describe pod` on a stuck
+pod showed the missing-key event, and `kubectl get secret eurotransit-orders -o json`
+confirmed the secret's actual keys (`password`, `sasl.jaas.config`) with `ownerReferences:
+KafkaUser`.
+
+**How it was corrected:**
+Issue #97; helper rewritten to mount Strimzi's ready-made `sasl.jaas.config` key directly
+into `SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG`, dropping the `KAFKA_USER`/`KAFKA_PASS`
+indirection entirely — one secretKeyRef instead of two, and no string assembly to get wrong.
+
+**Lesson learned:**
+Operator-generated secrets have a *contract*, not a guessable shape — the AI pattern-matched
+"credentials secret ⇒ username + password keys" (true for CloudNativePG `-db-app` secrets,
+false for Strimzi KafkaUsers). Offline gates cannot catch a wrong secret key; when a template
+consumes an operator-generated secret, verify the actual key names against the operator's
+docs or a live secret before merging. Prefer consuming ready-made keys (Strimzi ships the
+full JAAS string) over reassembling credentials in the pod spec.

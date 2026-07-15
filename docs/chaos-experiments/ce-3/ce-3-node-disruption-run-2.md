@@ -4,7 +4,7 @@
 re-test the availability hypothesis that run 1 **failed**, after the run-1 capacity
 finding was fixed — not with the 4th node run 1 recommended (infeasible: the regional
 vCPU quota is capped at ~6, ADR 0005, increase denied) but by **CPU-request
-rightsizing within the existing 3 nodes + Traefik HA** (PR #89: CNPG 250m→100m,
+rightsizing within the existing 3 nodes + Traefik HA** (ADR 0027, applied in PR #89: CNPG 250m→100m,
 brokers 250m→150m, services 100m→75m, Traefik 2 replicas + anti-affinity + PDB).
 **PASS** — the drain completed, checkout lost exactly **1 request of 12,448
 (0.008 %)** vs run 1's 8.88 %, and every finding below sharpens the sizing picture.*
@@ -44,7 +44,9 @@ since ~15:59) schedules back, ISR 3/3, steady state restored.
 | Client count = DB terminal count | ✅ k6 **3889** iterations = **3889 CONFIRMED**, 0 FAILED, 0 non-terminal |
 | Error budget | ✅ 0.008 % client-side « 1 % budget; server-side **Errors % 5xx: No data** for the whole window |
 | Latency | ✅ `place_order` p95 113 ms client / 31.7 ms server (5 m), thresholds green |
-| No double charge / duplicates | ✅ 0 orders with > 1 intent; consumer lag ≈ 0 throughout |
+| I1 / I2 — no oversell, seats reconcile | ✅ available 1111 (never negative), `5000 − 1111 = 3889 = Σ RESERVED reservations` |
+| No double charge / duplicates | ✅ 3889 payment intents = 3889 CONFIRMED, 0 orders with > 1 intent; `processed_events` = 3889 — exactly one per order; consumer lag ≈ 0 throughout |
+| Notifications | ✅ 3889 SENT = one per confirmed order |
 | PDBs | ✅ Kafka `minAvailable: 2` held broker 2 until broker 0 was Ready — sequential eviction, in the drain log verbatim |
 | Steady state restored | ✅ all pods Running post-uncordon, ISR 3/3, HPA back to baseline |
 | Breakers | ✅ CLOSED on all orders pods — including the replacement pod mid-window |
