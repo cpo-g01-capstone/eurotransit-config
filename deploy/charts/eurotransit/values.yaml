@@ -41,8 +41,10 @@ lifecycle:
 # startup + liveness hit /actuator/health/liveness — LOCAL process only, never a
 # downstream dependency (a liveness probe that checks Kafka/DB causes cascading
 # restarts — hard rule).
-# readiness hits /actuator/health/readiness — includes Kafka/DB and reports
-# draining during shutdown so traffic is withdrawn.
+# readiness hits /actuator/health/readiness — the app's internal ReadinessState
+# only, flipped to REFUSING_TRAFFIC during shutdown drain so traffic is
+# withdrawn. DB/Kafka are deliberately NOT in the readiness group (app-repo
+# ADR 0004): a shared-dependency blip would de-register every replica at once.
 # ------------------------------------------------------------------------------
 probes:
   startup:

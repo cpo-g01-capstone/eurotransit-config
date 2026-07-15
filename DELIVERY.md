@@ -145,7 +145,10 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 
 ### Security, secrets & isolation (22–24)
 - **Sealed Secrets, strict scope** — sealed values bound to name+namespace; rename breaks
-  decryption on purpose. Controller in `sealed-secrets`.
+  decryption on purpose. Controller in `sealed-secrets`. The controller's private sealing key
+  is the one secret that cannot live in Git — back it up after bootstrap (`just
+  seal-key-backup`) or a cluster rebuild strands every committed `SealedSecret`; see the
+  [key DR runbook](docs/delivery/sealed-secrets-key-dr.md).
 - **Argo CD GitHub SSO (Dex)** with `policy.default: role:admin` — broad by design (all five
   teammates operate the system; Dex gates login to the org). Scope-down path documented in the
   [SSO runbook](docs/delivery/argocd-sso.md).
@@ -180,10 +183,12 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 
 | Runbook | Covers |
 |---|---|
+| [cluster-bootstrap.md](docs/delivery/cluster-bootstrap.md) | first-time bring-up, app-of-apps wave order, steady-state loops, manual-kubectl boundary (with control-flow diagrams) |
 | [tls-issuance-runbook.md](docs/delivery/tls-issuance-runbook.md) | cert-manager HTTP-01, staging→prod promotion, verification |
 | [argocd-sso.md](docs/delivery/argocd-sso.md) | Argo CD GitHub SSO (Dex) + RBAC, retiring local admin |
 | [argocd-ui-access.md](docs/delivery/argocd-ui-access.md) | exposing the Argo CD UI via Traefik + TLS |
 | [network-policy-checklist.md](docs/delivery/network-policy-checklist.md) | namespace hardening verification |
+| [sealed-secrets-key-dr.md](docs/delivery/sealed-secrets-key-dr.md) | sealing-key backup/restore; re-seal fallback on a rebuilt cluster |
 
 ## ADRs (`docs/adr/`)
 

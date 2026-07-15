@@ -19,7 +19,7 @@ I am responsible for the **Delivery & Platform** area of EuroTransit. My scope i
 - **Global image registry** via `global.imageRegistry` in `values.yaml`. The baseline leaves it empty; the AKS overlay sets it to the ACR hostname. CI bumps only the `tag` field — never the registry prefix.
 - **`imagePullPolicy: IfNotPresent`** everywhere. Tags are immutable SHAs; pulling on every restart would be wasteful and non-deterministic.
 - **All services ClusterIP** — only Traefik gets a public endpoint. Internal routing stays inside the cluster.
-- **Liveness probes check `/actuator/health/liveness` only.** Never downstream. Readiness checks `/actuator/health/readiness`, which includes Kafka + DB availability.
+- **Liveness probes check `/actuator/health/liveness` only.** Never downstream. Readiness checks `/actuator/health/readiness`, which reflects the app's internal `ReadinessState` only — flipped to `REFUSING_TRAFFIC` during shutdown drain. DB/Kafka are deliberately **not** in the readiness group (app-repo ADR 0004): a shared-dependency blip would de-register every replica at once (hard 503s at Traefik, Prometheus scrape targets gone). DB/Kafka failures surface as symptoms (5xx → `CheckoutHighErrorRate`), not readiness flaps.
 - **`terminationGracePeriodSeconds: 60`** with a 5s `preStop` sleep on all pods. Gives coroutines time to drain without dropping in-flight requests.
 - **Kafka wiring via Argo CD Application** (`apps/kafka.yaml`) — no more manual `kubectl apply -f kafka/`.
 - **Single Helm chart for all five services** (`deploy/charts/eurotransit/`). Per-service charts were considered and rejected — they give independent rollback and team ownership but add 5× boilerplate, 5 Argo CD Applications, and a more complex CI. At this team size the overhead isn't justified; single-service rollback still works by reverting one image tag in `values.yaml`.
@@ -180,7 +180,7 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /actuator/health/readiness  # checks Kafka + DB connection
+    path: /actuator/health/readiness  # internal ReadinessState only (drain); NOT Kafka/DB — app ADR 0004
     port: http
   periodSeconds: 5
   failureThreshold: 3

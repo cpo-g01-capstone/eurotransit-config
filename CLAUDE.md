@@ -242,7 +242,10 @@ livenessProbe:
   periodSeconds: 15
   failureThreshold: 3
 
-# CORRECT — readiness checks local readiness (Kafka connection, DB availability)
+# CORRECT — readiness reflects the app's internal ReadinessState (flips to
+# REFUSING_TRAFFIC during shutdown drain). DB/Kafka are deliberately NOT in the
+# readiness group (app-repo ADR 0004): a shared-dependency blip would
+# de-register every replica at once. DB/Kafka failures surface as 5xx symptoms.
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness

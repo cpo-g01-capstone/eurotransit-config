@@ -225,3 +225,39 @@ chaos-dashboard:
 # e.g. `just seed-db ce-4`, `SEATS=500 just seed-db ce-2`, `just seed-db status`
 seed-db scenario:
     ./scripts/seed-db.sh {{scenario}}
+
+# --------------------------------------------------------------------------
+# Sealed Secrets key disaster recovery (docs/delivery/sealed-secrets-key-dr.md)
+# The controller's private sealing key is the ONE piece of state that cannot
+# live in Git — a rebuilt cluster generates a new key and every committed
+# SealedSecret stops decrypting. Back the key up after bootstrap (and after
+# rotations); restore it on a fresh cluster before the workloads app needs
+# its secrets. The backup is a PLAINTEXT private key: vault it, never commit.
+# --------------------------------------------------------------------------
+
+# Export all sealing key(s) to a file OUTSIDE the repo (default: ~/eurotransit-sealed-secrets-key-<date>.yaml)
+seal-key-backup DEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dest='{{ DEST }}'
+    dest="${dest:-$HOME/eurotransit-sealed-secrets-key-$(date +%Y%m%d).yaml}"
+    repo="$(git rev-parse --show-toplevel)"
+    case "$(cd "$(dirname "$dest")" && pwd)" in
+      "$repo"*) echo "ERROR: refusing to write the sealing key inside the repo — pick a path outside it."; exit 1;;
+    esac
+    kubectl get secret -n sealed-secrets \
+      -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > "$dest"
+    chmod 600 "$dest"
+    echo "Sealing key(s) written to $dest"
+    echo "Store in the team vault NOW. This file is a plaintext private key — NEVER commit it."
+
+# Restore backed-up sealing key(s) on a fresh cluster, then restart the controller
+seal-key-restore SRC:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kubectl apply -f "{{ SRC }}"
+    kubectl rollout restart deployment sealed-secrets -n sealed-secrets
+    kubectl rollout status  deployment sealed-secrets -n sealed-secrets --timeout=120s
+    echo "Controller restarted with restored key(s). Verify unsealing:"
+    echo "  kubectl get sealedsecrets -n eurotransit   # Synced=True"
+    echo "  kubectl get secrets -n eurotransit"
