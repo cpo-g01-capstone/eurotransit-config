@@ -1,0 +1,35 @@
+# CE-6 — Payments total outage: kill ALL payments pods at once (one-shot).
+#
+# Applied MANUALLY during the experiment window (`just chaos ce-6-pod-kill-payments`),
+# never synced by Argo CD (ADR 0017). Requires the target namespace to be enabled
+# once: `just chaos-enable` (annotates `eurotransit` with chaos-mesh.org/inject=enabled).
+#
+# Experiment protocol, steady state, hypothesis and verification queries:
+#   docs/chaos-experiments/ce-6/ce-6-pod-kill-payments.md
+#
+# Difference vs CE-1 (latency) and CE-2 (single-pod kill): this removes the ENTIRE
+# payments capacity in one shot — mode: all kills both HPA-baseline replicas — so the
+# Orders breaker must open on connection FAILURES (not slow calls), and recovery is
+# bounded by how fast the Deployment replaces the pods (~30 s), not by a chaos duration.
+#
+# Note on the PDB: eurotransit-payments has minAvailable: 1, but a PDB only guards
+# EVICTIONS (drains). Chaos Mesh deletes pods directly, bypassing it — that is the
+# point: a real crash does not honour disruption budgets either.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: ce-6-pod-kill-payments
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  # ALL payments pods (the failure under test is "the payments service is gone",
+  # not "one replica crashed" — that is CE-2's shape).
+  mode: all
+  selector:
+    namespaces:
+      - eurotransit
+    labelSelectors:
+      app.kubernetes.io/name: eurotransit-payments
+  # Hard kill: no grace period. Simulating a crash, not a graceful shutdown —
+  # SIGTERM drain is a different property (EM-21/EM-27 shutdown chain).
+  gracePeriod: 0

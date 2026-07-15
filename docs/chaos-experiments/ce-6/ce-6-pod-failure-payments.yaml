@@ -1,0 +1,28 @@
+# CE-6 variant B — Payments sustained outage: pods unresponsive for a fixed window.
+#
+# Alternative to ce-6-pod-kill-payments.yaml — run ONE of the two per experiment
+# (scientific method: one failure per run). Pick this variant if the ~30 s
+# self-heal window after a pod-kill is too short to observe the full breaker
+# lifecycle (CLOSED → OPEN → HALF_OPEN → CLOSED) on the dashboards.
+#
+# pod-failure swaps the container image for a pause image for `duration`, so the
+# pods exist but serve nothing: readiness fails, endpoints empty, authorize calls
+# get connection errors for the whole window. Self-expires; `just chaos-clean
+# ce-6-pod-failure-payments` afterwards removes the finished object.
+#
+# Applied MANUALLY (`just chaos ce-6-pod-failure-payments`), never synced by
+# Argo CD (ADR 0017). Protocol: ce-6-pod-kill-payments.md (same doc, both variants).
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: ce-6-pod-failure-payments
+  namespace: chaos-testing
+spec:
+  action: pod-failure
+  mode: all
+  duration: "2m"
+  selector:
+    namespaces:
+      - eurotransit
+    labelSelectors:
+      app.kubernetes.io/name: eurotransit-payments
