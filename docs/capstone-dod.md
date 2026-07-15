@@ -2,15 +2,16 @@
 
 Reviewed like any PR (single approval — ADR 0019); changes to the DoD should still be discussed by the whole team.
 
-**Status pass: 2026-07-12** — boxes ticked against evidence (linked inline). Unchecked items
-are the open runway: the five chaos runs, the recorded demo, the postmortem, and the live
-presentation.
+**Status pass: 2026-07-15** — boxes ticked against evidence (linked inline). All five chaos
+experiments now have executed PASS runs; their conclusions are drafts pending team
+ratification (ADR 0019). Remaining open runway: conclusion ratification, the recorded demo,
+the postmortem, and the live presentation.
 
 ## Pillar A — Distributed design and async execution
 - [x] Service decomposition documented with explicit sync/async boundaries and justification — `docs/design/service-boundaries.md`
 - [x] Order pipeline implemented with Kotlin coroutines / Flows — suspend handlers across all five services; `DRAFT → RESERVED → CONFIRMED/FAILED` via Kafka stages
 - [x] Structured concurrency: one CoroutineScope per failure domain — app-repo `GracefulShutdownManager` + suspend listeners per service (app ADR 0005)
-- [x] Cooperative cancellation on SIGTERM demonstrated (no orphaned tasks, no double-processing) — `GracefulShutdownManagerTest` (app repo); drain chain invariant in `values.yaml` (ADR 0002); live re-demonstration comes free with CE-2/CE-3
+- [x] Cooperative cancellation on SIGTERM demonstrated (no orphaned tasks, no double-processing) — `GracefulShutdownManagerTest` (app repo); drain chain invariant in `values.yaml` (ADR 0002); re-demonstrated live under chaos (CE-2 runs 2–3, CE-3 run 2: no lost/duplicated work across pod kills and node drains)
 - [x] Readiness flips to refusing traffic while in-flight work drains — `AvailabilityChangeEvent → REFUSING_TRAFFIC` before the 45 s drain, consumers skip-without-ack
 - [x] Written analysis: where async reduces cost in EuroTransit and where it would not help — `docs/design/service-boundaries.md` §"Async cost analysis"
 
@@ -19,7 +20,7 @@ presentation.
 - [x] Inventory reservation implemented (conditional/atomic in PostgreSQL or state machine) — atomic conditional UPDATE + optimistic lock with bounded retry + `UNIQUE(order_id, route_id)`
 - [x] Idempotency keys implemented across the full money path — `processed_events` per consumer (same-transaction), HTTP `Idempotency-Key` on `POST /orders`; idempotent replay verified live 2026-07-11 (200 + cached body)
 - [x] Deduplication scheme documented in docs/design/idempotency.md
-- [ ] Chaos experiment proves "never oversell" invariant holds under duplicate messages and Pod death — CE-2 designed (manual pre-test + k6 contention driver ready), **execution pending**
+- [x] Chaos experiment proves "never oversell" invariant holds under duplicate messages and Pod death — **CE-2 runs 2 (2026-07-12) + 3 (2026-07-13, independent reproduction): PASS** — pod killed with 224 reservations in flight; I1/I2 invariants held, 500 seats = 500 CONFIRMED = 500 payment intents, 0 oversell, 0 double-charge (`ce-2/ce-2-pod-kill-inventory-run-3.md`)
 
 ## Pillar C — Resilience engineering
 - [x] Circuit breakers on Orders → Payments with open/half-open policy and defined fallback — ADR 0018; Resilience4j in `PaymentsClient` (app), fallback = queued Kafka redelivery, order stays RESERVED
@@ -43,24 +44,25 @@ presentation.
 
 ## Chaos experiments
 
-*All five designed with hypothesis, steady state, method, and pass/fail criteria; real
-steady-state baselines captured 2026-07-11. **Execution pending** — results tables are empty.*
+*All five executed with PASS runs (2026-07-12 → 2026-07-14), each with whole-database
+reconciliation against the k6 client-side count. **Conclusions are drafts pending team
+ratification (ADR 0019)** — ratify before the live presentation.*
 
-- [ ] Latency injection → Payments: circuit breaker opens, fallback engages, Catalog unaffected — `ce-1` ready to run (breaker live, Grafana breaker panel PR #67)
-- [ ] Pod kill → Inventory mid-reservation: idempotency prevents oversell/double-charge — `ce-2` + manual pre-test + k6 contention driver ready
-- [ ] Node/AZ disruption: PDBs and topology spread keep critical path available — `ce-3` ready
-- [ ] Kafka partition: async pipeline recovers, nothing lost or duplicated — `ce-4` ready
-- [x] CloudNativePG primary failover: observed impact on checkout, recovery within stated RTO — **run 2026-07-12, PASS: RTO 17.3 s ≤ 60 s, RPO 0/916** (`ce-5-cnpg-failover-run-1.md`; conclusion pending team ratification)
-- [ ] Each experiment has: hypothesis, steady-state definition, observations, conclusion, changes made — hypothesis + steady state done for all five; observations/conclusions after the runs
+- [x] Latency injection → Payments: circuit breaker opens, fallback engages, Catalog unaffected — **runs 4 + 5 (2026-07-13, independent reproduction): PASS** — breaker OPEN ≤ T0+35 s, ~84 fast-fail not-permitted calls, Catalog flat, queued backlog drained on recovery, exact reconciliation 2415 = 2413 CONFIRMED + 2 FAILED, 0 double charges (`ce-1/ce-1-latency-payments-run-5.md`)
+- [x] Pod kill → Inventory mid-reservation: idempotency prevents oversell/double-charge — **runs 2 + 3: PASS** — see Pillar B item above (`ce-2/ce-2-pod-kill-inventory-run-3.md`)
+- [x] Node/AZ disruption: PDBs and topology spread keep critical path available — **run 2 (2026-07-13): PASS** after the run-1 capacity fix — node drained, checkout lost 1/12,448 requests (0.008 %), 3889 = 3889 reconciled, Kafka PDB sequenced broker evictions (`ce-3/ce-3-node-disruption-run-2.md`; run 1 FAILED and drove the capacity change — that finding is part of the evidence)
+- [x] Kafka partition: async pipeline recovers, nothing lost or duplicated — **run 1: PASS** — idempotent producer retried to the new leader, 0 failed of 20,371 requests, 6365 = 5000 CONFIRMED + 1365 FAILED, nothing lost, nothing duplicated (`ce-4/ce-4-kafka-partition-run-1.md`)
+- [x] CloudNativePG primary failover: observed impact on checkout, recovery within stated RTO — **run 1 (2026-07-12) + run 3 (2026-07-14, independent reproduction): PASS — RTO 16.8 s / 17.3 s ≤ 60 s, RPO 0 (1021 acked = 1021 CONFIRMED)**, all failures bounded, breaker stayed CLOSED (`ce-5/ce-5-cnpg-failover-run-3.md`)
+- [x] Each experiment has: hypothesis, steady-state definition, observations, conclusion, changes made — complete for all five; **conclusions are drafts pending team ratification (ADR 0019)**
 
 ## Agentic coding
 - [x] Threat-model paragraph for the coding agent committed in docs/ — [`ai-threat-model.md`](ai-threat-model.md) (canonical; summarized in `CLAUDE.md`)
-- [x] docs/agent-log.md contains at least three caught-and-corrected agent mistakes — **20 cases** as of 2026-07-12
+- [x] docs/agent-log.md contains at least three caught-and-corrected agent mistakes — **22 cases** as of 2026-07-14
 - [ ] Team can explain, defend, and operate everything that was built — claimed and validated at the live presentation
 
 ## Deliverables
 - [x] Application repository with history showing GitOps-driven delivery
 - [x] Configuration repository with history showing GitOps-driven delivery
 - [ ] docs/ containing all required documents — everything present except the postmortem, which is a template until the live-incident scenario runs
-- [ ] Recorded demo (~5 min) committed as a link — to record during/after the chaos runs (must include an alert firing under injected failure)
-- [ ] Live presentation scheduled — contact the teaching staff once chaos runs are done
+- [ ] Recorded demo (~5 min) committed as a link — chaos runs done; recording plan drafted in `docs/demo-recording-handout.md` (must include an alert firing under injected failure)
+- [ ] Live presentation scheduled — chaos runs are done; contact the teaching staff
