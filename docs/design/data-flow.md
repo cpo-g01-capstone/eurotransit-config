@@ -50,8 +50,8 @@ flowchart TB
 
     orders ==>|"5 · sync authorize — REST,<br/>2 s timeout, breaker + bulkhead<br/>(ADR 0018)"| payments
     payments -->|"6 · publish"| t_authorized
-    t_authorized -->|"7 · consume → PAID"| orders
-    orders -->|"8 · publish (→ CONFIRMED)"| t_confirmed
+    t_authorized -->|"7 · consume → CONFIRMED"| orders
+    orders -->|"8 · publish"| t_confirmed
     t_confirmed -->|"consume, dedup, send"| notifications
     notifications --> email
     notifications -.->|"poison messages"| t_dlt
@@ -91,8 +91,9 @@ eventually-consistent cache feed.
    CE-1 chaos target.
 6. Payments authorizes idempotently (`UNIQUE(order_id)` + idempotency key, exactly one
    `payment_intent` per order) and publishes `payment-authorized`.
-7. Orders consumes it → order `PAID` → publishes `order-confirmed` (8), order
-   `CONFIRMED`.
+7. Orders consumes it → conditional transition `RESERVED → CONFIRMED` → publishes
+   `order-confirmed` (8). The transition is conditional on the current state, so a
+   replay — or a race with the `order-failed` recoverer — is a no-op rather than an error.
 8. Notifications consumes `order-confirmed`, dedups via `sent_notifications`
    (per app ADR-002), sends the confirmation. Failures must not propagate to checkout;
    poison messages go to `order-confirmed.DLT`.
@@ -101,7 +102,9 @@ eventually-consistent cache feed.
    terminal SUCCESS state). Inventory consumes it to **release the reserved seats**
    (9a); Orders applies the `FAILED` transition (9b).
 
-Order states: `DRAFT → RESERVED → PAID → CONFIRMED`, or `→ FAILED` with compensation.
+Order states: `DRAFT → RESERVED → CONFIRMED`, or `→ FAILED` with compensation. (There is no
+`PAID` state: it was residue from the async payment stage and was removed with ADR 0018 —
+`service-boundaries.md` and `Order.kt` agree.)
 
 ## Invariants carried by this flow
 

@@ -26,12 +26,18 @@ Argo CD reads this repository and reconciles the cluster to match.
 ## Repository structure
 
 ```
+bootstrap/            — Argo CD install + the root app-of-apps (the entry point of the whole tree)
+apps/                 — Argo CD Applications for the workloads (eurotransit, kafka, data infra)
+deploy/charts/        — the single Helm chart reconciled by Argo CD; CI bumps image tags in values.yaml
+platform/             — platform component configurations (installed once per cluster)
+kafka/                — Strimzi Kafka CR, KafkaTopic CRs, KafkaUser CRs
+postgres/             — CloudNativePG Cluster CRs (one per stateful service)
+infra/                — setup docs for out-of-cluster infrastructure (ACR OIDC, GitOps write-back App)
+scripts/              — helper scripts used by the Justfile
+docs/                 — team documentation, ADRs, DoD, design, chaos reports, postmortem
 .agent/               — structured context for coding agents and team members
 .claude/              — Claude Code permission rules
-.github/              — CODEOWNERS
-deploy/charts/        — Helm chart reconciled by Argo CD
-platform/             — platform component configurations (installed once per cluster)
-docs/                 — team documentation, DoD, chaos reports, postmortem
+.github/              — CODEOWNERS + the validate.yml PR gate
 ```
 
 ## Delivery decisions
