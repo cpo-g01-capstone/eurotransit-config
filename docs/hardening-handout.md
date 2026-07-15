@@ -295,8 +295,8 @@ The `/assets/` location block uses `add_header` which **replaces** (not appends 
 **Key design choices**:
 - **SCRAM-SHA-512 over mTLS**: SCRAM is challenge-response — the password is never sent in cleartext even without TLS. mTLS would require per-service certificates and truststore management, adding complexity disproportionate to the internal-only traffic model.
 - **TLS deferred**: All Kafka traffic is namespace-internal (`eurotransit` namespace). Enabling TLS would require configuring Java truststores on every service to trust the Strimzi-managed cluster CA. Accepted trade-off for internal traffic.
-- **Per-service KafkaUser CRs**: Each service gets its own credentials (least-privilege). Strimzi auto-creates a Secret per KafkaUser with `username` and `password` keys.
-- **Shared Helm helper (`eurotransit.kafkaSaslEnv`)**: A single helper outputs all 5 SASL env vars (security protocol, mechanism, KAFKA_USER, KAFKA_PASS, JAAS config). Uses Kubernetes `$(VAR)` substitution to build the JAAS config string from secretKeyRef values.
+- **Per-service KafkaUser CRs**: Each service gets its own credentials (least-privilege). Strimzi auto-creates a Secret per KafkaUser containing `password` and a ready-made `sasl.jaas.config` string. There is **no `username` key** — the SCRAM username is the KafkaUser's `metadata.name` (see the second post-implementation bug below).
+- **Shared Helm helper (`eurotransit.kafkaSaslEnv`)**: A single helper outputs 3 SASL env vars: security protocol, mechanism, and `SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG` mounted **directly from the secret's `sasl.jaas.config` key**. The alternative — a literal `KAFKA_USER` plus a `password` secretKeyRef, assembled into the JAAS string with `$(VAR)` substitution — was rejected: it hand-rebuilds a string Strimzi already ships verbatim, and every extra moving part (two env vars, `$(VAR)` ordering, JAAS quoting/escaping) is a place to fail. With the direct mount, Strimzi owns the JAAS format end to end and a password rotation only needs a pod restart.
 - **userOperator re-enabled**: Adds ~200Mi to the entity-operator pod — accepted as the cost of authenticated Kafka access.
 
 **Files modified (eurotransit-config)**:
@@ -324,6 +324,19 @@ secret names in `values.yaml`; live cluster verification (`kubectl get crd kafka
 Argo CD sync status) is still pending because the local k3d cluster was not running at review
 time — re-run the ADR 0014 verification checklist against `kafkausers.kafka.strimzi.io` once
 the cluster is up.
+
+**Second post-implementation bug, caught live after the #95 merge (2026-07-14)**:
+the original `kafkaSaslEnv` helper pulled `KAFKA_USER` from the KafkaUser secret via a
+`secretKeyRef` on a `username` key — but Strimzi SCRAM-SHA-512 user secrets contain only
+`password` and `sasl.jaas.config` (the username is the KafkaUser's name). Schema-valid, so
+`helm lint`/kubeconform passed; the kubelet rejected it at container creation and every new
+ReplicaSet pod across all five services wedged in `CreateContainerConfigError`
+(`couldn't find key username in Secret eurotransit/eurotransit-orders`). The pre-#95 pods
+kept serving, so the app was Degraded, not down. **Fix** (issue #97, PR #98, agent-log
+Case 22): the helper now mounts the secret's `sasl.jaas.config` key directly — the design
+described above is the post-fix state. Lesson: operator-generated secrets have a contract,
+not a guessable shape; verify actual key names against a live secret or the operator docs
+before consuming them in templates.
 
 ---
 
