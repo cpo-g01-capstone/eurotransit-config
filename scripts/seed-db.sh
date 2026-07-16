@@ -9,8 +9,8 @@
 #   status    read-only: row counts, route occupancy, non-terminal orders
 #   clean     wipe all money-path data; restore the two migration-seed routes
 #             (V2__seed_demo_routes.sql: ...0001 @ 100 seats, ...00ce @ 2 seats)
-#   normal    clean + a realistic catalog (6 extra routes) + 40 historical
-#             CONFIRMED orders, consistent across all four DBs (I1/I2/I3 hold)
+#   normal    clean + realistic catalog (6 routes, varied departure times, low
+#             availability, ...0003 at 1 seat left) + 99 CONFIRMED orders (I1/I2/I3)
 #   ce-1      clean + throughput route ...0001 at SEATS (default 5000)
 #   ce-2      clean + contention route ...00ce at SEATS (default 2)
 #   ce-3      clean + throughput route ...0001 at SEATS (default 5000)
@@ -104,31 +104,48 @@ TRUNCATE sent_notifications;
 SQL
 }
 
-# seed_history — 40 CONFIRMED historical orders, deterministic ids
+# seed_history — 99 CONFIRMED historical orders, deterministic ids
 # (md5('seed-order-'||i)::uuid), consistent across all four DBs so the CE
 # verification queries (I1/I2/I3, cross-DB join, single payment intent,
 # notification per order) all hold on the seeded state.
+#
+# Availability is deliberately low (real trains fill up): seats-per-reservation
+# cycles 1,2,3 (sum 6 per 3 consecutive i), so a contiguous i-range whose length
+# is a multiple of 3 sells exactly 2×length seats. Ranges below yield:
+#   0002 Paris→Lyon    38 total − 30 sold =  8 left
+#   0003 Milan→Rome    37 total − 36 sold =  1 left  ← last-seat route
+#   0004 Vienna→Prague 54 total − 42 sold = 12 left
+#   0005 Berlin→Munich 42 total − 24 sold = 18 left
+#   0006 Madrid→Barça  51 total − 48 sold =  3 left
+#   0007 Zurich→Milan  24 total − 18 sold =  6 left
 seed_history() {
-  echo "-- inventorydb: 6 catalog routes + 40 historical reservations"
+  echo "-- inventorydb: 6 catalog routes + 99 historical reservations"
   sql eurotransit-inventory-db inventorydb <<'SQL'
 BEGIN;
 INSERT INTO routes (id, origin, destination, departure_time, total_seats, available_seats, price, version)
 VALUES
-  ('00000000-0000-0000-0000-000000000002', 'Paris',  'Lyon',      NOW() + INTERVAL '2 days', 180, 180, 39.90, 0),
-  ('00000000-0000-0000-0000-000000000003', 'Milan',  'Rome',      NOW() + INTERVAL '3 days', 320, 320, 49.90, 0),
-  ('00000000-0000-0000-0000-000000000004', 'Vienna', 'Prague',    NOW() + INTERVAL '4 days', 140, 140, 29.90, 0),
-  ('00000000-0000-0000-0000-000000000005', 'Berlin', 'Munich',    NOW() + INTERVAL '5 days', 200, 200, 44.50, 0),
-  ('00000000-0000-0000-0000-000000000006', 'Madrid', 'Barcelona', NOW() + INTERVAL '6 days', 260, 260, 34.90, 0),
-  ('00000000-0000-0000-0000-000000000007', 'Zurich', 'Milan',     NOW() + INTERVAL '7 days', 120, 120, 42.00, 0);
+  ('00000000-0000-0000-0000-000000000002', 'Paris',  'Lyon',      date_trunc('day', NOW()) + INTERVAL '1 day 06:41',  38, 38, 39.90, 0),
+  ('00000000-0000-0000-0000-000000000003', 'Milan',  'Rome',      date_trunc('day', NOW()) + INTERVAL '1 day 09:05',  37, 37, 49.90, 0),
+  ('00000000-0000-0000-0000-000000000004', 'Vienna', 'Prague',    date_trunc('day', NOW()) + INTERVAL '2 days 13:20', 54, 54, 29.90, 0),
+  ('00000000-0000-0000-0000-000000000005', 'Berlin', 'Munich',    date_trunc('day', NOW()) + INTERVAL '2 days 17:45', 42, 42, 44.50, 0),
+  ('00000000-0000-0000-0000-000000000006', 'Madrid', 'Barcelona', date_trunc('day', NOW()) + INTERVAL '1 day 07:12',  51, 51, 34.90, 0),
+  ('00000000-0000-0000-0000-000000000007', 'Zurich', 'Milan',     date_trunc('day', NOW()) + INTERVAL '3 days 18:57', 24, 24, 42.00, 0);
 
 INSERT INTO reservations (id, order_id, route_id, seats, status, created_at)
 SELECT md5('seed-res-' || i)::uuid,
        md5('seed-order-' || i)::uuid,
-       ('00000000-0000-0000-0000-' || lpad((2 + (i % 6))::text, 12, '0'))::uuid,
+       (CASE
+          WHEN i <= 15 THEN '00000000-0000-0000-0000-000000000002'
+          WHEN i <= 33 THEN '00000000-0000-0000-0000-000000000003'
+          WHEN i <= 54 THEN '00000000-0000-0000-0000-000000000004'
+          WHEN i <= 66 THEN '00000000-0000-0000-0000-000000000005'
+          WHEN i <= 90 THEN '00000000-0000-0000-0000-000000000006'
+          ELSE              '00000000-0000-0000-0000-000000000007'
+        END)::uuid,
        1 + (i % 3),
        'RESERVED',
        NOW() - (i || ' hours')::interval
-FROM generate_series(1, 40) AS i;
+FROM generate_series(1, 99) AS i;
 
 -- keep invariant I2: total - available = SUM(reserved seats)
 UPDATE routes r
@@ -138,17 +155,17 @@ SET available_seats = r.total_seats - COALESCE(
 COMMIT;
 SQL
 
-  echo "-- ordersdb: 40 CONFIRMED orders"
+  echo "-- ordersdb: 99 CONFIRMED orders"
   sql eurotransit-orders-db ordersdb <<'SQL'
 INSERT INTO orders (id, status, created_at, updated_at)
 SELECT md5('seed-order-' || i)::uuid,
        'CONFIRMED',
        NOW() - (i || ' hours')::interval,
        NOW() - (i || ' hours')::interval
-FROM generate_series(1, 40) AS i;
+FROM generate_series(1, 99) AS i;
 SQL
 
-  echo "-- paymentsdb: 40 payment intents (one per order)"
+  echo "-- paymentsdb: 99 payment intents (one per order)"
   sql eurotransit-payments-db paymentsdb <<'SQL'
 INSERT INTO payment_intents (id, order_id, amount, currency, status, idempotency_key, created_at, updated_at)
 SELECT md5('seed-pay-' || i)::uuid,
@@ -159,17 +176,17 @@ SELECT md5('seed-pay-' || i)::uuid,
        'seed-' || md5('seed-order-' || i),
        NOW() - (i || ' hours')::interval,
        NOW() - (i || ' hours')::interval
-FROM generate_series(1, 40) AS i;
+FROM generate_series(1, 99) AS i;
 SQL
 
-  echo "-- notificationsdb: 40 SENT notifications"
+  echo "-- notificationsdb: 99 SENT notifications"
   sql eurotransit-notifications-db notificationsdb <<'SQL'
 INSERT INTO sent_notifications (order_id, status, created_at, updated_at)
 SELECT md5('seed-order-' || i)::uuid::text,
        'SENT',
        NOW() - (i || ' hours')::interval,
        NOW() - (i || ' hours')::interval
-FROM generate_series(1, 40) AS i;
+FROM generate_series(1, 99) AS i;
 SQL
 }
 
@@ -225,7 +242,8 @@ case "$scenario" in
     confirm
     wipe_all 100 2
     seed_history
-    echo "Done: normal state — 8 routes, 40 CONFIRMED orders consistent across all DBs."
+    echo "Done: normal state — 8 routes, 99 CONFIRMED orders consistent across all DBs."
+    echo "Availability: ...0003 Milan→Rome has 1 seat left; ...0006 has 3; the rest 6-18."
     ;;
   ce-1|ce-3|ce-4|ce-5)
     confirm
