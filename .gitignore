@@ -32,3 +32,4 @@
 *.local.md
 *.local.png
 *.local.pdf
+.vscode
