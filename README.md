@@ -86,5 +86,5 @@ Change `deploy/charts/eurotransit/values.yaml` or templates → open PR → merg
 
 | Deliverable | Link |
 |-------------|------|
-| Recorded demo (~5 min) | *(to be committed)* |
-| Live presentation | *(to be scheduled)* |
+| Recorded demo | https://youtu.be/Mya2T-AjIE4 |
+| Live presentation | 18.07.2026 17:30 |
