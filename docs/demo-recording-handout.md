@@ -10,7 +10,7 @@ Step-by-step runbook for recording the capstone demo video (DoD deliverable:
 4. A symptom-based alert firing under an injected failure, watched on the dashboards
 
 **Recording strategy: four segments, recorded separately, concatenated.**
-Real-time constraints make a single take impractical: the alert needs its 3-minute
+Real-time constraints make a single take impractical: the alert needs its 1-minute
 `for:` window, the canary gate is defined over 5 sustained minutes, and Argo CD
 polls every ~3 minutes. Each segment below is self-contained; cut them together
 in order. (QuickTime or OBS; 1920×1080; terminal font ≥ 18 pt; hide bookmarks bar.)
@@ -30,8 +30,15 @@ in order. (QuickTime or OBS; 1920×1080; terminal font ≥ 18 pt; hide bookmarks
   kubectl -n argocd annotate application eurotransit \
     argocd.argoproj.io/refresh=normal --overwrite
   ```
-- **CE-1 self-expires after 5 minutes** — the alert-firing segment is recorded
-  inside that window; the timeline below is anchored to the injection time (T0).
+- **CE-6 (variant B, pod-failure) self-expires after 2 minutes** — the
+  alert-firing segment is recorded inside that window; the timeline below is
+  anchored to the injection time (T0). (Switched from CE-1 after a live dry-run
+  on 2026-07-16 showed `PaymentsHighP95Latency` does not reliably fire: the
+  Orders breaker fast-fails almost every call, so only sparse half-open probes
+  reach Payments — too thin to hold p95 over its `rate()` window for the full
+  `for: 3m`. `PaymentsServiceDown` is a plain `absent()` check instead —
+  deterministic, independent of load shape. Validated live: pending at T0+31s,
+  firing at T0+1:34.)
 
 ---
 
@@ -91,6 +98,9 @@ PR bodies use `.github/PULL_REQUEST_TEMPLATE.local.md` as always.
 ### 6. Dry-run each segment once without recording
 
 Especially Segment 4 — know exactly what the pending→firing transition looks like.
+(Segment 4 was already dry-run live on 2026-07-16 against CE-6 variant B: pending
+at T0+31s, firing at T0+1:34, recovered ~T0+2:48 — timings above reflect that run.
+Still worth one more dry-run on the day, load and cluster state can shift.)
 
 ---
 
@@ -139,38 +149,53 @@ PR-4 open + approved.
 
 ---
 
-## Segment 4 — Alert firing under injected failure (target length 1:30 on camera)
+## Segment 4 — Alert firing under injected failure (target length ~1:00 on camera)
 
 This segment is **anchored to the injection time (T0)** because
-`PaymentsHighP95Latency` has `for: 3m` and CE-1 self-expires at T0+5:00.
+`PaymentsServiceDown` has `for: 1m` and CE-6 (variant B, pod-failure) holds the
+outage for a fixed 2-minute window.
+
+> **Why CE-6 instead of CE-1 here:** `PaymentsHighP95Latency` needs enough slow
+> samples inside its `rate()` window while the breaker is open. Live-tested
+> 2026-07-16: the breaker fast-fails almost every call, so only sparse
+> half-open probes (one burst of 5 every `waitDurationInOpenState: 30s`) reach
+> Payments — too thin to hold p95 above threshold continuously for `for: 3m`;
+> the alert never left `inactive` across a full 5-minute CE-1 window.
+> `PaymentsServiceDown` is a plain `absent(up{...}==1)` check instead —
+> deterministic, independent of load shape or breaker timing.
 
 **Timeline (wall clock):**
 
 | Time | Action (off camera unless noted) |
 |---|---|
-| T0 | `just chaos ce-1-latency-payments` — 3s±500ms delay on Payments' responses to Orders, bounded 5-min window |
-| T0+0:30 | Prometheus `/alerts`: `PaymentsHighP95Latency` flips to **pending** — confirm, don't record yet |
-| **T0+3:00** | **START RECORDING** on the Prometheus alerts tab |
-| ~T0+4:00 | Alert transitions **pending → firing** on camera |
-| T0+4:30 | Stop recording |
-| T0+5:00 | Chaos self-expires; verify recovery (below) |
+| T0 | `just chaos ce-6-pod-failure-payments` — both Payments pods unresponsive (pause image), fixed 2-min window |
+| T0+0:30 | Prometheus `/alerts`: `PaymentsServiceDown` flips to **pending** — confirm, don't record yet |
+| **T0+1:00** | **START RECORDING** on the Prometheus alerts tab |
+| ~T0+1:35 | Alert transitions **pending → firing** on camera |
+| T0+2:00 | Stop recording |
+| T0+2:00–3:00 | Chaos expires; pods replaced; verify recovery (below) |
 
-**On camera (T0+3:00 → T0+4:30):**
+**On camera (T0+1:00 → T0+2:00):**
 
 | Step | Do | Say |
 |---|---|---|
-| 1 | Prometheus `/alerts`: alert **pending**, show its expression (p95 > 0.5s, `for: 3m`) | "Four minutes ago we injected 3 seconds of latency into Payments with Chaos Mesh. The alert is symptom-based — user-visible p95, not CPU." |
-| 2 | Grafana RED: Duration panel spiking; **Payments circuit breaker — state** panel shows the breaker OPEN per orders pod | "Orders' circuit breaker opened — the 2-second call timeout turned every authorize into a slow call." |
+| 1 | Prometheus `/alerts`: alert **pending**, show its expression (`absent(up{job="eurotransit-payments"}==1)`, `for: 1m`) | "We just killed Payments entirely with Chaos Mesh — both replicas, not one. The alert is symptom-based: the scrape target is gone, not a CPU threshold." |
+| 2 | Grafana RED: **Payments circuit breaker — state** panel shows the breaker OPEN per orders pod, opened on connection failures (not slow calls, unlike CE-1) | "Orders' circuit breaker opened on failure rate — every authorize call gets a hard connection error." |
 | 3 | Grafana: catalog Rate/Errors panels still flat | "Browsing is untouched — the failure is bulkheaded to the money path's payment leg." |
-| 4 | Alert flips to **firing** → switch to Alertmanager tab: alert grouped/routed | "After the full 3-minute `for:` window it pages. Pending-then-firing is deliberate — no flapping pages." |
+| 4 | Alert flips to **firing** → switch to Alertmanager tab: alert grouped/routed | "After the full 1-minute `for:` window it pages. Pending-then-firing is deliberate — no flapping pages." |
 
 **Recovery check (off camera, but capture a screenshot for the writeup):**
 
 ```bash
 just chaos-status                       # experiment finished
-# Prometheus /alerts: alert back to inactive within ~2 min
-# RED dashboard: p95 back to baseline, breaker CLOSED
+# Prometheus /alerts: alert back to inactive within ~1 min of pod recovery
+# Payments pods: READY again; breaker CLOSED
 ```
+
+Note: the Payments HPA may transiently scale 2→4 on the CPU burst from the
+pod-failure restart — self-corrects within a few minutes, no action needed. If
+Segment 2/3 (canary/blue-green) records *after* this segment, wait for Payments
+to settle back to 2 replicas first (CPU budget, ADR 0005/0027).
 
 ---
 
@@ -190,11 +215,11 @@ just chaos-status                       # experiment finished
 | Symptom | Cause / fix |
 |---|---|
 | Canary or green pod stuck `Pending` | CPU quota — confirm the *other* demo's extra track is torn down (PR-2 merged before PR-3) |
-| Alert never leaves *inactive* during CE-1 | No load → check the k6 run is still going; the p95 expression needs request traffic to move |
-| Alert still *pending* at T0+4:30 | The 5m rate window ramps slowly if load is thin — raise k6 `VUS`, re-run CE-1 fresh (it's idempotent and self-expiring) |
+| Alert never leaves *inactive* after injection | Check both Payments pods actually went `0/1` Ready (`kubectl get pods -n eurotransit -l app.kubernetes.io/name=eurotransit-payments`) — if not, the pod-failure patch didn't apply; re-run `just chaos ce-6-pod-failure-payments` |
+| Alert still *pending* past T0+1:30 | Should not happen (`for: 1m`, validated live 2026-07-16 — firing at T0+1:34) — check Prometheus scrape config for drift |
 | Argo stays `OutOfSync` after refresh | Check the app-repo CI bot didn't race a tag bump into `values.yaml`; re-refresh |
 | Cutover shows errors in the curl loop | Green wasn't Ready — always merge PR-3 well before Segment 3 and check readiness first |
-| Payments pods restart during CE-1 | Should not happen with the final `target:`-scoped manifest (see CE-1 header for the history) — if it does, abort the take: `just chaos-clean ce-1-latency-payments` |
+| Payments HPA still at 4 replicas before Segment 2/3 | Expected after Segment 4 (CPU burst from the pod-failure restart) — wait a few minutes for it to settle back to 2 before starting the next segment's extra track (CPU budget, ADR 0005/0027) |
 
 ---
 
