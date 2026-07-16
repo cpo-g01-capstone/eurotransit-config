@@ -7,8 +7,8 @@ Reviewed like any PR (single approval — ADR 0019); substantive changes should 
 
 Custodian: @marcodonatucci (Observability & Verification).
 
-Twenty-five cases were recorded during the project; by team decision (2026-07-12) this file
-keeps the **twelve with the most durable lessons**. Original case numbers are preserved —
+Twenty-six cases were recorded during the project; by team decision (2026-07-12) this file
+keeps the **thirteen with the most durable lessons**. Original case numbers are preserved —
 code comments, ADRs and PRs cite them. The full record, including the retired setup-era
 entries, is in Git history: `git show 53fe549:docs/agent-log.md`. (Case 24 — the CE-1
 compensation guard, cited from `KafkaErrorHandlingConfig.kt` — is still awaiting its
@@ -34,6 +34,7 @@ exception-swallowing `suspend` listener that became the team-ratified bridge pat
 | 22 | 2026-07-14 | Security / eurotransit-config | Kafka SASL helper referenced a `username` key that Strimzi KafkaUser secrets never generate |
 | 23 | 2026-07-16 | Observability / eurotransit-config | USE dashboard aliased raw kube-state-metrics target fragments to one deployment name, making legend filtering contradict the graph |
 | 25 | 2026-07-16 | Observability / eurotransit-app | `order.id` tag and Kafka producer spans read a ThreadLocal inside coroutines — the tag silently no-oped and every HTTP-origin `send` rooted a detached trace |
+| 26 | 2026-07-16 | Notifications / eurotransit-app | AI's `SmtpEmailSender` used `setFrom(from)` inside `SimpleMailMessage().apply {}` — the receiver's own `from` bean property shadowed the constructor param, sending every email with a null sender |
 
 ---
 
@@ -561,3 +562,56 @@ mock manufactures the exact state production is missing, so the test proves noth
 about propagation. Second, verify tracing claims against the trace store — search for
 the attribute, walk one trace end to end — not against "spans are being exported":
 export kept working the whole time while every trace was quietly split in two.
+
+---
+
+## Case 26 — 2026-07-16 — `SimpleMailMessage.apply { setFrom(from) }` sent every email with a null sender (eurotransit-app)
+
+> Caught by a unit test while adding the real SMTP sender (optional per-order
+> `customerContact` threaded checkout → `order-confirmed` → Notifications).
+
+**What the AI produced:**
+The new `SmtpEmailSender` took the sender address as a constructor property named `from` and
+built the message with:
+
+```kotlin
+class SmtpEmailSender(
+    private val mailSender: JavaMailSender,
+    registry: MeterRegistry,
+    @Value("\${notifications.email.from:...}") private val from: String,
+) : EmailSender {
+    override suspend fun send(event: OrderConfirmedEvent) {
+        val message = SimpleMailMessage().apply {
+            setFrom(from)              // intended: the constructor's `from`
+            setTo(event.customerContact)
+            ...
+        }
+        withContext(Dispatchers.IO) { mailSender.send(message) }
+    }
+}
+```
+
+**Why it was wrong (subtly):**
+Inside `apply {}` the receiver is the `SimpleMailMessage`, which exposes a JavaBean `from`
+property (`getFrom`/`setFrom`). Kotlin resolved the unqualified `from` to **the receiver's
+own property** (`this.from`, null at that point) rather than the outer class's constructor
+param — so `setFrom(from)` became `setFrom(null)`. `setTo(event.customerContact)` was
+unaffected because `event` is not a member of `SimpleMailMessage`, so recipients looked
+correct while the sender was silently null. It compiled cleanly with no warning.
+
+**How it was caught:**
+The sender's unit test captured the built `SimpleMailMessage` (mockk `slot`) and asserted
+both fields. The recipient assertion passed; the sender assertion failed —
+`expected: <noreply@eurotransit.test> but was: <null>` — pointing straight at the shadowing.
+
+**How it was corrected:**
+Renamed the constructor param to `fromAddress` (and the test's named argument) so the
+unqualified reference inside `apply {}` can no longer collide with a bean property of the
+receiver.
+
+**Lesson learned:**
+`apply {}`/`with {}` put a foreign object's properties into unqualified scope; when the
+receiver is a JavaBean, its setters imply same-named readable properties that shadow outer
+names. Prefer a param name that cannot collide with the receiver's properties (or qualify
+with `this@Outer.`), and always assert *every* field a builder sets — the bug hid behind a
+correct-looking neighbouring field.
