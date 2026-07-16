@@ -184,7 +184,7 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 
 | Runbook | Covers |
 |---|---|
-| [cluster-bootstrap.md](docs/delivery/cluster-bootstrap.md) | first-time bring-up, app-of-apps wave order, steady-state loops, manual-kubectl boundary (with control-flow diagrams) |
+| [bootstrap-flow.md](docs/delivery/bootstrap-flow.md) | first-time bring-up step by step, app-of-apps wave order + Argo CD health gates (ADR 0003), steady-state loops, manual-kubectl boundary (with diagrams) |
 | [tls-issuance-runbook.md](docs/delivery/tls-issuance-runbook.md) | cert-manager HTTP-01, staging→prod promotion, verification |
 | [argocd-sso.md](docs/delivery/argocd-sso.md) | Argo CD GitHub SSO (Dex) + RBAC, retiring local admin |
 | [argocd-ui-access.md](docs/delivery/argocd-ui-access.md) | exposing the Argo CD UI via Traefik + TLS |
