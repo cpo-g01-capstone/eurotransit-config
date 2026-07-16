@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://charts.jetstack.io'
+    repoURL: "https://charts.jetstack.io"
     # Pinned chart version (== appVersion). Bump deliberately in a PR; never float.
     targetRevision: v1.20.3
     chart: cert-manager
@@ -18,8 +18,37 @@ spec:
       parameters:
         - name: installCRDs
           value: "true"
+      values: |
+        webhook:
+          validatingWebhookConfiguration:
+            namespaceSelector:
+              matchExpressions:
+                - key: cert-manager.io/disable-validation
+                  operator: NotIn
+                  values:
+                    - "true"
+                - key: control-plane
+                  operator: NotIn
+                  values:
+                    - "true"
+                - key: kubernetes.azure.com/managedby
+                  operator: NotIn
+                  values:
+                    - aks
+
+          mutatingWebhookConfiguration:
+            namespaceSelector:
+              matchExpressions:
+                - key: control-plane
+                  operator: NotIn
+                  values:
+                    - "true"
+                - key: kubernetes.azure.com/managedby
+                  operator: NotIn
+                  values:
+                    - aks
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: cert-manager
   syncPolicy:
     automated:
