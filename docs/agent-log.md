@@ -7,8 +7,8 @@ Reviewed like any PR (single approval — ADR 0019); substantive changes should 
 
 Custodian: @marcodonatucci (Observability & Verification).
 
-Twenty cases were recorded during the project; by team decision (2026-07-12) this file
-keeps the **eight with the most durable lessons**. Original case numbers are preserved —
+Twenty-three cases were recorded during the project; by team decision (2026-07-12) this file
+keeps the **eleven with the most durable lessons**. Original case numbers are preserved —
 code comments, ADRs and PRs cite them. The full record, including the retired setup-era
 entries, is in Git history: `git show 53fe549:docs/agent-log.md`.
 
@@ -29,6 +29,8 @@ exception-swallowing `suspend` listener that became the team-ratified bridge pat
 | 19 | 2026-07-11 | Async / eurotransit-app | Two silent event-contract faults: frozen catalog cache and DLT'd notifications |
 | 20 | 2026-07-11 | Observability / eurotransit-app | No histogram buckets behind every latency panel, alert, and canary gate — p95 was unmeasurable |
 | 21 | 2026-07-12 | Chaos / eurotransit-config | CE-5 runbook injected with a graceful `kubectl delete pod` — measures CNPG smart shutdown (a switchover), not a primary crash |
+| 22 | 2026-07-14 | Security / eurotransit-config | Kafka SASL helper referenced a `username` key that Strimzi KafkaUser secrets never generate |
+| 23 | 2026-07-16 | Observability / eurotransit-config | USE dashboard aliased raw kube-state-metrics target fragments to one deployment name, making legend filtering contradict the graph |
 
 ---
 
@@ -457,3 +459,41 @@ false for Strimzi KafkaUsers). Offline gates cannot catch a wrong secret key; wh
 consumes an operator-generated secret, verify the actual key names against the operator's
 docs or a live secret before merging. Prefer consuming ready-made keys (Strimzi ships the
 full JAAS string) over reassembling credentials in the pod spec.
+
+---
+
+## Case 23 — 2026-07-16 — USE replica panel hid split kube-state-metrics histories behind one legend name (eurotransit-config)
+
+**What the AI produced:**
+The USE dashboard queried `kube_deployment_status_replicas_ready` and
+`kube_deployment_spec_replicas` directly, then formatted every result using only
+`{{deployment}} ready` or `{{deployment}} desired`.
+
+**Why it was wrong (subtly):**
+Prometheus series identity includes scrape-target labels such as `instance`, `pod`,
+`service`, and `endpoint`. When kube-state-metrics restarts or its scrape target changes,
+one logical Deployment can therefore have multiple historical series fragments. Grafana
+rendered those fragments with the same legend text because the alias omitted the differing
+labels. The combined graph could show `eurotransit-catalog ready = 0`, while clicking that
+legend selected a different fragment and displayed a constant 2 across its own history.
+Neither view explained that several physical time series were masquerading as one logical
+series.
+
+**How it was caught:**
+A human compared the unfiltered panel with the legend-isolated
+`eurotransit-catalog ready` series: the former contained a zero-replica interval, while
+the latter showed two ready replicas for the whole selected window. Inspecting the JSON
+showed raw kube-state-metrics queries with no aggregation and deployment-only aliases.
+
+**How it was corrected:**
+Both gauges now use `max by (deployment) (...)`, collapsing scrape-target fragments into
+exactly one logical ready and desired series per Deployment at each evaluation point. The
+panel uses stepped, integer rendering because replica gauges change discretely rather than
+continuously.
+
+**Lesson learned:**
+A Grafana legend alias is presentation, not aggregation. If a panel intentionally hides
+labels that participate in Prometheus series identity, the PromQL must first reduce those
+labels explicitly. For Kubernetes object-state gauges, verify that one logical object
+produces one query result across exporter restarts; otherwise legend filtering can change
+the apparent history and turn a diagnostic dashboard into contradictory evidence.
