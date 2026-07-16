@@ -289,8 +289,9 @@ networkPolicy:
   ingressNamespace: "traefik" # namespace Traefik runs in (north-south source)
   monitoringNamespace: "monitoring" # namespace Prometheus scrapes from
 # ------------------------------------------------------------------------------
-# Grafana dashboards (RED money-path + order lifecycle + USE infrastructure),
-# shipped as ConfigMaps and hot-loaded by the kube-prometheus-stack Grafana sidecar.
+# Grafana dashboards (SLO + RED money-path + order lifecycle + order trace
+# + USE infrastructure), shipped as ConfigMaps and hot-loaded by the
+# kube-prometheus-stack Grafana sidecar.
 # JSON sources live in dashboards/*.json (outside templates/, so Grafana's
 # {{job}} legend syntax never meets the Helm renderer).
 # ------------------------------------------------------------------------------
