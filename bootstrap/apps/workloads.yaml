@@ -5,8 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     # Wave 1: applied only after the platform operators (wave 0) are Healthy, so
-    # the Kafka CR, CloudNativePG Cluster, and SealedSecrets in apps/ never race
-    # ahead of the controllers/CRDs they require.
+    # the Kafka CR, CloudNativePG Cluster, and SealedSecrets in apps/ do not race
+    # ahead of the controllers/CRDs they require. This depends on the Application
+    # health customization in bootstrap/install/patch-argocd-cm.yaml (ADR 0003).
     argocd.argoproj.io/sync-wave: "1"
 spec:
   project: platform
