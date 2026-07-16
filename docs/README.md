@@ -91,7 +91,7 @@ evidence that it works.
 | Problem | Decision | How / runbook |
 |---|---|---|
 | Cluster sizing & cost under student quota | [ADR 0001](adr/0001-aks-cluster-sizing-and-budget.md), [ADR 0005](adr/0005-node-sizing-under-vcpu-quota.md), [ADR 0006](adr/0006-drop-k3d-azure-only.md) | [`../DELIVERY.md`](../DELIVERY.md) rows 1–3 |
-| First bring-up & steady state | App-of-apps, wave order; operator pins: [ADR 0004](adr/0004-operator-version-pinning.md); sync options: [ADR 0003](adr/0003-argocd-sync-options-for-operator-crds.md) | [`delivery/cluster-bootstrap.md`](delivery/cluster-bootstrap.md) |
+| First bring-up & steady state | App-of-apps, wave order + health gates; operator pins: [ADR 0004](adr/0004-operator-version-pinning.md); sync options: [ADR 0003](adr/0003-argocd-sync-options-for-operator-crds.md) | [`delivery/bootstrap-flow.md`](delivery/bootstrap-flow.md) |
 | Argo CD blast radius & access | [ADR 0011](adr/0011-scoped-appprojects.md) (two AppProjects); GitHub SSO | [`delivery/argocd-sso.md`](delivery/argocd-sso.md) · [`delivery/argocd-ui-access.md`](delivery/argocd-ui-access.md) · webhook: [ADR 0015](adr/0015-argocd-github-webhook.md) |
 | Public TLS | cert-manager + Let's Encrypt, staging→prod; Traefik `IngressRoute` only ([ADR 0012](adr/0012-traefik-ingressroute-over-ingress.md)) | [`delivery/tls-issuance-runbook.md`](delivery/tls-issuance-runbook.md) |
 | Secrets in Git | SealedSecrets only, strict scope; key loss = re-seal | [`delivery/sealed-secrets-key-dr.md`](delivery/sealed-secrets-key-dr.md) |

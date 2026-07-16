@@ -232,7 +232,7 @@ seed-db scenario:
 # Inventory needs no restart (it reads inventorydb live). Hydration is async
 # post-readiness with backoff, so give it a couple of seconds before reloading
 # the frontend. Restarting a pod is not drift — Argo CD's spec is unchanged
-# (see docs/delivery/cluster-bootstrap.md).
+# (see docs/delivery/bootstrap-flow.md).
 # Refresh Catalog's browse cache after an out-of-band DB change (e.g. seed-db)
 catalog-refresh:
     kubectl rollout restart deployment/eurotransit-catalog -n eurotransit
