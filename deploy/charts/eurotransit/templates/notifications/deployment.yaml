@@ -72,6 +72,28 @@ spec:
             # Spring graceful shutdown — drain in-flight work before the JVM exits.
             - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
               value: {{ .Values.lifecycle.shutdownTimeout | quote }}
+            # Real SMTP order-confirmation email. sender=smtp switches off the
+            # logging stub; a send failure degrades only the notification (retry
+            # -> DLT), never checkout. Credentials from a SealedSecret (never
+            # plaintext) — see values.yaml notifications.smtp and `just seal`.
+            - name: NOTIFICATIONS_EMAIL_SENDER
+              value: {{ .Values.notifications.smtp.sender | quote }}
+            - name: NOTIFICATIONS_EMAIL_FROM
+              value: {{ .Values.notifications.smtp.from | quote }}
+            - name: SPRING_MAIL_HOST
+              value: {{ .Values.notifications.smtp.host | quote }}
+            - name: SPRING_MAIL_PORT
+              value: {{ .Values.notifications.smtp.port | quote }}
+            - name: SPRING_MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.notifications.smtp.secretName }}
+                  key: SPRING_MAIL_USERNAME
+            - name: SPRING_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.notifications.smtp.secretName }}
+                  key: SPRING_MAIL_PASSWORD
           {{- include "eurotransit.preStop" . | nindent 10 }}
           {{- include "eurotransit.probes" . | nindent 10 }}
           resources:

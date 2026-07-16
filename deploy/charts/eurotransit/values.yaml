@@ -232,6 +232,19 @@ notifications:
     port: "5432"
     name: "notificationsdb"
   kafkaUserSecret: "eurotransit-notifications"
+  # Real order-confirmation email. sender=smtp switches notifications from the
+  # logging stub to JavaMail (best-effort: a send failure degrades only the
+  # notification, never checkout). Credentials come from a SealedSecret (never
+  # plaintext) — seal a Mailtrap sandbox user/pass with:
+  #   just seal eurotransit-notifications-smtp eurotransit
+  # where .env.eurotransit-notifications-smtp holds SPRING_MAIL_USERNAME and
+  # SPRING_MAIL_PASSWORD.
+  smtp:
+    sender: "smtp"
+    from: "noreply@eurotransit.test"
+    host: "sandbox.smtp.mailtrap.io"
+    port: "2525"
+    secretName: "eurotransit-notifications-smtp"
 # ------------------------------------------------------------------------------
 # Frontend — static SPA (nginx). No state, no Kafka, no DB; not on the money
 # path. nginx serves the bundle on 8080 (chart-wide appPort) with the security

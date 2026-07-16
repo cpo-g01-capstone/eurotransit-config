@@ -29,6 +29,7 @@ exception-swallowing `suspend` listener that became the team-ratified bridge pat
 | 19 | 2026-07-11 | Async / eurotransit-app | Two silent event-contract faults: frozen catalog cache and DLT'd notifications |
 | 20 | 2026-07-11 | Observability / eurotransit-app | No histogram buckets behind every latency panel, alert, and canary gate — p95 was unmeasurable |
 | 21 | 2026-07-12 | Chaos / eurotransit-config | CE-5 runbook injected with a graceful `kubectl delete pod` — measures CNPG smart shutdown (a switchover), not a primary crash |
+| 23 | 2026-07-16 | Notifications / eurotransit-app | AI's `SmtpEmailSender` used `setFrom(from)` inside `SimpleMailMessage().apply {}` — the receiver's own `from` bean property shadowed the constructor param, sending every email with a null sender |
 
 ---
 
@@ -457,3 +458,56 @@ false for Strimzi KafkaUsers). Offline gates cannot catch a wrong secret key; wh
 consumes an operator-generated secret, verify the actual key names against the operator's
 docs or a live secret before merging. Prefer consuming ready-made keys (Strimzi ships the
 full JAAS string) over reassembling credentials in the pod spec.
+
+---
+
+## Case 23 — 2026-07-16 — `SimpleMailMessage.apply { setFrom(from) }` sent every email with a null sender (eurotransit-app)
+
+> Caught by a unit test while adding the real SMTP sender (optional per-order
+> `customerContact` threaded checkout → `order-confirmed` → Notifications).
+
+**What the AI produced:**
+The new `SmtpEmailSender` took the sender address as a constructor property named `from` and
+built the message with:
+
+```kotlin
+class SmtpEmailSender(
+    private val mailSender: JavaMailSender,
+    registry: MeterRegistry,
+    @Value("\${notifications.email.from:...}") private val from: String,
+) : EmailSender {
+    override suspend fun send(event: OrderConfirmedEvent) {
+        val message = SimpleMailMessage().apply {
+            setFrom(from)              // intended: the constructor's `from`
+            setTo(event.customerContact)
+            ...
+        }
+        withContext(Dispatchers.IO) { mailSender.send(message) }
+    }
+}
+```
+
+**Why it was wrong (subtly):**
+Inside `apply {}` the receiver is the `SimpleMailMessage`, which exposes a JavaBean `from`
+property (`getFrom`/`setFrom`). Kotlin resolved the unqualified `from` to **the receiver's
+own property** (`this.from`, null at that point) rather than the outer class's constructor
+param — so `setFrom(from)` became `setFrom(null)`. `setTo(event.customerContact)` was
+unaffected because `event` is not a member of `SimpleMailMessage`, so recipients looked
+correct while the sender was silently null. It compiled cleanly with no warning.
+
+**How it was caught:**
+The sender's unit test captured the built `SimpleMailMessage` (mockk `slot`) and asserted
+both fields. The recipient assertion passed; the sender assertion failed —
+`expected: <noreply@eurotransit.test> but was: <null>` — pointing straight at the shadowing.
+
+**How it was corrected:**
+Renamed the constructor param to `fromAddress` (and the test's named argument) so the
+unqualified reference inside `apply {}` can no longer collide with a bean property of the
+receiver.
+
+**Lesson learned:**
+`apply {}`/`with {}` put a foreign object's properties into unqualified scope; when the
+receiver is a JavaBean, its setters imply same-named readable properties that shadow outer
+names. Prefer a param name that cannot collide with the receiver's properties (or qualify
+with `this@Outer.`), and always assert *every* field a builder sets — the bug hid behind a
+correct-looking neighbouring field.
