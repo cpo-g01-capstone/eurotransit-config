@@ -9,7 +9,10 @@
 # seed becomes a one-time bootstrap, not the source of truth.
 #
 # Wave -1: reconcile the platform's own controller before the other platform
-# app-of-apps children (platform wave 0, workloads wave 1).
+# app-of-apps children (platform wave 0, workloads wave 1). The initial seed and
+# this self-management app both install the Application health customization from
+# patch-argocd-cm.yaml, so the parent waits for child Applications to become Healthy
+# before advancing to the next wave (ADR 0003).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

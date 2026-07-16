@@ -23,10 +23,12 @@ while validating the bootstrap on a live cluster (see `docs/agent-log.md` cases 
 2. **Workloads reference CRDs owned by a different app.** The app chart ships
    `ServiceMonitor`/`PrometheusRule` (kube-prometheus-stack), `IngressRoute`/
    `TraefikService` (Traefik), a `Certificate` (cert-manager); the `kafka` app ships
-   `Kafka`/`KafkaTopic` (Strimzi); the `data` app ships a CNPG `Cluster`. A
-   `sync-wave` only orders resources **within one Application's sync** — it does not
-   reliably wait for a *different* app to finish installing its CRDs. So a workload
-   can sync before its CRD exists and hard-fail with `SyncFailed / Missing`.
+   `Kafka`/`KafkaTopic` (Strimzi); the `data` app ships a CNPG `Cluster`. Argo CD
+   removed the built-in health assessment for `argoproj.io/Application`, so an
+   app-of-apps sync-wave normally orders creation of child Application objects but
+   does not wait for those child Applications to become Healthy. A workload can
+   therefore sync before a different Application has finished installing its CRDs
+   and controllers.
 
 Both are timing/ordering problems inherent to splitting operators and their consumers
 across separate Argo Applications.
@@ -39,31 +41,41 @@ across separate Argo Applications.
    and `traefik` have small CRDs and are left on client-side apply until proven
    otherwise.)
 
-2. **`SkipDryRunOnMissingResource=true`** on workload Applications whose CRs depend on
-   CRDs installed by a different app: `eurotransit`, `eurotransit-kafka`,
-   `eurotransit-data`. The sync retries (eventual consistency) instead of hard-failing
-   until the CRD is registered.
+2. **Restore health assessment for child `Application` resources** in
+   `bootstrap/install/patch-argocd-cm.yaml`, using Argo CD's documented
+   `resource.customizations.health.argoproj.io_Application` Lua customization. It
+   returns each child Application's own `.status.health`, allowing health to propagate
+   recursively through `root-app` → `platform` → operator Applications.
 
-3. **Compensating control:** a `kubeconform` schema-validation step (`just helm-schema`,
+3. **`SkipDryRunOnMissingResource=true`** on workload Applications whose CRs depend on
+   CRDs installed by a different app: `eurotransit`, `eurotransit-kafka`,
+   `eurotransit-data`. Keep this as defense in depth: the branch-validation bootstrap
+   applies leaf Applications directly, and Kubernetes API discovery/webhook readiness
+   can still have short registration delays. The sync retries instead of hard-failing
+   until the resource is accepted.
+
+4. **Compensating control:** a `kubeconform` schema-validation step (`just helm-schema`,
    wired into CI) to recover the validation safety that `SkipDryRunOnMissingResource`
    gives up — a typo'd `kind`/`apiVersion` should fail a PR, not be silently treated as
    a missing CRD that retries forever.
 
-### Cross-Application ordering is a hint, not a gate
+### Cross-Application ordering is health-gated
 
 The app-of-apps uses `sync-wave: "0"` on `platform` and `"1"` on `workloads`, and finer
-waves inside them. **Sync-waves reliably order resources *within a single Application's*
-sync; between *separate* Applications they only order when Argo creates the child
-Application resource — they do not block wave 1 from syncing until wave 0's children are
-Healthy.** So the wave annotations are a *hint* that usually helps, but they are **not** the
-mechanism that prevents a workload CR from applying before its CRD exists.
+waves inside them. Sync waves always order resources within a single Application, but
+child Applications need an explicit health assessment for the earlier wave to remain
+blocked while they reconcile. Decision **2** restores that assessment:
 
-The real guarantee is decision **2** — `SkipDryRunOnMissingResource` + Argo's idempotent
-retry: a CR whose CRD isn't registered yet is retried, not hard-failed, until the CRD
-appears. This is coherent and sufficient for our bootstrap. If stronger gating is ever
-wanted, the right lever is a **health-based retry/backoff** on the workload Applications
-(let Argo's health assessment + a `retry` backoff converge), **not** strict CRD-first
-ordering (see Alternatives). Low priority — the retry already converges in practice.
+- `root-app` waits for its wave `-1` `argocd` Application to become Healthy;
+- it then creates the wave `0` `platform` Application and waits for it to become Healthy;
+- the `platform` Application recursively waits for its wave `0` operator Applications
+  before applying its wave `1` CRs;
+- only after `platform` is Healthy does `root-app` create the wave `1` `workloads`
+  Application.
+
+The same customization is present in the one-time Kustomize seed, so it is active before
+`root-app` is first applied on a fresh cluster. `SkipDryRunOnMissingResource` remains a
+fallback rather than the primary ordering mechanism.
 
 ## Alternatives considered
 
@@ -78,26 +90,35 @@ ordering (see Alternatives). Low priority — the retry already converges in pra
   - **Doesn't fully solve ordering.** Some operators need the *controller* running, not just
     the CRD registered — e.g. the CNPG `Cluster` admission webhook (a retired setup-era agent-log entry; full text in Git history). CRD-first
     would still race the webhook, so it adds complexity without closing the gap.
-  - **Validation is already recovered** by the `kubeconform` control (decision 3), so the main
+  - **Validation is already recovered** by the `kubeconform` control (decision 4), so the main
     benefit of CRD-first (keeping downstream dry-run) is largely redundant here.
   - **When it would be worth it:** many teams/apps sharing CRDs under strict change management —
-    not a single-cluster, five-person capstone. Revisit only if the retry approach proves noisy.
+    not a single-cluster, five-person capstone. Revisit only if health-gated ordering plus the
+    retry fallback proves insufficient.
 - **`Replace=true`** to sidestep the annotation-size limit. Rejected: it is destructive
   (deletes and recreates resources) and risky for CRDs holding live CRs.
-- **Rely on sync-waves / retries alone.** Rejected: cases 9–10 showed wave gating does
-  not reliably wait on another app's CRD installation; without the options above the
-  bootstrap wedges on a fresh cluster.
+- **Leave Argo CD's default Application health behavior and describe cross-app waves as
+  hints only.** Rejected: the hierarchy is deliberately split into platform and workload
+  dependency tiers. The documented health customization is small and lets the declared
+  waves enforce that intent instead of relying primarily on timing and retries.
+- **Rely on retries alone.** Rejected as the primary mechanism: cases 9–10 showed that
+  racing another app's CRD/controller installation produces noisy failed syncs and can
+  wedge bootstrap. Retry remains a defense-in-depth fallback.
 
 ## Consequences
 
-- **Easier:** a fresh cluster bootstraps deterministically regardless of operator/CR
-  install timing; no manual re-sync ordering.
+- **Easier:** a fresh cluster bootstraps in explicit dependency order. An unhealthy
+  operator blocks the workload wave rather than allowing dependent CRs to race ahead.
 - **Harder / risk:** `SkipDryRunOnMissingResource` weakens validation — a genuinely
   wrong `kind`/`apiVersion` is treated as "missing CRD, will retry" rather than failing
   loudly. Blast radius is limited (built-in kinds still get full dry-run), and the
   `kubeconform` control is the mitigation. `ServerSideApply` changes field-ownership
   semantics; it is the recommended mode for operator charts, but field-manager conflicts
   can appear if the same fields are edited out of band.
+- **Harder / risk:** health gating is fail-closed. A genuinely unhealthy platform
+  Application now holds later waves indefinitely, which is safer but makes the blocking
+  child health status part of bootstrap diagnosis. The Lua customization mirrors Argo
+  CD's documented implementation and must be rechecked when Argo CD is upgraded.
 
 ## Verification & ownership (agentic-coding policy)
 
@@ -105,14 +126,18 @@ Drafted with agent assistance during the EM-31 platform-bootstrap work. Before r
 
 - [ ] Confirm the four operator apps reach Synced+Healthy on a fresh cluster with
       `ServerSideApply=true` (CRDs install).
+- [ ] Hold one platform child Application in Progressing/Degraded and confirm
+      `workloads` is not created/synced until that child becomes Healthy.
 - [ ] Confirm the three workload apps converge (their CRs apply once CRDs exist).
 - [ ] Confirm `just helm-schema` (kubeconform) runs in CI and fails on a deliberately
       broken manifest.
 - [x] Strict CRD-first ordering evaluated and rejected (2026-07-09); eventual-consistency
-      via `SkipDryRunOnMissingResource` + retry is the standing approach (see Alternatives).
+      via `SkipDryRunOnMissingResource` remains the fallback (see Alternatives).
 
 ## References
 
 - `docs/agent-log.md` cases 8 (kubeVersion), 9 (CNPG webhook readiness), 10 (cross-app CRD sync-wave).
 - Argo CD sync options: `ServerSideApply`, `SkipDryRunOnMissingResource`.
+- [Argo CD resource health — restoring `Application` health for app-of-apps wave
+  gating](https://argo-cd.readthedocs.io/en/release-3.5/operator-manual/health/#argocd-app).
 - CLAUDE.md — GitOps delivery rules; agentic-coding policy.

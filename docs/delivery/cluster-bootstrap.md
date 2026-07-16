@@ -49,7 +49,10 @@ for validating an unmerged branch on the cluster. Steady state is always
 ### 2. What root-app unfolds (app-of-apps, sync waves)
 
 `root-app` reconciles `bootstrap/apps/`, whose Applications are ordered by
-`argocd.argoproj.io/sync-wave` so nothing races ahead of what it depends on:
+`argocd.argoproj.io/sync-wave` so nothing races ahead of what it depends on. The Argo CD
+seed restores health assessment for `Application` resources in `argocd-cm`; therefore an
+earlier wave remains blocked until its child Application reports Healthy, and that health
+propagates recursively through the app-of-apps tree (ADR 0003).
 
 | Wave | Application | Source path | Installs | Why this order |
 |---|---|---|---|---|
@@ -58,10 +61,12 @@ for validating an unmerged branch on the cluster. Steady state is always
 | 0 | `platform` | `platform/` (recurse) | Traefik, cert-manager, CloudNativePG, Strimzi, Sealed Secrets, kube-prometheus-stack, Chaos Mesh | operators + CRDs must be Healthy before any CR that needs them |
 | 1 | `workloads` | `apps/` | `eurotransit` (Helm chart), `kafka` (Kafka + KafkaTopic CRs), `data-infrastructure` (CNPG Clusters) | CRs would fail without wave 0's controllers/CRDs |
 
-Two sync-option details make this work at all (ADR 0003): `ServerSideApply`
-for the operators with CRDs too large for client-side apply, and
-`SkipDryRunOnMissingResource` so wave-1 CRs retry instead of hard-failing if a
-CRD lands moments late.
+Three controls make this work (ADR 0003):
+
+1. the `Application` health customization turns cross-Application waves into health gates;
+2. `ServerSideApply` handles operator CRDs too large for client-side apply; and
+3. `SkipDryRunOnMissingResource` remains defense in depth, so a wave-1 CR retries instead
+   of hard-failing if API discovery or an admission webhook lands moments late.
 
 ### 3. Bootstrap control flow
 

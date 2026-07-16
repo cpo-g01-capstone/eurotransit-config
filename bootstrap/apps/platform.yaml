@@ -6,7 +6,9 @@ metadata:
   annotations:
     # Wave 0: operators (CRDs + controllers) must be installed and Healthy before
     # the workloads app applies the resources that depend on them — Kafka,
-    # CloudNativePG Cluster, SealedSecrets. See workloads.yaml (wave 1).
+    # CloudNativePG Cluster, SealedSecrets. Application health propagation is
+    # restored in bootstrap/install/patch-argocd-cm.yaml (ADR 0003), turning this
+    # wave boundary into a health gate. See workloads.yaml (wave 1).
     argocd.argoproj.io/sync-wave: "0"
 spec:
   project: platform
