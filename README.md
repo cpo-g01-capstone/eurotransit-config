@@ -53,10 +53,14 @@ second application-packaging layer alongside Helm.
 | Platform operators | Argo CD Applications pointing to pinned Helm charts | Installs and upgrades third-party controllers such as Traefik, cert-manager, CloudNativePG, and Strimzi without copying their charts into this repository. |
 | Kafka, PostgreSQL, and app-of-apps resources | Plain YAML directories | These are already complete desired-state objects and do not need templating or overlays; Argo CD reads them directly. |
 
-## Delivery decisions
+## Documentation
 
-[`DELIVERY.md`](DELIVERY.md) is the overview of every delivery/platform decision (with
-trade-offs), indexing the [ADRs](docs/adr/) and [runbooks](docs/delivery/).
+[`docs/README.md`](docs/README.md) is the orientation map — where is what, what was
+decided, how each problem is addressed, and where the proof lives. From there:
+[`DELIVERY.md`](DELIVERY.md) (delivery/platform decision index with trade-offs),
+[`docs/pillar-implementation-map.md`](docs/pillar-implementation-map.md)
+(capstone requirement → code/docs), the [ADRs](docs/adr/), and the
+[runbooks](docs/delivery/).
 
 ## How to work here
 

@@ -38,6 +38,7 @@
 # # Observability & verification owner
 # platform/observability/                       @marcodonatucci
 # deploy/charts/eurotransit/templates/catalog/  @marcodonatucci
+# deploy/charts/eurotransit/templates/frontend/ @marcodonatucci
 #
 # # Data & consistency owner
 # platform/cloudnative-pg/                      @MauroC0l

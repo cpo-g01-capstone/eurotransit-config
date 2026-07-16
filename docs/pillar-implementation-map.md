@@ -158,8 +158,9 @@ dedup store makes recovery safe. The order is CONFIRMED regardless.
 
 ### Probes, PDBs, topology spread (deliberate K8s resilience)
 Shared probe block in `values.yaml`: liveness = `/actuator/health/liveness` (local
-process only — never downstream), readiness = `/actuator/health/readiness` (includes
-Kafka/DB), startup probe for JVM warmup. PDB per service (all five + frontend), hard
+process only — never downstream), readiness = `/actuator/health/readiness` (internal
+`ReadinessState` only — flips to `REFUSING_TRAFFIC` during drain; DB/Kafka deliberately
+**not** in the readiness group, app ADR 0004), startup probe for JVM warmup. PDB per service (all five + frontend), hard
 topology spread across zones, HPA on catalog/inventory/payments,
 `terminationGracePeriodSeconds: 60` + `preStop` sleep.
 
