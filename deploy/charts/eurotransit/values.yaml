@@ -85,19 +85,19 @@ catalog:
   blueGreen:
     # Deploys the green Deployment+Service alongside blue. Off outside demos —
     # a second track costs a full pod on the 6 vCPU budget.
-    enabled: false
+    enabled: true
     # Which track the IngressRoute serves: "blue" (the regular Deployment) or
     # "green" (the candidate). Change THIS value to switch traffic.
     activeTrack: "blue"
     # Image tag for the green candidate (a specific immutable SHA).
-    tag: ""
+    tag: "66fafcf"
 # ------------------------------------------------------------------------------
 # Orders — synchronous entry point, publishes to Kafka, owns the DB
 # ------------------------------------------------------------------------------
 orders:
   image:
     repository: eurotransit/orders
-    tag: "66fafcf"
+    tag: "68ff1b2"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -182,7 +182,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "66fafcf"
+    tag: "68ff1b2"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -302,8 +302,9 @@ networkPolicy:
   ingressNamespace: "traefik" # namespace Traefik runs in (north-south source)
   monitoringNamespace: "monitoring" # namespace Prometheus scrapes from
 # ------------------------------------------------------------------------------
-# Grafana dashboards (RED money-path + USE infrastructure), shipped as
-# ConfigMaps and hot-loaded by the kube-prometheus-stack Grafana sidecar.
+# Grafana dashboards (SLO + RED money-path + order lifecycle + order trace
+# + USE infrastructure), shipped as ConfigMaps and hot-loaded by the
+# kube-prometheus-stack Grafana sidecar.
 # JSON sources live in dashboards/*.json (outside templates/, so Grafana's
 # {{job}} legend syntax never meets the Helm renderer).
 # ------------------------------------------------------------------------------

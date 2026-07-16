@@ -1,6 +1,9 @@
 # Per-service KafkaUser CRs (hardening H1, 2026-07-14).
-# Each KafkaUser creates a Secret with keys `username` and `password`.
-# The Helm chart deployments reference these secrets for SASL authentication.
+# Each KafkaUser creates a Secret with keys `password` and `sasl.jaas.config`
+# (there is NO `username` key — the username is the KafkaUser's metadata.name).
+# The Helm chart deployments reference `sasl.jaas.config` for SASL authentication;
+# reading a `username` key wedged every service in CreateContainerConfigError
+# (issue #97, agent-log Case 22).
 # Strimzi naming convention: secret name = KafkaUser metadata.name.
 #
 # apiVersion is kafka.strimzi.io/v1 — the Strimzi 1.1.0 operator serves only v1

@@ -43,3 +43,4 @@ capstone design docs and justify the platform bootstrap in `platform/`.
 | [0025](0025-hpa-owned-replica-count.md) | HPA-managed Deployments omit `spec.replicas` (HPA owns the replica count) | Proposed | 2026-07-11 |
 | [0026](0026-progressive-delivery-canary-bluegreen.md) | Progressive delivery: Orders canary + Catalog blue/green | Accepted | 2026-07-11 |
 | [0027](0027-cpu-rightsizing-drain-headroom.md) | CPU-request rightsizing for drain headroom within the vCPU quota; Traefik HA | Proposed | 2026-07-13 |
+| [0028](0028-helm-over-kustomize.md) | Helm for application packaging; Kustomize confined to the Argo CD bootstrap | Proposed | 2026-07-16 |

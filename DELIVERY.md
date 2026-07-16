@@ -64,6 +64,7 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 | 28 | Config-repo CI | `validate.yml` gate on PRs + main (reuses `just helm-verify`/`helm-schema`) | must be a required check to actually block | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
 | 29 | Policy-as-code | kube-linter, **CI-only** (no admission controller) | 4 hardening checks excluded (deferred, tracked) | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
 | 30 | Secret scanning | gitleaks in CI + opt-in `.githooks` pre-commit | hooks bypassable; CI is the gate | [ADR 0013](docs/adr/0013-config-ci-validation.md) |
+| 31 | Rendering tools | Helm for apps; Kustomize only for the Argo CD bootstrap | two tools to know (Kustomize surface: 4 patch files) | [ADR 0028](docs/adr/0028-helm-over-kustomize.md) |
 
 ---
 
@@ -183,7 +184,7 @@ Git. Argo CD (inside the cluster) pulls and reconciles. Rollback is `git revert`
 
 | Runbook | Covers |
 |---|---|
-| [cluster-bootstrap.md](docs/delivery/cluster-bootstrap.md) | first-time bring-up, app-of-apps wave order, steady-state loops, manual-kubectl boundary (with control-flow diagrams) |
+| [bootstrap-flow.md](docs/delivery/bootstrap-flow.md) | first-time bring-up step by step, app-of-apps wave order + Argo CD health gates (ADR 0003), steady-state loops, manual-kubectl boundary (with diagrams) |
 | [tls-issuance-runbook.md](docs/delivery/tls-issuance-runbook.md) | cert-manager HTTP-01, staging→prod promotion, verification |
 | [argocd-sso.md](docs/delivery/argocd-sso.md) | Argo CD GitHub SSO (Dex) + RBAC, retiring local admin |
 | [argocd-ui-access.md](docs/delivery/argocd-ui-access.md) | exposing the Argo CD UI via Traefik + TLS |

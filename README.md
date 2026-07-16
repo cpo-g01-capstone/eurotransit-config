@@ -26,18 +26,41 @@ Argo CD reads this repository and reconciles the cluster to match.
 ## Repository structure
 
 ```
+bootstrap/            — Argo CD install + the root app-of-apps (the entry point of the whole tree)
+apps/                 — Argo CD Applications for the workloads (eurotransit, kafka, data infra)
+deploy/charts/        — the single Helm chart reconciled by Argo CD; CI bumps image tags in values.yaml
+platform/             — platform component configurations (installed once per cluster)
+kafka/                — Strimzi Kafka CR, KafkaTopic CRs, KafkaUser CRs
+postgres/             — CloudNativePG Cluster CRs (one per stateful service)
+infra/                — setup docs for out-of-cluster infrastructure (ACR OIDC, GitOps write-back App)
+scripts/              — helper scripts used by the Justfile
+docs/                 — team documentation, ADRs, DoD, design, chaos reports, postmortem
 .agent/               — structured context for coding agents and team members
 .claude/              — Claude Code permission rules
-.github/              — CODEOWNERS
-deploy/charts/        — Helm chart reconciled by Argo CD
-platform/             — platform component configurations (installed once per cluster)
-docs/                 — team documentation, DoD, chaos reports, postmortem
+.github/              — CODEOWNERS + the validate.yml PR gate
 ```
 
-## Delivery decisions
+## How manifests are rendered
 
-[`DELIVERY.md`](DELIVERY.md) is the overview of every delivery/platform decision (with
-trade-offs), indexing the [ADRs](docs/adr/) and [runbooks](docs/delivery/).
+Argo CD reconciles several source formats in this repository. Each has a distinct scope;
+Kustomize is intentionally limited to the Argo CD installation rather than used as a
+second application-packaging layer alongside Helm.
+
+| Area | Mechanism | Why and when it is used |
+|------|-----------|-------------------------|
+| Argo CD itself | Kustomize (`bootstrap/install/`) | `just install-argocd` uses it once to seed the cluster from the pinned upstream Argo CD manifest plus local patches. The Argo CD self-management Application then renders the same Kustomization on every reconciliation. |
+| EuroTransit services | Helm (`deploy/charts/eurotransit/`) | Provides the parameterized application chart: image tags, replicas, resources, probes, routing, and observability resources. Argo CD renders it after changes reach Git. |
+| Platform operators | Argo CD Applications pointing to pinned Helm charts | Installs and upgrades third-party controllers such as Traefik, cert-manager, CloudNativePG, and Strimzi without copying their charts into this repository. |
+| Kafka, PostgreSQL, and app-of-apps resources | Plain YAML directories | These are already complete desired-state objects and do not need templating or overlays; Argo CD reads them directly. |
+
+## Documentation
+
+[`docs/README.md`](docs/README.md) is the orientation map — where is what, what was
+decided, how each problem is addressed, and where the proof lives. From there:
+[`DELIVERY.md`](DELIVERY.md) (delivery/platform decision index with trade-offs),
+[`docs/pillar-implementation-map.md`](docs/pillar-implementation-map.md)
+(capstone requirement → code/docs), the [ADRs](docs/adr/), and the
+[runbooks](docs/delivery/).
 
 ## How to work here
 

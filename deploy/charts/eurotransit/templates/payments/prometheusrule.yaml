@@ -44,6 +44,20 @@ spec:
 
         # Slow authorization eats into the 500ms checkout latency SLO and will
         # trip the Orders->Payments breaker timeouts (ADR 0018) well before that.
+        #
+        # Window shortened 5m -> 2m (2026-07-16, live CE-1 debugging session):
+        # the ADR 0018 breaker opens after ~10-20 slow calls and then fast-fails
+        # (no call reaches Payments at all), so during a sustained CE-1 injection
+        # Payments' own request volume collapses to near zero. Against a 5m
+        # window's few-hundred-to-thousand pre-fault samples, the handful of
+        # slow calls that land before the breaker opens (plus sparse half-open
+        # probes) were under 2% of the window -- never enough to move p95 past
+        # 0.5s, so the alert never left inactive despite the breaker correctly
+        # cycling OPEN for minutes. A 2m window still satisfies `for: 3m`
+        # (2m <= 3m) while giving the same slow samples much more weight once
+        # the breaker has been open longer than the window itself. Tradeoff:
+        # a 2m window is noisier outside chaos experiments too -- team to
+        # ratify before relying on this for real paging.
         - alert: PaymentsHighP95Latency
           expr: |
             histogram_quantile(0.95,

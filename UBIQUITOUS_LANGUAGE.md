@@ -28,8 +28,16 @@ exactly in code, manifests, commits, docs, and discussion.
 | **Graceful degradation** | Checkout still succeeds when Notifications is fully down                     | fallback, failover            |
 | **Event**           | A domain fact published to Kafka; each event name is also its topic name         | message, record               |
 
-The five events / topics: `order-placed`, `inventory-reserved`, `payment-authorized`,
-`order-confirmed`, `notification-requested`.
+The events actually flowing on the money path — **five**: `order-placed`, `inventory-reserved`,
+`payment-authorized`, `order-confirmed`, and `order-failed` (the seat-release compensation trigger).
+
+Two further topics exist as `KafkaTopic` CRs but carry no domain event:
+
+- **`order-confirmed.DLT`** — dead-letter for poison `order-confirmed` records (CR name
+  `order-confirmed-dlt`; the dotted name is set via `spec.topicName`). Inspected/replayed by hand.
+- **`notification-requested`** — **reserved and unwired**: no producer, no consumer, no code path
+  (app ADR-001). Do not treat it as an event of the system; it is declared for a future direct-request
+  channel that was never built.
 
 ## GitOps delivery
 
