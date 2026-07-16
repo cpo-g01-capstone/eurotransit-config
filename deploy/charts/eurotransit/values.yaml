@@ -85,12 +85,12 @@ catalog:
   blueGreen:
     # Deploys the green Deployment+Service alongside blue. Off outside demos —
     # a second track costs a full pod on the 6 vCPU budget.
-    enabled: false
+    enabled: true
     # Which track the IngressRoute serves: "blue" (the regular Deployment) or
     # "green" (the candidate). Change THIS value to switch traffic.
     activeTrack: "blue"
     # Image tag for the green candidate (a specific immutable SHA).
-    tag: ""
+    tag: "66fafcf"
 # ------------------------------------------------------------------------------
 # Orders — synchronous entry point, publishes to Kafka, owns the DB
 # ------------------------------------------------------------------------------
