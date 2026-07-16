@@ -7,10 +7,12 @@ Reviewed like any PR (single approval — ADR 0019); substantive changes should 
 
 Custodian: @marcodonatucci (Observability & Verification).
 
-Twenty-three cases were recorded during the project; by team decision (2026-07-12) this file
-keeps the **eleven with the most durable lessons**. Original case numbers are preserved —
+Twenty-five cases were recorded during the project; by team decision (2026-07-12) this file
+keeps the **twelve with the most durable lessons**. Original case numbers are preserved —
 code comments, ADRs and PRs cite them. The full record, including the retired setup-era
-entries, is in Git history: `git show 53fe549:docs/agent-log.md`.
+entries, is in Git history: `git show 53fe549:docs/agent-log.md`. (Case 24 — the CE-1
+compensation guard, cited from `KafkaErrorHandlingConfig.kt` — is still awaiting its
+write-up here.)
 
 Suggested starting points: **cases 17–20** (one story: the first real order through the
 gateway peeled off four invisible fault layers that had the write path dead — green CI,
@@ -31,6 +33,7 @@ exception-swallowing `suspend` listener that became the team-ratified bridge pat
 | 21 | 2026-07-12 | Chaos / eurotransit-config | CE-5 runbook injected with a graceful `kubectl delete pod` — measures CNPG smart shutdown (a switchover), not a primary crash |
 | 22 | 2026-07-14 | Security / eurotransit-config | Kafka SASL helper referenced a `username` key that Strimzi KafkaUser secrets never generate |
 | 23 | 2026-07-16 | Observability / eurotransit-config | USE dashboard aliased raw kube-state-metrics target fragments to one deployment name, making legend filtering contradict the graph |
+| 25 | 2026-07-16 | Observability / eurotransit-app | `order.id` tag and Kafka producer spans read a ThreadLocal inside coroutines — the tag silently no-oped and every HTTP-origin `send` rooted a detached trace |
 
 ---
 
@@ -497,3 +500,64 @@ labels that participate in Prometheus series identity, the PromQL must first red
 labels explicitly. For Kubernetes object-state gauges, verify that one logical object
 produces one query result across exporter restarts; otherwise legend filtering can change
 the apparent history and turn a diagnostic dashboard into contradictory evidence.
+
+---
+
+## Case 25 — 2026-07-16 — `order.id` trace tag and Kafka producer spans silently detached at coroutine suspension points (eurotransit-app)
+
+**What the AI produced:**
+`OrderTraceTagger` (orders-service, shipped in image `9b4c9a0` together with the
+"Trace an order" dashboard): tag the active checkout span with the searchable
+`order.id` attribute via `tracer.currentSpan()?.tag(...)`, called from
+`OrderService.placeOrder`. Unit tests mocked the `Tracer` and passed; the change
+merged with the dashboard whose whole premise is searching Tempo for that attribute.
+
+**Why it was wrong (subtly):**
+Micrometer's `tracer.currentSpan()` and KafkaTemplate's observation support read a
+**ThreadLocal**, but both call sites sit past a suspension point
+(`findByIdempotencyKey`, a suspending R2DBC lookup). A WebFlux coroutine resumes on
+an arbitrary thread after suspension, so the ThreadLocal is empty there: the
+`?.`-guarded tag was a silent no-op, and every `kafkaTemplate.send` on an HTTP-origin
+path found no current parent and **rooted a brand-new trace**. Nothing failed —
+spans kept flowing to Tempo, dashboards stayed green, and the unit test recreated
+exactly the state production lacked (the mock returned a span unconditionally).
+The breakage even looked random: the mid-pipeline Kafka chain stayed correctly
+linked, because the consumers' non-suspend `runBlocking` bridge (case 12,
+app ADR-004) pins every continuation to the listener thread, where the container's
+ThreadLocal observation scope survives. Only the two HTTP-origin steps (Orders
+checkout, Payments authorize) detached.
+
+**How it was caught:**
+Testing the new dashboard: searching `{ span.order.id = "<uuid>" }` returned nothing
+for a freshly created order. Querying the Tempo API directly showed both symptoms:
+the `http post /orders` span carried no `order.id` attribute, and `order-placed send`
+/ `payment-authorized send` spans were **roots of their own traces** — with the full
+downstream waterfall (inventory receive → inventory-reserved send → …) attached to
+the detached root instead of the checkout span. The handout review had predicted the
+failure mode before it was confirmed live ("the active span may be lost across the
+coroutine boundary, causing tagging to silently do nothing").
+
+**How it was corrected:**
+The request Observation travels in the **Reactor context**, which
+kotlinx-coroutines-reactor carries with the coroutine (`ReactorContext`) — unlike the
+ThreadLocal, it survives suspension. New `CoroutineTraceContext` helpers in orders and
+payments (app-repo branch `fix/order-trace-context-propagation`):
+`currentRequestObservation()` reads the Observation from
+`coroutineContext[ReactorContext]`; the tag becomes
+`observation.highCardinalityKeyValue("order.id", …)`, copied onto the server span when
+the observation stops; `withRequestObservation { }` re-opens the observation scope
+around `kafkaTemplate.send` so producer spans parent to the request trace. The
+ThreadLocal path is kept as fallback so the `runBlocking` listeners keep working
+unchanged. Unit tests now cover the ReactorContext path, including asserting the
+ThreadLocal is *not* consulted when the observation is present.
+
+**Lesson learned:**
+In a coroutine WebFlux service, any ThreadLocal-based instrumentation —
+`tracer.currentSpan()`, observation-aware templates — silently stops working past the
+first suspension point; the context that travels with the coroutine (the Reactor
+context) is the only reliable carrier. Two verification rules follow. First, a
+`?.`-guarded tagging call is untestable with a mock of the ThreadLocal holder: the
+mock manufactures the exact state production is missing, so the test proves nothing
+about propagation. Second, verify tracing claims against the trace store — search for
+the attribute, walk one trace end to end — not against "spans are being exported":
+export kept working the whole time while every trace was quietly split in two.
