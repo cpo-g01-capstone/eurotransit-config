@@ -1,6 +1,6 @@
 # ADR 0021 — HA replicas for stateful services and declared RTO/RPO
 
-- **Status:** Proposed (drafted for team ratification via this PR)
+- **Status:** Accepted (team ratification 2026-07-17 — declared numbers demonstrated: CE-4 (RF 3, min-ISR 2) and CE-5 (RTO 16.8 s ≤ 60 s, RPO 0), both PASS)
 - **Date:** 2026-07-11
 - **Deciders:** _@marcodonatucci (drafted), @MauroC0l + @vojtech-n (data + delivery owners), full team to ratify_
 - **Context tags:** data, kafka, postgres, chaos, capacity

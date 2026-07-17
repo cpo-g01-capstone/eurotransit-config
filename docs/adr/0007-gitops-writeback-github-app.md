@@ -1,6 +1,6 @@
 # ADR 0007 — Cross-repo GitOps write-back via a GitHub App (not a PAT)
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — in daily use: CI-bot write-back on every main build)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** gitops, ci, security

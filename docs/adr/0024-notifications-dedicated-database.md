@@ -1,6 +1,6 @@
 # ADR 0024 — Dedicated CloudNativePG cluster for Notifications
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — notificationsdb live; CE-2 verification read sent_notifications from it)
 - **Date:** 2026-07-11
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** database, cloudnative-pg, notifications, gitops, idempotency

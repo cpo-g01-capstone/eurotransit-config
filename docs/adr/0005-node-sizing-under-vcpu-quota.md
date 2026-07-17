@@ -1,6 +1,6 @@
 # ADR 0005 — Node sizing under regional vCPU quota (3× B2s_v2)
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — cluster built 2026-07-08 and used for the whole project; CPU headroom addressed by ADR 0027, CE-3 run 2 PASS; supersedes ADR 0001's sizing)
 - **Date:** 2026-07-08
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** platform, cost, aks, quota

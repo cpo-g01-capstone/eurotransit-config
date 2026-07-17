@@ -1,6 +1,6 @@
 # ADR 0022 — Distributed tracing: Tempo + OpenTelemetry over OTLP
 
-- **Status:** Proposed (this PR is the ratification vehicle)
+- **Status:** Accepted (team ratification 2026-07-17 — tracing live end-to-end, verified against the trace store; see agent-log case 25)
 - **Date:** 2026-07-11
 - **Author:** @giova95 (observability & verification)
 - **Related:** RED/USE dashboards (#33); chaos experiment reports ("observe on our own

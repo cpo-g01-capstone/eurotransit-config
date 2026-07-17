@@ -1,6 +1,6 @@
 # ADR 0014 — Migrate Kafka CRs to the `kafka.strimzi.io/v1` API
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — Kafka Synced/Healthy on v1 CRs; CE-4 executed on the migrated cluster)
 - **Date:** 2026-07-10
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** kafka, strimzi, gitops, argocd

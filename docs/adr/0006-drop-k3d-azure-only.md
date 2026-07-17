@@ -1,6 +1,6 @@
 # ADR 0006 — Drop local k3d; run everything on Azure (AKS)
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — the whole project — deploys, CE-1…CE-5, demo dry-runs — runs on AKS)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** platform, gitops, cost, delivery

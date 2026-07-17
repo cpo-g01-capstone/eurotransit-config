@@ -1,6 +1,6 @@
 # ADR 0002 — Graceful Shutdown and Probe Configuration
 
-- **Status:** Proposed (awaiting team ratification)
+- **Status:** Accepted (team ratification 2026-07-17 — drain chain verified in code and demonstrated under CE-2 run 3; per-service shutdown timeouts set explicitly)
 - **Date:** 2026-06-29
 - **Deciders:** _<add team members>_
 - **Context tags:** delivery, resilience, helm, probes, Pillar A, Pillar C
