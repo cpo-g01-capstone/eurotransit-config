@@ -379,7 +379,7 @@
       "id": 14,
       "type": "table",
       "title": "Order API traces in the selected range",
-      "description": "Tempo traces rooted in Orders whose root operation contains 'orders'. Open a trace to inspect HTTP and Kafka spans across Inventory, Payments, Orders confirmation, and Notifications. For exact order-ID lookup and an embedded waterfall, use the 'Trace a specific order' dashboard link.",
+      "description": "Tempo traces rooted in Orders whose root operation contains 'orders'. A healthy trace now spans the WHOLE money path — Kafka hops, the synchronous Payments authorize call (traceparent over HTTP), confirmation, and Notifications — and every stage span is tagged with order.id. For exact order-ID lookup and an embedded waterfall, use the 'Trace a specific order' dashboard link.",
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 31 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": {
