@@ -33,13 +33,8 @@ datasource and the network path were missing.
    egress, so a dedicated NetworkPolicy (`eurotransit-allow-egress-tracing`, port 4318
    toward `monitoring`) ships with the chart — without it spans would be dropped
    *silently*, the worst failure mode for an observability signal.
-6. **Retention 48h with a 5 Gi PVC** — enough for the demo traffic at 100% sampling,
-   while surviving a Tempo pod restart.
-7. **Order correlation stays in traces**: once Orders knows the generated order ID
-   (including an idempotently replayed response), it adds `order.id` to the active
-   checkout span. A TraceQL match on that single span retrieves the complete propagated
-   HTTP + Kafka trace. The order ID is not baggage and must never become a Prometheus
-   label: it is high-cardinality correlation data, not a metric dimension.
+6. **Retention 48h, no persistence yet** — same trade-off (and same later PVC fix, #43) as
+   Prometheus storage: add a PVC before the demo cluster.
 
 ## Consequences
 
@@ -50,9 +45,6 @@ datasource and the network path were missing.
   needs it.
 - CE-1/CE-2 reports can now attach traces ("the order stalled in the authorize span
   while the breaker was open") in addition to metrics.
-- Grafana's order-trace dashboard accepts an order ID, finds the tagged Orders span,
-  and opens the full end-to-end waterfall without requiring an operator to know the
-  trace ID.
 - Coroutine bridges (`runBlocking` consumers) may occasionally produce imperfect
   parent-child links across the coroutine boundary; the HTTP and Kafka spans that
   answer the money-path question are unaffected. Known, accepted.

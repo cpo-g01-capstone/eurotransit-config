@@ -7,30 +7,6 @@
   "schemaVersion": 39,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "SLO overview",
-      "tooltip": "Open checkout objectives and error-budget burn",
-      "type": "link",
-      "url": "/d/eurotransit-slo/slo-overview"
-    },
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": true,
-      "targetBlank": false,
-      "title": "Trace a specific order",
-      "tooltip": "Look up an end-to-end trace by order ID",
-      "type": "link",
-      "url": "/d/eurotransit-order-trace/order-trace"
-    }
-  ],
   "templating": { "list": [] },
   "panels": [
     {
@@ -379,7 +355,7 @@
       "id": 14,
       "type": "table",
       "title": "Order API traces in the selected range",
-      "description": "Tempo traces rooted in Orders whose root operation contains 'orders'. Open a trace to inspect HTTP and Kafka spans across Inventory, Payments, Orders confirmation, and Notifications. For exact order-ID lookup and an embedded waterfall, use the 'Trace a specific order' dashboard link.",
+      "description": "Tempo traces rooted in Orders whose root operation contains 'orders'. Open a trace to inspect HTTP and Kafka spans across Inventory, Payments, Orders confirmation, and Notifications. The current instrumentation propagates one trace across the workflow but does not attach order.id as a searchable span attribute.",
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 31 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": {

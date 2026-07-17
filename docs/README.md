@@ -83,8 +83,8 @@ evidence that it works.
 | Chart packaging & rendering tools | [ADR 0008](adr/0008-single-helm-chart.md) (one chart), [ADR 0028](adr/0028-helm-over-kustomize.md) (Helm apps / Kustomize only for Argo CD bootstrap) | `deploy/charts/eurotransit/`; `bootstrap/install/` | `just helm-verify` / `helm-schema` gates ([ADR 0013](adr/0013-config-ci-validation.md)) |
 | Promotion model & rollback | [ADR 0009](adr/0009-trunk-based-single-stack.md) — trunk-based, one stack; rollback = `git revert` | [`../DELIVERY.md`](../DELIVERY.md) rows 6–9 | GitOps history |
 | Canary (Orders) & blue/green (Catalog) | [ADR 0026](adr/0026-progressive-delivery-canary-bluegreen.md) incl. promotion gate + DORA discussion | [`delivery/progressive-delivery-runbook.md`](delivery/progressive-delivery-runbook.md) | [`delivery/2026-07-11-progressive-delivery-demo-results.md`](delivery/2026-07-11-progressive-delivery-demo-results.md) |
-| SLOs, alerts, dashboards | [`design/slo-definitions.md`](design/slo-definitions.md); symptom-based burn-rate alerts only | Pillar map §D; SLO, RED, lifecycle, trace-lookup and USE dashboards in chart `dashboards/`; `templates/*/prometheusrule.yaml` | Live during every chaos run |
-| Tracing across the money path | [ADR 0022](adr/0022-distributed-tracing-tempo-otlp.md) — Tempo + OTLP, W3C context through Kafka headers, trace-only `order.id` correlation | Pillar map §D; `platform/monitoring/tempo.yaml`; `dashboards/order-trace.json` | Order ID lookup opens one trace across gateway→…→Notifications |
+| SLOs, alerts, dashboards | [`design/slo-definitions.md`](design/slo-definitions.md); symptom-based burn-rate alerts only | Pillar map §D; chart `dashboards/`, `templates/*/prometheusrule.yaml` | Live during every chaos run |
+| Tracing across the money path | [ADR 0022](adr/0022-distributed-tracing-tempo-otlp.md) — Tempo + OTLP, W3C context through Kafka headers | Pillar map §D; `platform/monitoring/tempo.yaml` | One trace across gateway→…→Notifications |
 
 ### Platform & operations (not pillar-mapped)
 
