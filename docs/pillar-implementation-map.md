@@ -214,21 +214,16 @@ path: **config** `docs/adr/0026-progressive-delivery-canary-bluegreen.md` §"DOR
 delivery strategies". (Rolling is still what the promoted stable track does under the
 hood — deliberately, off the traffic-decision path.)
 
-### Observability (RED, order lifecycle, USE, symptom-based alerts)
+### Observability (RED, USE, symptom-based alerts)
 GitOps-delivered Grafana dashboards (ConfigMaps via sidecar): a money-path RED
-dashboard (incl. circuit-breaker state panel), an order-lifecycle dashboard for
-accepted → authorized → notified convergence, per-topic Kafka lag, service/breaker
-state and Tempo drill-down, and a USE/infrastructure dashboard. The lifecycle
-dashboard deliberately labels notification/accepted as an operational proxy rather
-than an SLI: exact order-state counts and oldest-in-flight age still require bounded-
-cardinality application metrics.
+dashboard (incl. circuit-breaker state panel) and a USE/infrastructure dashboard.
 Alerts are symptom-based only: multi-window error-budget **burn-rate** rules
 (14× fast-burn pages, 6× slow-burn tickets), `CheckoutHighErrorRate`,
 `CheckoutHighP95Latency`, `KafkaConsumerLagHigh`, service-down rules; CPU appears
 only as a non-paging capacity ticket. Scraping via per-service `ServiceMonitor`s
 (`/actuator/prometheus`, Micrometer).
 
-- **config** `deploy/charts/eurotransit/dashboards/red-money-path.json`, `order-lifecycle.json`, `use-infrastructure.json` (+ `templates/observability/grafana-dashboards.yaml`)
+- **config** `deploy/charts/eurotransit/dashboards/red-money-path.json`, `use-infrastructure.json` (+ `templates/observability/grafana-dashboards.yaml`)
 - **config** `deploy/charts/eurotransit/templates/orders/prometheusrule.yaml` — SLI recording rules + burn-rate alerts; also `inventory/` and `payments/` prometheusrules, `observability/prometheusrule-capacity.yaml`
 - **config** `deploy/charts/eurotransit/templates/*/servicemonitor.yaml`
 - **config** `platform/monitoring/kube-prometheus-stack.yaml` — the stack itself
