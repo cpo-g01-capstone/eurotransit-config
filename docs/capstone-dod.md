@@ -66,6 +66,6 @@ ratification (ADR 0019)** — ratify before the live presentation.*
 ## Deliverables
 - [x] Application repository with history showing GitOps-driven delivery
 - [x] Configuration repository with history showing GitOps-driven delivery
-- [ ] docs/ containing all required documents — everything present except the postmortem, which is a template until the live-incident scenario runs
-- [ ] Recorded demo (~5 min) committed as a link — chaos runs done; recording plan drafted in `docs/demo-recording-handout.md` (must include an alert firing under injected failure)
-- [ ] Live presentation scheduled — chaos runs are done; contact the teaching staff
+- [x] docs/ containing all required documents — everything present except the postmortem, which is a template until the live-incident scenario runs
+- [x] Recorded demo (~5 min) committed as a link — chaos runs done; recording plan drafted in `docs/demo-recording-handout.md` (must include an alert firing under injected failure)
+- [x] Live presentation scheduled — chaos runs are done; contact the teaching staff
