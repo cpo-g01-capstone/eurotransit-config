@@ -1,6 +1,6 @@
 # ADR 0013 — Config-repo CI validation: policy-as-code + secret scanning (CI-only)
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — validate gates active in CI; kube-linter exclusions re-enabled after hardening C1/C2)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** ci, gitops, security, policy-as-code

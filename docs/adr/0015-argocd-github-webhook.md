@@ -1,6 +1,6 @@
 # ADR 0015 — Argo CD GitHub webhook via a patch-mode SealedSecret
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — webhook configured and verified by the team: deliveries 200, push-triggered reconcile observed)
 - **Date:** 2026-07-11
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** argocd, gitops, secrets, delivery

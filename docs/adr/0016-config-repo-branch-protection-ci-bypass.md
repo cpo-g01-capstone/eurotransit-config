@@ -1,6 +1,6 @@
 # ADR 0016 — Config-repo branch protection with a CI-app bypass actor
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — in daily use: CI-app bypass pushes to main, direct human pushes blocked)
 - **Date:** 2026-07-10
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** gitops, ci, security, governance

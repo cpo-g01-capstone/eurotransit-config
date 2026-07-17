@@ -1,6 +1,6 @@
 # ADR 0028 — Helm for application packaging; Kustomize confined to the Argo CD bootstrap
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — split in use: Helm for apps, Kustomize seed for bootstrap)
 - **Date:** 2026-07-16
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** delivery, helm, kustomize, gitops

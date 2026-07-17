@@ -1,6 +1,6 @@
 # ADR 0001 — AKS Cluster Sizing and Budget Strategy
 
-- **Status:** Proposed (awaiting team ratification)
+- **Status:** Superseded by [ADR 0005](0005-node-sizing-under-vcpu-quota.md) — the B4als_v2 plan was replaced by 3× B2s_v2 under the 6-vCPU quota (2026-07-17)
 - **Date:** 2026-06-29
 - **Deciders:** _<add team members>_
 - **Context tags:** platform, cost, AKS, capstone

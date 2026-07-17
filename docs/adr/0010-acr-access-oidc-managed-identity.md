@@ -1,6 +1,6 @@
 # ADR 0010 — ACR access via GitHub OIDC + a user-assigned managed identity
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — in daily use: OIDC push to ACR, AKS pulls with no ImagePullBackOff)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** ci, security, azure, acr

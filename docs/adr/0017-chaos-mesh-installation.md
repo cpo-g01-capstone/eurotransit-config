@@ -1,6 +1,6 @@
 # ADR 0017 — Chaos Mesh installation and experiment execution model
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — operator in use by every chaos experiment, CE-1…CE-6)
 - **Date:** 2026-07-11
 - **Author:** @giova95 (chaos & verification)
 - **Related:** capstone spec "Chaos engineering"; ADR 0004 (version pinning);

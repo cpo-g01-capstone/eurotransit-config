@@ -1,6 +1,6 @@
 # ADR 0008 — Single Helm chart for all five services
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — in use since project start; single-service rollback exercised via canary abort)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** delivery, helm, gitops

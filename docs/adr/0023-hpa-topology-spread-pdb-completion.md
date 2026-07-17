@@ -1,6 +1,6 @@
 # ADR 0023 — HPA for the contended services, topology spread, PDB completion
 
-- **Status:** Proposed (this PR is the ratification vehicle)
+- **Status:** Accepted (team ratification 2026-07-17 — demonstrated under CE-3: drain completed with PDBs + hard topology spread)
 - **Date:** 2026-07-11
 - **Author:** @giova95 (resilience)
 - **Related:** ADR 0021 (HA replicas), #41 (CPU-request trim), CE-3 (node drain),

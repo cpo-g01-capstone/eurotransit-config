@@ -1,6 +1,6 @@
 # ADR 0004 — Operator version pinning
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — pins in place (Strimzi 1.1.0, CNPG 0.29.0) and exercised in production since; parity framing retired by ADR 0006)
 - **Date:** 2026-07-01 _(revised 2026-07-09 — cluster-parity framing retired, see below)_
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** platform, gitops, kafka

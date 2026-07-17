@@ -1,6 +1,6 @@
 # ADR 0012 — Traefik `IngressRoute` over native `Ingress`
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — routes live behind TLS; canary TraefikService exercised in demo dry-runs)
 - **Date:** 2026-07-09
 - **Deciders:** _@vojtech-n (drafted, delivery), full team to ratify_
 - **Context tags:** delivery, traefik, ingress, progressive-delivery

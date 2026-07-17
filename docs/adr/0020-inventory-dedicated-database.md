@@ -1,6 +1,6 @@
 # ADR 0020 — Dedicated CloudNativePG cluster for Inventory
 
-- **Status:** Proposed
+- **Status:** Accepted (team ratification 2026-07-17 — inventorydb live; CE-2 cross-DB reconciliation ran against it)
 - **Date:** 2026-07-11
 - **Deciders:** _full team to ratify_
 - **Context tags:** database, cloudnative-pg, inventory, gitops, seat-reservation
