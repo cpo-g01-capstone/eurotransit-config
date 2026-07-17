@@ -37,10 +37,13 @@ the postmortem, and the live presentation.
 - [x] Blue/green demonstrated: stand up new version → switch traffic → fast rollback available — PRs #61/#62/#63 on Catalog, atomic IngressRoute cutover, 5-clean-minute window, one-commit rollback by construction
 - [x] DORA strategy discussion: where rolling and all-at-once would fit, why not used on critical path — ADR 0026 §"DORA delivery strategies"
 - [x] Per-service RED dashboards in Grafana — `dashboards/red-money-path.json` (GitOps-delivered, PR #33)
+- [x] Checkout SLO overview dashboard — `dashboards/slo-overview.json` (success, p95, remaining-budget proxy, 5 m / 1 h / 6 h burn state; current 7-day Prometheus evidence is explicitly not presented as 30-day compliance)
+- [x] Async order-lifecycle dashboard — `dashboards/order-lifecycle.json` (accepted → authorized → notified convergence, per-topic lag, resilience state, Tempo trace drill-down; exact DB state counts remain an app-instrumentation follow-up)
+- [x] Exact order trace lookup — `dashboards/order-trace.json` + trace-only `order.id` span attribute in Orders (order ID → matching Tempo trace → embedded end-to-end waterfall)
 - [x] USE / infrastructure / Golden Signals dashboard — `dashboards/use-infrastructure.json`
 - [x] Symptom-based alerts tied to SLOs (burn rate / user-visible symptoms, not CPU) — multi-window burn-rate rules (14× page / 6× ticket), CPU only as non-paging capacity ticket (PR #36)
 - [x] Latency SLO and success-rate SLO for checkout defined with SLIs and error-budget statement — `docs/design/slo-definitions.md`, team-ratified 2026-07-11, incl. deploy-freeze policy
-- [x] Distributed tracing across the money path — Tempo + OTLP (ADR 0022), W3C trace context propagated through Kafka (app PR #14)
+- [x] Distributed tracing across the money path — Tempo + OTLP (ADR 0022), W3C trace context propagated through Kafka (app PR #14), searchable by exact order ID
 
 ## Chaos experiments
 

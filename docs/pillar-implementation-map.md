@@ -214,16 +214,23 @@ path: **config** `docs/adr/0026-progressive-delivery-canary-bluegreen.md` §"DOR
 delivery strategies". (Rolling is still what the promoted stable track does under the
 hood — deliberately, off the traffic-decision path.)
 
-### Observability (RED, USE, symptom-based alerts)
-GitOps-delivered Grafana dashboards (ConfigMaps via sidecar): a money-path RED
-dashboard (incl. circuit-breaker state panel) and a USE/infrastructure dashboard.
+### Observability (SLO, RED, order lifecycle, trace lookup, USE, symptom-based alerts)
+GitOps-delivered Grafana dashboards (ConfigMaps via sidecar): an SLO overview, a
+money-path RED dashboard (incl. circuit-breaker state panel), an order-lifecycle
+dashboard for accepted → authorized → notified convergence, an exact order-ID trace
+lookup with an embedded Tempo waterfall, and a USE/infrastructure dashboard. The SLO
+overview keeps the ratified 30-day objective visible while labelling fixed-window
+statistics as 7-day evidence because that is the current Prometheus retention. The
+lifecycle dashboard deliberately labels notification/accepted as an operational proxy
+rather than an SLI: exact order-state counts and oldest-in-flight age still require
+bounded-cardinality application metrics.
 Alerts are symptom-based only: multi-window error-budget **burn-rate** rules
 (14× fast-burn pages, 6× slow-burn tickets), `CheckoutHighErrorRate`,
 `CheckoutHighP95Latency`, `KafkaConsumerLagHigh`, service-down rules; CPU appears
 only as a non-paging capacity ticket. Scraping via per-service `ServiceMonitor`s
 (`/actuator/prometheus`, Micrometer).
 
-- **config** `deploy/charts/eurotransit/dashboards/red-money-path.json`, `use-infrastructure.json` (+ `templates/observability/grafana-dashboards.yaml`)
+- **config** `deploy/charts/eurotransit/dashboards/slo-overview.json`, `red-money-path.json`, `order-lifecycle.json`, `order-trace.json`, `use-infrastructure.json` (+ `templates/observability/grafana-dashboards.yaml`)
 - **config** `deploy/charts/eurotransit/templates/orders/prometheusrule.yaml` — SLI recording rules + burn-rate alerts; also `inventory/` and `payments/` prometheusrules, `observability/prometheusrule-capacity.yaml`
 - **config** `deploy/charts/eurotransit/templates/*/servicemonitor.yaml`
 - **config** `platform/monitoring/kube-prometheus-stack.yaml` — the stack itself
@@ -235,16 +242,24 @@ alerting, deploy-freeze policy, and the 429-excluded ruling. These numbers drive
 alert thresholds, dashboard panels, and the canary gate.
 
 - **config** `docs/design/slo-definitions.md` — single source of truth
+- **config** `deploy/charts/eurotransit/dashboards/slo-overview.json` — objective,
+  current SLI evidence, remaining-budget proxy, and multi-window burn state
 - **config** `deploy/charts/eurotransit/templates/orders/prometheusrule.yaml` — the SLIs implemented
 
 ### Distributed tracing across the money path
 OpenTelemetry via Micrometer tracing bridge, spans exported over OTLP to **Tempo**
 (in `monitoring`), Grafana as the query UI. W3C trace context is propagated through
 Kafka headers, so one trace answers "where did this order spend its time" across
-gateway → Orders → Inventory/Payments → Kafka stages → Notifications.
+gateway → Orders → Inventory/Payments → Kafka stages → Notifications. Orders tags the
+active checkout span with trace-only `order.id`; the order-trace dashboard uses it to
+find the propagated trace and render the waterfall. It is deliberately not a
+Prometheus label.
 
 - **config** `docs/adr/0022-distributed-tracing-tempo-otlp.md`; `platform/monitoring/tempo.yaml`
+- **config** `deploy/charts/eurotransit/dashboards/order-trace.json`
 - **app** `backend/*/src/main/resources/application.yml` — OTLP exporter endpoint; tracing deps in `build.gradle.kts` (app PR #14 for Kafka propagation)
+- **app** `backend/orders-service/.../observability/OrderTraceTagger.kt` — attaches
+  `order.id` to the active checkout trace
 - **config** `deploy/charts/eurotransit/templates/shared/networkpolicy.yaml` — egress rule allowing span export
 
 ### Chaos experiments (proof under failure)
