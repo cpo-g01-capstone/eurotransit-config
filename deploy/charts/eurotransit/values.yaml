@@ -97,7 +97,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "bbb1d60"
+    tag: "26c5217"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -182,7 +182,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "68ff1b2"
+    tag: "26c5217"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
