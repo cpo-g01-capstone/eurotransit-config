@@ -1,5 +1,5 @@
 {
-  "__comment": "EuroTransit order trace dashboard — paste an order ID, find the trace whose Orders request span carries span.order.id, select the result, and render the complete trace traversal in an embedded Grafana traces panel.",
+  "__comment": "EuroTransit order trace dashboard — paste an order ID, find the trace(s) whose spans carry span.order.id (checkout request, every Kafka consumer stage, Payments authorize), select a result, and render the complete trace traversal in an embedded Grafana traces panel. One row = healthy single trace; multiple rows = the chain broke at a stage boundary.",
   "title": "EuroTransit — Trace an order",
   "uid": "eurotransit-order-trace",
   "tags": ["eurotransit", "orders", "tempo", "trace"],
@@ -62,14 +62,14 @@
       "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "### 1. Paste the order ID above · 2. Select the matching row · 3. Read the waterfall below\nThe expected happy path is **Orders accept → `order-placed` → Inventory reserve → `inventory-reserved` → Orders call Payments → `payment-authorized` → Orders confirm → `order-confirmed` → Notifications**.\n\nThe lookup uses the high-cardinality Tempo span attribute `order.id`; it is deliberately **not** a Prometheus label. Widen the dashboard time range if the order is older than the current 6-hour view; Tempo currently retains 48 hours. Newly accepted traces can continue receiving Kafka spans after the HTTP root span has ended, so refresh while an order is still progressing."
+        "content": "### 1. Paste the order ID above · 2. Select the matching row · 3. Read the waterfall below\nThe expected happy path is **Orders accept → `order-placed` → Inventory reserve → `inventory-reserved` → Orders call Payments (`POST /payments/authorize`, sync + traceparent) → `payment-authorized` → Orders confirm → `order-confirmed` → Notifications** — normally ONE trace rooted at the checkout `POST /orders` span.\n\nEvery stage tags `span.order.id` (checkout request, each Kafka consumer, the Payments authorize span), so if the search returns **multiple rows for one order**, the trace chain is broken at the stage where one fragment ends and the next begins — that is a finding, not a search problem. The stage table below lists every tagged span across all fragments.\n\n`order.id` is a high-cardinality Tempo attribute; it is deliberately **not** a Prometheus label. Widen the time range if the order is older than the 6-hour view (Tempo retains 48 h). A trace keeps receiving Kafka spans after the HTTP root span ends, so refresh while an order is still progressing."
       }
     },
     {
       "id": 2,
       "type": "table",
-      "title": "Trace matching order $order_id",
-      "description": "The Orders checkout span is tagged with order.id once the generated or idempotently replayed ID is known. Select any cell and choose 'Show trace path below' to populate the embedded waterfall.",
+      "title": "Traces matching order $order_id",
+      "description": "Traces containing at least one span tagged with order.id — normally exactly one, rooted at the Orders checkout request. Multiple rows mean the producer/consumer trace chain broke between stages. Select any cell and choose 'Show trace path below' to populate the embedded waterfall.",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 5 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": {
@@ -99,11 +99,45 @@
       }]
     },
     {
+      "id": 4,
+      "type": "table",
+      "title": "Order $order_id — tagged stage spans",
+      "description": "Every span carrying span.order.id, across ALL trace fragments: checkout request, each Kafka consumer stage, and the Payments authorize call. Read it top-to-bottom as the order's journey; a stage missing here means that stage has not run (or failed before its span was tagged).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "fieldConfig": {
+        "defaults": {
+          "links": [{
+            "title": "Show trace path below",
+            "url": "/d/eurotransit-order-trace/order-trace?var-order_id=$order_id&var-trace_id=${__data.fields.traceID}&from=${__from}&to=${__to}"
+          }]
+        },
+        "overrides": [{
+          "matcher": { "id": "byName", "options": "Duration" },
+          "properties": [{ "id": "unit", "value": "ns" }]
+        }]
+      },
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Start time", "desc": false }]
+      },
+      "targets": [{
+        "datasource": { "type": "tempo", "uid": "tempo" },
+        "queryType": "traceql",
+        "query": "{ span.order.id = \"$order_id\" }",
+        "limit": 20,
+        "spss": 20,
+        "tableType": "spans",
+        "refId": "A"
+      }]
+    },
+    {
       "id": 3,
       "type": "traces",
       "title": "Order $order_id — complete trace path",
       "description": "Full trace traversal for the selected trace ID. Expand spans to inspect service, Kafka, HTTP, duration, status, and attributes; use the critical-path control to highlight the latency-dominant chain.",
-      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 15 },
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 23 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
       "options": {},
