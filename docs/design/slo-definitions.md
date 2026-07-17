@@ -45,20 +45,6 @@ promotion criteria (ADR 0026). Any change requires a new team vote.
   back within budget. Platform/observability changes and bug fixes that restore the budget are
   exempt. This is the link between SLOs and progressive delivery.
 
-## Dashboard evaluation window
-
-- The SLO contract remains a **30-day rolling window**. The Grafana SLO overview does
-  not redefine it.
-- Prometheus currently retains **7 days** of metrics
-  (`platform/monitoring/kube-prometheus-stack.yaml`). Consequently, fixed-window
-  dashboard stats are labelled **available 7d** and the displayed remaining error
-  budget is explicitly a **7-day proxy**, not proof of 30-day compliance.
-- The 5 min / 1 h / 6 h multi-window burn-rate panels and alerts are fully supported by
-  current retention.
-- A truthful 30-day compliance view requires at least 30 days of Prometheus retention
-  or a long-term metrics store. That capacity/platform choice requires team review; the
-  dashboard must not silently present seven days as thirty.
-
 ## What to instrument (do not over-instrument)
 
 - Latency SLO → request **latency histogram** (`http_server_requests_seconds_bucket`), p95 via `histogram_quantile`.
