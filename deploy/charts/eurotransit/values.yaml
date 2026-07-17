@@ -97,7 +97,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "691ace2"
+    tag: "0ec6e24"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
@@ -149,7 +149,7 @@ orders:
 inventory:
   image:
     repository: eurotransit/inventory
-    tag: "66fafcf"
+    tag: "0ec6e24"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -182,7 +182,7 @@ inventory:
 payments:
   image:
     repository: eurotransit/payments
-    tag: "26c5217"
+    tag: "0ec6e24"
     pullPolicy: IfNotPresent
   # No replicaCount: the HPA owns replicas (baseline = hpa.minReplicas).
   resources:
@@ -214,7 +214,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "bbb1d60"
+    tag: "0ec6e24"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
