@@ -214,7 +214,7 @@ payments:
 notifications:
   image:
     repository: eurotransit/notifications
-    tag: "0ec6e24"
+    tag: "8f6c17c"
     pullPolicy: IfNotPresent
   replicaCount: 1
   resources:
