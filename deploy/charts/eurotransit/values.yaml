@@ -97,7 +97,7 @@ catalog:
 orders:
   image:
     repository: eurotransit/orders
-    tag: "26c5217"
+    tag: "691ace2"
     pullPolicy: IfNotPresent
   replicaCount: 2
   resources:
